@@ -1,0 +1,44 @@
+digraph{
+center = true
+compound = true
+size = "7.5,10"
+page = "8.5,11"
+
+raw [label = "Raw data" shape = "record"]
+prep [label = "Data preparation | {Recodes | Pre-edits}" shape = "Mrecord"]
+{rank=same
+dataprep [label = "Prepped data" shape = "record"]
+adrec [label = "AdRec" shape = "box" style = "dashed"]
+}
+
+	subgraph cluster_impute{
+		label="Imputation"
+		style="rounded"
+
+		subgraph cluster_engine{
+			label = "Engine"
+			style = "rounded"
+			zeros [label = "Consistency Rules" shape = "box" style = "rounded"]
+			method [label = "Multiple-Imputation\nMethod | {Hot Deck|Regression|CART|Others}" shape = "Mrecord"]
+
+			method -> zeros [style = dotted]
+			zeros-> method [style = dotted]
+		}
+
+		datatype [label = "{Data Types|{<inconsistent>Inconsistent|<missing>Missing|<risk>Sensitive}}" shape = "record"]
+
+		impbottom [style = invisible]
+
+		"datatype":risk -> zeros [lhead=cluster_engine minlen=2]
+		"datatype":inconsistent -> zeros [lhead=cluster_engine minlen=2]
+		"datatype":missing -> zeros [lhead=cluster_engine minlen=2]
+		method -> impbottom [style = invis]
+	}
+
+	postimp [label = "{Multiply-\nImputed data|{||||}}" shape = "record"]
+
+	raw -> prep -> dataprep
+	dataprep -> "datatype":missing:n[lhead=cluster_impute minlen=2]
+	adrec -> "datatype":missing:n[lhead=cluster_impute minlen=2 style = "dashed"]
+	impbottom -> postimp[ltail=cluster_impute minlen=2]
+}

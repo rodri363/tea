@@ -1,0 +1,14 @@
+A brief overview of the algorithm. Note that the method is based heavily on subgroups.
+
+   --For each observation
+        Find other observations where the age/race/whatever is the same
+        --The subsets are generated via SQL.
+            --create a one-observation table.
+            --for each element of the table of possible constraints,
+                --D = select * from one-observation table where constraint
+                --if D is not NULL, then the constraint is OK.
+            --Now string together valid constraints to form a query; use that to pull the
+                    NULL and not-NULL parts.
+            --use the not-null parts to fill the model.
+        Use that group to estimate the imputation model.
+        Make multiple draws from the model, write to the fill table.

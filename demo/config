@@ -1,0 +1,60 @@
+
+# This is a sample configuration file to accompany the 
+# tutorial introduction to PEP.
+
+# The input file, ss08pdc.csv, is the PUMS for DC, 2008.
+# Errors have been inserted into the sample file for 
+# demonstration purposes
+
+# This file describes how that file will be read in,
+# what consistency rules will be imposed, and how 
+# some output tables will be put out.
+
+
+database: test.db
+table: dc_pums
+
+
+|tax 21400-21600
+|age 0-100
+
+checks {
+	include: checks
+}
+
+input {
+	infile{ ss08pdc.csv}
+	table: dc_pums
+}
+
+
+raking {
+	table: dc_pums
+	all_vars: age | sex | tax 
+	contrasts: age | sex 
+}
+
+include: newtest
+
+recodes {
+	agecat {
+		0 | age between 0 and 10
+		1 | age between 11 and 10
+		2 | age 0-12
+		3 | 
+
+		}
+
+	agecat {
+		}
+
+	agecat {
+		variable: age
+		0  | 0 - 10
+		1 | 11 - 20
+		2  | 21 - 64
+		3  | 65- 200
+   		NA | 
+
+		}
+}

@@ -1,0 +1,30 @@
+-------------------------------------
+What you need to know to read and compile the package:
+
+TEA now has a two-stage build process. The first stage uses all sorts of tricks to builds a standard R package, and the second stage uses standard R tools to compile the standard R package.
+After you check out (via git clone /cenwork/tea , or git pull in your already-extant tea directory) then just run
+make
+in the base directory. A {package base}/tea/ directory gets generated and filled with those things (and only those things) that go into an R package. make will then run R CMD check/build/install as well.
+
+You can call
+make nodoc
+to compile without documentation, which saves a minute or two.
+
+You can also call
+make clean 
+to delete the {package base}/tea/ directory that just got generated, along with some other temp files that got made along the way. I tell you this to stress that when making changes, make them in the {package base}/R, c, doc, tests, ... directories, not the second-stage {package base}/tea directory, which is considered to be disposable, to be re-generated whenever desired.
+
+
+
+-------------------------------------
+A possibly overwhelming quantity of details about the state of the package (i.e., the to-do list):
+
+--After the tea pkg is generated, you'll see tea/inst/doc/tea-overview.pdf. This document is generated via a makefile in the {base project directory}/doc directory. This is currently the sales-pitch document, but should also be 100% of what a user needs to read for a simple survey processing problem.
+--It's based on {pkg base}/doc/tea.tex, which is not particularly well written or complete; please edit.
+--The appendix--a comprehensive list of the keys one could put in a spec file---is not quite comprehensive; ask me about the format, or check R/doPEP.R for lines beginning with #\key for examples.
+
+--There are tests in the {project base}/tests-fix directory; and because none run automatically, they are out of date and we're lucky if they run at all. If you get one working, git mv it to the {project base}/tests directory and it'll get installed with the R pkg and run. 
+
+A good test includes assertions that will halt on failure. You can  produce a {yourtest}.Rout.save file, and the build system will then check the test output with that file for differences, but (1) this is chintzy because it just guarantees that the install machine made the same errors the package-generating machine had made, and (2) the R build system doesn't halt if there are differences, but just records a warning. 
+
+--We have a demo. It may or may not be running right now. However, it certainly won't run via the demo() function in R.

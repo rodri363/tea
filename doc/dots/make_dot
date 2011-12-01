@@ -1,0 +1,7 @@
+for i in eps svg;
+do
+dot -T$i < test.dot > test.$i
+dot -T$i < flow.dot > flow.$i
+dot -T$i -Gsplines=line < pepflow.dot > pepflow.$i
+dot -T$i -Gsplines=line < engine.dot > engine.$i
+done

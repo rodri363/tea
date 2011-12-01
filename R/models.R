@@ -1,0 +1,411 @@
+#' Given a gam fit (either from gam or step.gam),
+#' Do predictive mean matching using gam.predict object
+#' and (possibly) consistency rules.  To use consistency rules,
+#' gam.predict$data needs to have all variables used by the
+#' consistency checking system
+#' @param gam.fit = a model fit as returned by the gam() function
+#' @param data = a data frame.  The data frame must contain all the variables
+#' promised by gam.fit.  The data frame need not contain the same number of
+#' observations as the data used in the original fit.
+#' @param edit.vars = A character vector containing the variables used in the
+#' consistency checking system.  Defaults to NULL, which implies no checking
+#' @param db = A string giving the database used for the consistency checking system.
+#' Defaults to NULL, which implies no checking.
+#' @param niter = Integer giving the total iterations allow for the consistency checking and
+#' bounds checking systems.  Defaults to 10.
+#' @param kround = Integer giving the number of digits used for rounding synthetic values.
+#' Defaults to 0, which is to the nearest integer.
+#' @param v.floor = A string giving the variable in the data frame that gives
+#' a floor for the synthetic value of reach record.  Default is NULL,
+#' which implies a floor of -Inf.
+#' @param v.ceiling = A string giving the variable in the data frame that gives
+#' a ceiling for the synthetic value of reach record.  Default is NULL,
+#' which implies a ceiling of Inf.
+#'
+#' @return a data frame of the same dimensions as data, with synthetic values
+#' inserted for the response variable.
+PEP.gam.syn.pmm <- function(gam.fit,data,edit.vars=NULL,db=NULL,niter=10,kround=0,
+	v.floor=NULL,v.ceiling=NULL){
+	lhs  <- all.vars(gam.fit$formula)[1]
+	print(gam.fit$formula)
+	originals <- data[,lhs] #store original values
+	predicted <- predict.gam(gam.fit,newdata=data,type="link")
+	if(inherits(predicted,"try-error")) stop("prediction not successful")
+	#sigma not needed in this method
+	#sigma <- sqrt(sum(fit$residuals^2)/fit$df.residual)
+	dists <- as.matrix(dist(predicted)) #get distances of fitted valued
+	diag(dists) <- Inf #set diagonal to infinity
+	dists[is.na(dists)] <- Inf #set NA values to infinity
+	#find maximal -distance, so minimal distance. diag is inf, so will never be minimal
+	donors <- max.col(-dists)
+	donvals <- originals[donors]
+	data[,lhs] <- round(donvals,kround)
+
+	#if no checking to be done, done!
+	if(all(is.null(v.floor),is.null(v.ceiling),is.null(edit.vars))){
+		return(data)
+	}else{
+		#check to see if all edit vars are avaiable!
+		if(!is.null(edit.vars) & !all(edit.vars %in% names(data))){
+			stop(paste("Couldn't find",
+					paste(setdiff(edit.vars,names(data)),collapse=","),
+					"in the data!  Can't do consistency checking."))
+		}
+		if(!is.null(db)) con <- dbConnect(dbDriver("SQLite"),db)
+		if(is.null(db)) stop("Can't do consistency without a database connection")
+		efail <- 1
+		ffail <- 1
+		cfail <- 1
+		iter <- 1
+		#note that logical() gives FALSE as default
+		#start off with everything failing
+		edit.fail <- !logical(nrow(data))
+		floor.fail <- !logical(nrow(data))
+		ceiling.fail <- !logical(nrow(data))
+		edit.vals <- mapply(as.matrix,data[,edit.vars])
+		while(any(efail > 0,ffail>0,cfail>0) & iter<=niter){
+			#method: check values for consistency
+			#for any row that fails
+				#set the row/donor entry of the dists matrix to -inf
+				#go again
+			#do the grunt up from work of getting good values to send into system
+			if(!is.null(edit.vars) & efail > 0){
+				edit.sub <- as.logical(apply(edit.vals[edit.fail,,drop=FALSE],1,CheckConsistency,
+						vars=edit.vars,what_you_want="passfail",con=con))
+				edit.fail[edit.fail] <- edit.sub
+			}else{
+				edit.fail <- logical(nrow(data))
+			}
+			if(!is.null(v.floor) & ffail > 0){
+				floor.sub <- data[floor.fail,lhs] < data[floor.fail,v.floor]
+				floor.fail[floor.fail] <- floor.sub
+			}else{
+				floor.fail <- logical(nrow(data))
+			}
+			if(!is.null(v.ceiling) & cfail > 0){
+				ceiling.sub <- data[ceiling.fail,lhs] > data[ceiling.fail,v.ceiling]
+				ceiling.fail[ceiling.fail] <- ceiling.sub
+			}else{
+				ceiling.fail <- logical(nrow(data))
+			}
+			all.fail <- edit.fail | floor.fail | ceiling.fail
+			#set anything that failed back to original values
+			data[all.fail,lhs] <- originals[all.fail]
+			#set distances to Inf for bad donors
+			dists[cbind(which(all.fail),donors[all.fail])] <- Inf
+			efail <- sum(edit.fail)
+			ffail <- sum(floor.fail)
+			cfail <- sum(ceiling.fail)
+			#draw new donors with new Infs in place
+			donors <- max.col(-dists)
+			donvals <- originals[donors]
+			#put in new donors for failed records
+			data[all.fail,lhs] <- donvals[all.fail]
+			#NEED TO RECOMPUTE FAILURE OVERALL; CAN'T DEPEND ON JUST THE SUB.FAILS!
+			edit.vals <- mapply(as.matrix,data[,edit.vars])
+			#print(edit.vals)
+			if(!is.null(edit.vars) & efail > 0){
+				edit.fail <- as.logical(apply(edit.vals[!logical(nrow(data)),,drop=FALSE],1,CheckConsistency,
+					vars=edit.vars,what_you_want="passfail",con=con))
+			}
+			if(!is.null(v.ceiling) & cfail > 0) ceiling.fail <- data[,lhs] > data[,v.ceiling]
+			if(!is.null(v.floor) & ffail > 0) floor.fail <- data[,lhs] < data[,v.floor]
+			efail <- sum(edit.fail)
+			ffail <- sum(floor.fail)
+			cfail <- sum(ceiling.fail)
+			#print(paste("There are",sum(is.infinite(dists)),"infinite cells"))
+			iter <- iter+1
+		}
+
+		if(!is.null(v.ceiling)) ceiling.fail <- data[,lhs] > data[,v.ceiling]
+		if(!is.null(v.floor)) floor.fail <- data[,lhs] < data[,v.floor]
+		efail <- sum(edit.fail)
+		ffail <- sum(floor.fail)
+		cfail <- sum(ceiling.fail)
+		all.fail <- edit.fail | floor.fail | ceiling.fail
+			
+		print(paste("Out of",nrow(data),"records there were:"))
+		print(paste("There were",efail,"inconsistent draws"))
+		print(paste("There were",ffail,"draws under the floor"))
+		print(paste("There were",cfail,"draws above the ceiling"))
+		#put back the remaining inconsistent records to original values
+		print("Failures")
+		print(data[all.fail,c(lhs,v.floor,v.ceiling)])
+		data[all.fail,lhs] <- originals[all.fail]
+		print("Reset values")
+		print(data[all.fail,c(lhs,v.floor,v.ceiling)])
+		print("All values")
+		print(data[,c(lhs,v.floor,v.ceiling)])
+		print("Originals")
+		print(originals)
+		if(!is.null(con)) dbDisconnect(con)
+		return(data)
+	}
+}
+
+#' Given a multinom fit (either from multinom or stepAIC),
+#' create maximum likelihood-based synthetic data
+#' using (possibly) consistency rules.  To use consistency rules,
+#' the data frame must have all variables used by the
+#' consistency checking system
+#' @param multinom.fit = a model fit as returned by the multinom() function
+#' @param data = a data frame.  The data frame must contain all the variables
+#' promised by multinom.fit.  The data frame need not contain the same number of
+#' observations as the data used in the original fit.
+#' @param edit.vars = A character vector containing the variables used in the
+#' consistency checking system.  Defaults to NULL, which implies no checking
+#' @param db = A string giving the database used for the consistency checking system.
+#' Defaults to NULL, which implies no checking.
+#' @param niter = Integer giving the total iterations allow for the consistency checking system.  Defaults to 10.
+#' @param rescale = Logical indicating whether to 'zero-out' probabilities associated
+#' with inconsistent draws, and rescale the remaining probabilities to sum to 1.  Default is FALSE.
+#'
+#' @return a data frame of the same dimensions as data, with synthetic values
+#' inserted for the response variable.
+
+PEP.multinom.syn.ml <- function(multinom.fit,data,edit.vars=NULL,db=NULL,niter=10,rescale=FALSE){
+	lhs  <- all.vars(multinom.fit$call$formula)[1]
+	print(multinom.fit$call$formula)
+	levs <- multinom.fit$lev
+	originals <- data[,lhs] #store original values
+	probs <- as.matrix(predict(multinom.fit,data,"probs")) #draw new vals based on fit
+	#if only 2 levels, add back in dropped level probs
+	if(ncol(probs)==1) probs <- cbind(1-rowSums(probs),probs)
+	#return NA for any bad draws
+	f.tmp <- function(x){
+	    xtry <- try(sample.int(length(x),1,prob=x),silent=TRUE)
+		if(inherits(xtry,"try-error")) xtry <- NA
+		return(xtry)
+	}
+	probIdx <- apply(probs,1,function(x) return(f.tmp(x)))
+	predicted <- levs[probIdx]
+	data[,lhs] <- predicted
+	if(is.null(edit.vars)){
+		return(data)
+	}else{
+		if(!all(edit.vars %in% names(data))){
+			stop(paste("Couldn't find",
+					paste(setdiff(edit.vars,names(data)),collapse=","),
+					"in the data!  Can't do consistency checking. Here are the data columns:",
+					paste(names(data),collapse=" , ")))
+		}
+		if(!is.null(db)) con <- dbConnect(dbDriver("SQLite"),db)
+		if(is.null(db)) stop("Can't do consistency without a database connection")
+		nfail <- 1
+		iter <- 1
+		edit.fail <- !logical(nrow(data))
+		edit.vals <- mapply(as.matrix,data[,edit.vars])
+		while(nfail > 0 & iter<=niter){
+			#method: check values for consistency
+			#for any row that fails
+				#set the row/donor entry of the dists matrix to -inf
+				#go again
+			edit.sub <- as.logical(apply(edit.vals[edit.fail,,drop=FALSE],1,CheckConsistency,
+					vars=edit.vars,what_you_want="passfail",con=con))
+			edit.fail[edit.fail] <- edit.sub #this should work, really!
+			#reset values for bad records
+			data[edit.fail,lhs] <- originals[edit.fail]
+			nfail <- sum(edit.fail)
+			#redraw new values
+			probs <- as.matrix(predict(multinom.fit,data,"probs"))
+			if(ncol(probs)==1) probs <- cbind(1-rowSums(probs),probs)
+			#zero out previously bad draws the rescale probabilities?
+			#note this is done for all rows, so make sure to use edit.fail
+			#to select proper rows
+			#if only 1 column, don't rescale
+			if(rescale & ncol(probs)>1){
+				#print("Re-scaling probabilities")
+				probs[matrix(c(1:nrow(probs),probIdx),nrow=nrow(probs),byrow=FALSE)] <- 0
+				probs <- probs/rowSums(probs)
+			}
+			probIdx <- apply(probs,1,function(x) return(f.tmp(x)))
+			predicted <- levs[probIdx]
+			#replaced failed records again
+			data[edit.fail,lhs] <- predicted[edit.fail]
+			iter <- iter+1
+		}
+		print(paste("Out of",nrow(data),"records there were:"))
+		print(paste(nfail,"inconsistent draws"))
+		#put back the remaining inconsistent records to original values
+		data[edit.fail,lhs] <- originals[edit.fail]
+		if(!is.null(con)) dbDisconnect(con)
+		return(data)
+	}
+}
+
+#' Given a model formula and a data frame, fit a multinomial model
+#' via the MCMCmnl() function and return a list of items to be used
+#' by TEA.predict.MCMCmnl
+#' @param Formula = a formula object
+#' @param DFmod = a data frame on which to perform modeling
+#' @return a list containing the following named items
+#' Fit: a matrix of posterior parameter draws returned by MCMCmnl
+#' Formula: the formula given as an argument
+#' Mmod: a model matrix generated by model.matrix(multinom(Formula,DFmod))
+#' Llev: the levels/unique values for every factor/character variable referenced in Formula
+
+TEA.fit.MCMCmnl <- function(Formula,DFmod){
+	Fit <- try(MCMCmnl(Formula,data=DFmod))
+	if(inherits(Fit,"try-error")) stop(paste("MCMCmnl() on",Formula,"did not work for given data"))
+	Fitml <- try(multinom(Formula, data=DFmod))
+	if(inherits(Fit,"try-error")) stop(paste("multinom() on",Formula,"did not work for given data"))
+	Mmod <- model.matrix(Fitml)
+	#levels of response
+	Vvar <- all.vars(Formula)
+	flev <- function(var){
+		if(is.character(DFmod[,var])) return(levels(factor(DFmod[,var])))
+		if(is.factor(DFmod[,var])) return(levels(DFmod[,var]))
+		return(NA)
+	}
+	Llev <- sapply(Vvar,flev)
+	return(list(Fit=Fit,Formula=Formula,Mmod=Mmod,Llev=Llev))
+}
+
+#' Draw posterior predictive values from an MCMCmnl fit.
+#' Made to work nicely with a return object from TEA.fit.MCMCmnl
+#' (via do.call() by addition of a "DFsub" element to the list returned by TEA.fit.MCMCnl),
+#' but can be used manually.
+#' @param Fit = a matrix of posterior parameter draws returned by MCMCmnl
+#' @param Formula = the formula used to generate Fit
+#' @param Mmod = a model matrix, typically generated by model.matrix(),
+#' but can be any matrix that has column names conforming to Formula.
+#' @param Llev = the levels/unique values for every factor/character variable referenced in Formula.
+#' Used to match levels of predicted data with that of the fitting data.  New levels in
+#' predicted data will cause an error; missing levels will accounted for.
+#' @param kzero = logical constant.  If TRUE, negative probabilities will be set to 0 and the set of probabilities
+#' re-weighted.  If FALSE, errors due to negative probabilities will occur.
+#' @return a vector containing the posterior predictive draws
+
+TEA.predict.MCMCmnl <- function(Fit,Formula,Mmod,Llev,DFsub,kzero=TRUE){
+	#check levels of subset versus model
+	#new levels in subset means error
+	#missing levels means add to levels
+	flev <- function(var){
+		Vret <- DFsub[,var]
+		Lret <- list(Vret)
+		names(Lret) <- var
+		if(is.character(DFsub[,var])) Vsub <- levels(factor(DFsub[,var]))
+		if(is.factor(DFsub[,var])) Vsub <- levels(DFsub[,var])
+		#if a numeric var, just return values
+		else return(Lret)
+		#see if there are new levels
+		Vvar <- Llev[[var]]
+		if(is.null(Vvar)) stop("Couldn't find variable",var,"in levels list")
+		if(length(setdiff(Vsub,Vvar))>0) stop(paste("New levels found for",var,"in prediction data set"))
+		#add missing levels
+		if(length(setdiff(Vvar,Vsub))>0){
+			Vret <- factor(DFsub[,var],levels=c(levels(factor(DFsub[,var])),setdiff(Vvar,Vsub)))
+			Lret <- list(Vret)
+			names(Lret) <- var
+			return(Lret)
+		}
+		else return(Lret)
+	}
+	DFsub <- as.data.frame(lapply(all.vars(Formula),flev))
+	Msub <- TEAConformMatrix(model.matrix(Formula,DFsub),Mmod)
+	#get parameter rows; these are constant across response levels
+	#Vrow <- sample(1:nrow(Fit),nrow(Msub),replace=TRUE)
+	#same row for all!
+	Vrow <- rep(sample(1:nrow(Fit),1),nrow(Msub))
+	Mp <- NULL
+	#do prediction for a single response level
+	#leave out first level of response
+	Vlev <- Llev[[all.vars(Formula)[1]]]
+	for(ldx in 2:length(Vlev)){
+		klev <- Vlev[ldx]
+		Vcol <- grep(paste("[.]",klev,sep=""),colnames(Fit))
+		#params for each row
+		Mlev <- Fit[Vrow,Vcol]
+		Vlogits <- diag(Msub %*% t(Mlev)) #logits
+		Vp <- exp(Vlogits)/(1+exp(Vlogits)) #probs for this outcome
+		Mp <- cbind(Mp,Vp) #append to prob matrix
+	}
+	Mp <- cbind(1-rowSums(Mp),Mp) #complete prob matrix
+	if(kzero){
+		Mp[Mp<0] <- 0
+		Mp <- Mp/rowSums(Mp)
+	}
+	Vdraw <- apply(Mp,1,function(Vp) return(sample(Vlev,1,prob=Vp)))
+	return(Vdraw)
+}
+
+#' Given a model formula and a data frame, fit a linear regression model
+#' via the MCMCregress() function and return a list of items to be used
+#' by TEA.predict.MCMCregress
+#' @param Formula = a formula object
+#' @param DFmod = a data frame on which to perform modeling
+#' @return a list containing the following named items
+#' Fit: a matrix of posterior parameter draws returned by MCMCregress
+#' Formula: the formula given as an argument
+#' Mmod: a model matrix generated by model.matrix(lm(Formula,DFmod))
+#' Llev: the levels/unique values for every factor/character variable referenced in Formula
+TEA.fit.MCMCregress <- function(Formula,DFmod){
+	Fit <- try(MCMCregress(Formula,data=DFmod))
+	if(inherits(Fit,"try-error")) stop(paste("MCMCregress() on",Formula,"did not work for given data"))
+	Fitml <- try(lm(Formula, data=DFmod))
+	if(inherits(Fit,"try-error")) stop(paste("lm() on",Formula,"did not work for given data"))
+	Mmod <- model.matrix(Fitml)
+	#levels of response
+	Vvar <- all.vars(Formula)
+	flev <- function(var){
+		if(is.character(DFmod[,var])) return(levels(factor(DFmod[,var])))
+		if(is.factor(DFmod[,var])) return(levels(DFmod[,var]))
+		return(NA)
+	}
+	Llev <- sapply(Vvar,flev)
+	return(list(Fit=Fit,Formula=Formula,Mmod=Mmod,Llev=Llev))
+}
+
+#' Draw posterior predictive values from an MCMCregress fit.
+#' Made to work nicely with a return object from TEA.fit.MCMCregress
+#' (via do.call() by addition of a "DFsub" element to the list returned by TEA.fit.MCMCregress),
+#' but can be used manually.
+#' @param Fit = a matrix of posterior parameter draws returned by MCMCregress
+#' @param Formula = the formula used to generate Fit
+#' @param Mmod = a model matrix, typically generated by model.matrix(),
+#' but can be any matrix that has column names conforming to Formula.
+#' @param Llev = the levels/unique values for every factor/character variable referenced in Formula.
+#' Used to match levels of predicted data with that of the fitting data.  New levels in
+#' predicted data will cause an error; missing levels will accounted for.
+#' @return a vector containing the posterior predictive draws
+
+TEA.predict.MCMCregress <- function(Fit,Formula,Mmod,Llev,DFsub){
+	#check levels of subset versus model
+	#new levels in subset means error
+	#missing levels means add to levels
+	flev <- function(var){
+		Vret <- DFsub[,var]
+		Lret <- list(Vret)
+		names(Lret) <- var
+		if(is.character(DFsub[,var])) Vsub <- levels(factor(DFsub[,var]))
+		if(is.factor(DFsub[,var])) Vsub <- levels(DFsub[,var])
+		#if a numeric var, just return values
+		else return(Lret)
+		#see if there are new levels
+		Vvar <- Llev[[var]]
+		if(is.null(Vvar)) stop("Couldn't find variable",var,"in levels list")
+		if(length(setdiff(Vsub,Vvar))>0) stop(paste("New levels found for",var,"in prediction data set"))
+		#add missing levels
+		if(length(setdiff(Vvar,Vsub))>0){
+			Vret <- factor(DFsub[,var],levels=c(levels(factor(DFsub[,var])),setdiff(Vvar,Vsub)))
+			Lret <- list(Vret)
+			names(Lret) <- var
+			return(Lret)
+		}
+		else return(Lret)
+	}
+	DFsub <- as.data.frame(lapply(all.vars(Formula),flev))
+	Msub <- TEAConformMatrix(model.matrix(Formula,DFsub),Mmod)
+	#get parameter rows
+	#Vrow <- sample(1:nrow(Fit),nrow(Msub),replace=TRUE)
+	#same row for all!
+	Vrow <- rep(sample(1:nrow(Fit),1),nrow(Msub))
+	#betas
+	Mbeta <- Fit[Vrow,-ncol(Fit)]
+	#sigma
+	Vsig <- sqrt(Fit[Vrow,ncol(Fit)])
+	Vmu <- diag(Msub %*% t(Mbeta))
+	Vdraw <- rnorm(nrow(Msub),Vmu,Vsig)
+	return(Vdraw)
+}
+

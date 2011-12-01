@@ -1,0 +1,14 @@
+apop_text_to_db ss08pdc.csv dc tobug.db
+
+for i in `seq 10 10 150` ; do
+    sqlite3 tobug.db "update dc set sex=NULL where rowid = $i"
+done
+
+for i in `seq 120 3 150` ; do
+    sqlite3 tobug.db "update dc set agep=NULL where rowid = $i"
+done
+
+sqlite3 -header tobug.db "select * from dc" |sed "s/|/,/g" > dc_pums_08.csv
+
+rm tobug.db
+rm demo.db #will have to be regenerated.
