@@ -1,12 +1,12 @@
 include ~/.Renviron
 
-Pkg_dir=pkg
+Pkg_dir=pkg/tea
 
 all:  pkg
 	make docs
-	R_LIBS=$(R_LIBS) R CMD check tea
-	R_LIBS=$(R_LIBS) R CMD build tea
-	R CMD INSTALL -l ~/.Rlibs tea*.tar.gz
+	cd $(Pkg_dir)/..; R_LIBS=$(R_LIBS) R CMD check tea
+	cd $(Pkg_dir)/..; R_LIBS=$(R_LIBS) R CMD build tea
+	cd $(Pkg_dir)/..; R CMD INSTALL -l ~/.Rlibs tea*.tar.gz
 	#cp tea*.tar.gz ~/.
 	#rm -f tea*.tar.gz
 
@@ -17,7 +17,7 @@ nodoc:  pkg
 
 docs:
 	cd $(Pkg_dir) && R CMD roxygen .
-	mkdir -p tea/man
+	mkdir -p $(Pkg_dir)/man
 	mv $(Pkg_dir)/..roxygen/man/* $(Pkg_dir)/man/
 	rm $(Pkg_dir)/..roxygen -r
 	cd doc; make;
