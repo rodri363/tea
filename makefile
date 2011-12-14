@@ -12,8 +12,8 @@ all:  pkg
 
 nodoc:  pkg
 	#R_LIBS=$(R_LIBS) R CMD check tea
-	R_LIBS=$(R_LIBS) R CMD build tea
-	R CMD INSTALL -l ~/.Rlibs tea*.tar.gz
+	cd $(Pkg_dir)/..; R_LIBS=$(R_LIBS) R CMD build tea
+	cd $(Pkg_dir)/..; R CMD INSTALL -l ~/.Rlibs tea*.tar.gz
 
 docs:
 	cd $(Pkg_dir) && R CMD roxygen .
