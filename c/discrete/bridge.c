@@ -465,7 +465,19 @@ void read_spec(char **infile, char **dbname_out){
     apop_assert(yyin, "Trouble opening spec file %s.", fname);
     pass=0;
     yyparse();  //fill keys table
-	make_recode_view();
+
+    apop_data *recode_tags = apop_query_to_text("select distinct tag from keys "
+            " where key like 'recode%%' order by count");
+    if (recode_tags){
+        if (recode_tags->textsize[0]==1) make_recode_view(NULL, (char*[]){"both"});
+        else for (int i=0; i< recode_tags->textsize[0]; i++)
+            make_recode_view(recode_tags->text[i], //pointer to list of char*s.
+                        ( (i==0) ? (char*[]){"first"}
+                        : (i==recode_tags->textsize[0]-1) ? (char*[]){"last"}
+                        : (char*[]){"middle"}));
+        apop_data_free(recode_tags);
+    }
+
     pass++;
     rewind(yyin); //go back to position zero in the config file
 	lineno=1;
@@ -505,17 +517,15 @@ void get_key_text_for_R(char **group, char **key, char **out, int *is_sub){
 
 int transacting;
 void begin_transaction(){
-	if (!transacting){
-		apop_query("begin;");
-	}
-	transacting++;
-	//else, do nothing.
+	if (!transacting){ 
+        apop_query("begin;");
+        transacting++;
+    } //else, do nothing.
 }
 
 void commit_transaction(){
-	if (transacting==1){
-		apop_query("commit;");
-	}
-	transacting--;
-	//else, do nothing.
+	if (transacting){ 
+        apop_query("commit;");
+        transacting=0;
+    } //else, do nothing.
 }

@@ -81,8 +81,9 @@ Rflag.SQL <- function(con, tbl, risknames, freqthresh,
 				  vflagrtn=FALSE,vflag.name="vflags",
 				  verbose=FALSE,
 				  all=FALSE){
-if(is.null(id)) stop("Flagging needs an ID variable; if using a spec, you need input/primary_key")
-
+    id <- TEAGetKey("", "id", invalue=id, 
+            errormsg="Flagging needs an ID variable; add an 'id' key to the spec after the database name.")
+    geolist <- TEAGetKey("fingerprint", "geography list")
   #function to convert decimal to binary character
   #returns character strings with binary conversions
   #all strings are of the same length, so leading

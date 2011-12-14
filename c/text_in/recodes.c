@@ -7,29 +7,52 @@ extern int file_read;
 /* \key {group recodes/group id} The column with a unique ID for each group (e.g., household number).
  \key {group recodes/recodes} A set of recodes like the main set, but each calculation of the recode will be grouped by the group id, so you can use things like {\tt max(age)} or {\tt sum(income)}.
  */
-
-void make_recode_view(){
-	apop_data *test_for_recodes = apop_query_to_text("select distinct key from keys where "
-            " key like 'recodes%%' or key like 'group recodes/recodes%%'");
+void make_recode_view(char **tag, char **first_or_last){
+    //first_or_last may be "first", "last", "both", or "middle"
+    char *q = strdup("select distinct key from keys where "
+            " (key like 'recodes%' or key like 'group recodes/recodes%')");
+    if (tag && *tag) asprintf(&q, "%s and tag like '%%%s%%'", q, *tag);
+	apop_data *test_for_recodes = apop_query_to_text("%s", q);
+    free(q);
 	if (!test_for_recodes) return;
 	apop_data_free(test_for_recodes);
 
     if (!file_read && get_key_word("input", "input file")) text_in();
-    char *intab = get_key_word("input", "output table");
-    char *recodestr, *group_recodestr, *viewname;
-    asprintf(&viewname, "view%s", intab);
+
+    //Names are a pain: the first input should be the intab,
+    //the last output should be view[intab]
+    //but in the middle, we may chain an arbitrary number of views together,
+    //so we'll need to chain this in = last out and make up intermediate names.
+    static char *intab =NULL;
+    static char *out_name =NULL;
+    if (apop_strcmp(*first_or_last, "first") 
+           || apop_strcmp(*first_or_last, "both"))
+        intab = get_key_word("input", "output table");
+    else {//chaining from before
+        free(intab);
+        intab = strdup(out_name);
+    }
+    if (apop_strcmp(*first_or_last, "last") 
+           || apop_strcmp(*first_or_last, "both"))
+         asprintf(&out_name, "view%s", get_key_word("input", "output table"));
+    else {
+        free(out_name);
+        asprintf(&out_name, "mid%s", intab);
+    }
+
+    char *recodestr, *group_recodestr;
     char *overwrite = get_key_word("input", "overwrite");
     if (!overwrite || !strcasecmp(overwrite,"n") 
                 || !strcasecmp(overwrite,"no") 
                 || !strcasecmp(overwrite,"0") )
         {free(overwrite), overwrite = NULL;}
-    Apop_assert_c (!(!overwrite && apop_table_exists(viewname)), , 0,
-                    "Recode view %s exists and input/overwrite tells me to not recreate it.", viewname);
-
-    apop_table_exists(viewname, 'd');
+    /*Apop_assert_c (!(!overwrite && apop_table_exists(out_name)), , 0,
+                    "Recode view %s exists and input/overwrite tells me to not recreate it.", out_name);
+*/
+    apop_table_exists(out_name, 'd');
     char *rgroup="recodes", *grgroup="group recodes/recodes";
-    recodes(&rgroup, NULL, &recodestr);
-    recodes(&grgroup, NULL, &group_recodestr);
+    recodes(&rgroup, tag, &recodestr, &intab);
+    recodes(&grgroup, tag, &group_recodestr, &intab);
     if (group_recodestr){
         char *group_id= get_key_word("group recodes", "group id column");
         Apop_assert(group_id, "There's a group recodes section, but no \"group id column\" tag.");
@@ -40,10 +63,11 @@ void make_recode_view(){
                      group_id, group_recodestr, intab, group_id);
         apop_query("create view tea_record_recodes as select * %s from %s", XN(recodestr), intab);
         apop_query("create view %s as select * from tea_record_recodes r, tea_group_stats g "
-                   "where r.%s=g.%s", viewname, group_id, group_id);
+                   "where r.%s=g.%s", out_name, group_id, group_id);
     }
     else 
-        apop_query("create view %s as select * %s from %s", viewname, XN(recodestr), intab);
-//	apop_query("create table %s as select * %s from %s", viewname, XN(recodestr), intab);
-//	generate_indices(viewname); //exactly the same indices as the main tab.
+        apop_query("create view %s as select * %s from %s", out_name, XN(recodestr), intab);
+apop_opts.verbose=1;
+//	apop_query("create table %s as select * %s from %s", out_name, XN(recodestr), intab);
+//	generate_indices(out_name); //exactly the same indices as the main tab.
 }

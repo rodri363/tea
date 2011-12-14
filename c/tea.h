@@ -170,8 +170,8 @@ int get_key_float_list_tagged(char *part1, char * part2, char *tag, double **out
 void impute(char *);
 void text_in();
 
-void recodes(char **key, char** tag, char **outstring); //just the recode string
-void make_recode_view();//query to generate the view
+void recodes(char **key, char** tag, char **outstring, char **intable); //just the recode string
+void make_recode_view(char **tag, char **first_or_last);//query to generate the view
 
 void do_preedits(char **datatab);
 

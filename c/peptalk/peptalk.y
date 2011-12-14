@@ -516,7 +516,7 @@ group recodes {
 \end{lstlisting}
 */
 
-void recodes(char **key, char** tag, char **outstring){
+void recodes(char **key, char** tag, char **outstring, char **intab){
     apop_data *all_recodes;
     *outstring=NULL;
     if(tag && strlen(*tag)>0)
@@ -548,7 +548,7 @@ void recodes(char **key, char** tag, char **outstring){
         if (doedits) add_var(varname, 1, 'n');
         if (verbose)
             printf("%s recode list size: %i\n",varname,recode_list->textsize[0]);
-        for (int j=0; j < recode_list->textsize[0]; j++){
+          for (int j=0; j < recode_list->textsize[0]; j++){
             char *thisrc = recode_list->text[j][0];
             apop_data *one_rc = NULL;
             apop_regex(thisrc, "[ \t]*(([^|]|\\|\\|)+)[ \t]*(\\||$)", &one_rc);//break into delimited parts
@@ -562,9 +562,11 @@ void recodes(char **key, char** tag, char **outstring){
                 //the default category.
                 apop_assert(!has_else, "You have a recode with two default categories.");
                 if(strchr(one_rc->text[0][2], '|'))//the third paren above has a |, not just a $.
-                    xprintf(&clauses, "%s else '%s'\n", clauses?clauses:"when 0 then 0", strip(one_rc->text[0][0]) );
+                    xprintf(&clauses, "%s else '%s'\n", 
+                        clauses?clauses:"when 0 then 0", strip(one_rc->text[0][0]) );
                 else
-                    xprintf(&clauses, "%s else %s\n", clauses?clauses:"when 0 then 0", strip(one_rc->text[0][0]) );
+                    xprintf(&clauses, "%s else %s\n", 
+                        clauses?clauses:"when 0 then 0", strip(one_rc->text[0][0]) );
                 has_else ++;
             } else
                 Apop_assert(0, "This line doesn't parse right as a recode: %s", thisrc);
@@ -572,23 +574,26 @@ void recodes(char **key, char** tag, char **outstring){
                 add_to_num_list(strip(one_rc->text[0][0]));
             else {
                 if (!file_read && get_key_word("input", "input file")) text_in();
-                char *datatab = get_key_word("input", "output table");
-                apop_assert(datatab, "I need the name of the data table so I can set up the recodes."
+                if (!intab || !*intab)
+                    *intab= get_key_word("input", "output table");
+                apop_assert(intab, "I need the name of the data table so I can set up the recodes."
                                      "Put an 'output table' key in the input segment of the spec.");
 
                 char *group_id= get_key_word("group recodes", "group id column");
                 apop_data *vals = apop_regex(*key, ".*group.*")
                         ?  apop_query_to_text("select distinct(%s) from %s group by %s"
-                                            , strip(one_rc->text[0][0]), datatab, group_id)
+                                            , strip(one_rc->text[0][0]), *intab, group_id)
                         :  apop_query_to_text("select distinct(%s) from %s"
-                                            , strip(one_rc->text[0][0]), datatab);
-                if (doedits)
+                                            , strip(one_rc->text[0][0]), *intab);
+                if (doedits){
+                    parsed_type='c';
                     for (int k=0; k < vals->textsize[0]; k++)
                         add_to_num_list(strip(vals->text[k][0]));
+                }
                 apop_data_free(vals);
             }
             apop_data_free(one_rc);
-        }
+          }
         if (!has_else) asprintf(&clauses, "%s else null\n", clauses);
         comma = ',';		
         xprintf(outstring, "%s %c case %s end as %s\n", XN(*outstring), comma, strip(clauses), varname);

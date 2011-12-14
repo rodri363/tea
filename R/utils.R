@@ -238,6 +238,26 @@ PEPGetKey <- function(group, key=NULL){
 	return(vals)
 }
 
+#' Merge the value given as input to the function with the value looked up in 
+#' the spec. The function input is more immediate and so takes precedence.
+#' @param group The group in the spec that the key can be found in.
+#' @param key    The name of the key.
+#' @param invalue The value sent in by the user. 
+#' @param usekey  Give the key precedence even if the invalue is not NULL, 
+#' @param errormsg If the value is NULL at the end of this and there is an
+#'   error message, then this variable is taken as mandatory. Stop execution 
+#'   and print the message. If errormsg=NULL (the default), then if the 
+#'   variable has no set value, return NULL.
+
+TEAGetKey <- function(group="", key=NULL, invalue=NULL, errormsg=NULL, usekey=FALSE){
+    outval <- eval(invalue)
+    specvalue <- PEPGetKey(group, key)
+    if ((is.null(invalue) || usekey) && !is.null(specvalue)) outval <- specvalue
+    if (is.null(outvalue) && !is.null(errormsg))
+        stop(errormsg)
+    return(outvalue)
+}
+
 #' Make levels of two model matrices agree.
 #' @param M2 model matrix you want to conform to M1
 #' @param M1 base model matrix

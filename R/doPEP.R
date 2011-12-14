@@ -7,6 +7,10 @@ doPreedits <- function(input_table=pepenv$active_tab){
     .C("do_preedits", as.character(input_table))
 }
 
+doRecodes <- function(tag=NULL){
+    .C("make_recode_view", as.character(tag));
+}
+
 #\key {input/input file} Path to a comma-separated value (CSV) file containing
 #data to read into the database.
 #\key {input/output table} Name for the database table generated from the input file
@@ -33,7 +37,7 @@ doPreedits <- function(input_table=pepenv$active_tab){
 #'		read-in once. [Technically: if present and equal to a case-insensitive version
 #'		of No, N, or 0, I won't overwrite; if present and anything else, overwrite.]
 doInput <- function(input_file=NULL,output_table=NULL,types=NULL,primary.key=NULL,indices=NULL){
-	if(is.null(pepenv$con)) stop("You need to have a config file read in!")
+	if(is.null(pepenv$con)) stop("You need to have a spec file read in!")
 	con <- pepenv$con #for the attach-averse
     if (pepenv$verbosity > 0)
         print(dbGetQuery(con,"select * from keys"))
@@ -61,7 +65,7 @@ doInput <- function(input_file=NULL,output_table=NULL,types=NULL,primary.key=NUL
 
 doFingerprint <- function(flag.key=NULL,frequency=1,combinations=1,id=NULL,geolist=NULL,
 input_table=NULL){
-	if(is.null(pepenv$con)) stop("You need to have a config file read in!")
+	if(is.null(pepenv$con)) stop("You need to have a spec file read in!")
 	con <- pepenv$con
 	viewtbl <- getInputTable("fingerprint", input_table);
 	if(is.null(flag.key)) flag.key <- PEPGetKey("fingerprint","key")
