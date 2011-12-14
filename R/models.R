@@ -233,6 +233,22 @@ PEP.multinom.syn.ml <- function(multinom.fit,data,edit.vars=NULL,db=NULL,niter=1
 	}
 }
 
+flev <- function(var, DFmod){
+    if(is.character(DFmod[,var])) return(levels(factor(DFmod[,var])))
+    if(is.factor(DFmod[,var])) return(levels(DFmod[,var]))
+    return(NA)
+}
+
+
+# Set up prior: mvn
+# set up likelihood: multinomial
+# use apop_update to get 
+
+# mvn <- get_C_model("apop_multivariate_normal")
+# data <- apop_data_from_data_frame(...)
+# est <- estimateRapopModel(data, mvn)
+
+
 #' Given a model formula and a data frame, fit a multinomial model
 #' via the MCMCmnl() function and return a list of items to be used
 #' by TEA.predict.MCMCmnl
@@ -246,51 +262,26 @@ PEP.multinom.syn.ml <- function(multinom.fit,data,edit.vars=NULL,db=NULL,niter=1
 
 #TEA.fit.MCMCmnl <- function(Formula,DFmod){
 TEA.fit.MCMCmnl <- function(env){
-    attach(env) #Mmod can not understand env$Formula.
-	Fit <- try(MCMCmnl(Formula,data=DFmod))
-	if(inherits(Fit,"try-error")) stop(paste("MCMCmnl() on",Formula,"did not work for given data"))
-	Fitml <- try(multinom(Formula, data=DFmod))
-	if(inherits(Fit,"try-error")) stop(paste("multinom() on",Formula,"did not work for given data"))
-	Mmod <- model.matrix(Fitml)
+	Fit <- try(MCMCmnl(env$Formula,data=env$DFmod))
+	if(inherits(Fit,"try-error")) stop(paste("MCMCmnl() on", Formula, "did not work for given data"))
+    attach(env)
+	Mmod <- model.matrix(Formula,DFmod)
 	#levels of response
 	Vvar <- all.vars(Formula)
-	flev <- function(var){
-		if(is.character(DFmod[,var])) return(levels(factor(DFmod[,var])))
-		if(is.factor(DFmod[,var])) return(levels(DFmod[,var]))
-		return(NA)
-	}
-    Llev <- sapply(Vvar,flev)
+    Llev <- sapply(Vvar,flev, DFmod)
     detach(env)
     assign("Llev", Llev, envir=env)
     assign("Fit", Fit, envir=env)
     assign("Mmod", Mmod, envir=env)
-#assign("Formula", Formula, envir=env)
 }
 
-
-flev <- function(var){
-    Vret <- DFsub[,var]
-    Lret <- list(Vret)
-    names(Lret) <- var
-    if(is.character(DFsub[,var])) Vsub <- levels(factor(DFsub[,var]))
-    if(is.factor(DFsub[,var])) Vsub <- levels(DFsub[,var])
-    #if a numeric var, just return values
-    else return(Lret)
-    #see if there are new levels
-    Vvar <- Llev[[var]]
-    if(is.null(Vvar)) stop("Couldn't find variable",var,"in levels list")
-    if(length(setdiff(Vsub,Vvar))>0) stop(paste("New levels found for",var,"in prediction data set"))
-    #add missing levels
-    if(length(setdiff(Vvar,Vsub))>0){
-        Vret <- factor(DFsub[,var],levels=c(levels(factor(DFsub[,var])),setdiff(Vvar,Vsub)))
-        Lret <- list(Vret)
-        names(Lret) <- var
-        detach(env)
-        return(Lret)
-    }
-    else return(Lret)
+TEA.draw.mcmc <- function(env){
+	return(sample(1:nrow(Fit),1))
 }
 
+mcmc.mod <- new("apop_model", name="MCMC MNL",  
+                                estimate_function=TEA.fit.MCMCmnl, 
+                                draw_function=TEA.draw.mcmc)
 
 #' Draw posterior predictive values from an MCMCmnl fit.
 #' Made to work nicely with a return object from TEA.fit.MCMCmnl
@@ -308,21 +299,44 @@ flev <- function(var){
 #' @return a vector containing the posterior predictive draws
 
 #TEA.predict.MCMCmnl <- function(Fit,Formula,Mmod,Llev,DFsub,kzero=TRUE){
-TEA.predict.MCMCmnl <- function(env){
+TEA.logitish.est <- function(env){
+#Requires a parameterModel and data
     attach(env)
+    attach(env$parameterModel$env) #hack. What gets used?
+    flev <- function(var){
+        Vret <- data[,var]
+        Lret <- list(Vret)
+        names(Lret) <- var
+        if(is.character(env$data[,var])) Vsub <- levels(factor(env$data[,var]))
+        if(is.factor(env$data[,var])) Vsub <- levels(env$data[,var])
+        #if a numeric var, just return values
+        else return(Lret)
+        #see if there are new levels
+        Vvar <- Llev[[var]]
+        if(is.null(Vvar)) stop("Couldn't find variable",var,"in levels list")
+        if(length(setdiff(Vsub,Vvar))>0) stop(paste("New levels found for",var,"in prediction data set"))
+        #add missing levels
+        if(length(setdiff(Vvar,Vsub))>0){
+            Vret <- factor(env$data[,var],levels=c(levels(factor(env$data[,var])),setdiff(Vvar,Vsub)))
+            Lret <- list(Vret)
+            names(Lret) <- var
+            return(Lret)
+        }
+        else return(Lret)
+    }
 	#check levels of subset versus model
 	#new levels in subset means error
 	#missing levels means add to levels
-	DFsub <- as.data.frame(lapply(all.vars(Formula),flev))
-	Msub <- TEAConformMatrix(model.matrix(Formula,DFsub),Mmod)
+	env$data <- as.data.frame(lapply(all.vars(Formula),flev))
+	Msub <- TEAConformMatrix(model.matrix(Formula,env$data),Mmod)
 	#get parameter rows; these are constant across response levels
 	#Vrow <- sample(1:nrow(Fit),nrow(Msub),replace=TRUE)
 	#same row for all!
-	Vrow <- rep(sample(1:nrow(Fit),1),nrow(Msub))
-	Mp <- NULL
+	Vrow <- rep(RapopModelDraw(env$parameterModel),nrow(Msub))
 	#do prediction for a single response level
 	#leave out first level of response
 	Vlev <- Llev[[all.vars(Formula)[1]]]
+    Mp <- NULL
 	for(ldx in 2:length(Vlev)){
 		klev <- Vlev[ldx]
 		Vcol <- grep(paste("[.]",klev,sep=""),colnames(Fit))
@@ -337,14 +351,20 @@ TEA.predict.MCMCmnl <- function(env){
 		Mp[Mp<0] <- 0
 		Mp <- Mp/rowSums(Mp)
 	}
-	Vdraw <- apply(Mp,1,function(Vp) return(sample(Vlev,1,prob=Vp)))
+    detach(env$parameterModel$env)
     detach(env)
+    env$Mp <- Mp
+    env$Vlev <- Vlev
+}
+
+TEA.logitish.draw <- function(env){
+	Vdraw <- apply(env$Mp,1,function(Vp) return(sample(env$Vlev,1,prob=Vp)))
 	return(Vdraw)
 }
 
-mcmc.mod <- new("apop_model", name="MCMC MNL",  
-                                estimate_function=TEA.fit.MCMCmnl, 
-                                draw_function=TEA.predict.MCMCmnl)
+logitish <- new("apop_model", name="logitish",  
+                                estimate_function=TEA.logitish.est,
+                                draw_function=TEA.logitish.draw)
 
 #' Given a model formula and a data frame, fit a linear regression model
 #' via the MCMCregress() function and return a list of items to be used
@@ -365,18 +385,16 @@ TEA.fit.MCMCregress <- function(env){
 	Mmod <- model.matrix(Fitml)
 	#levels of response
 	Vvar <- all.vars(Formula)
-	flev <- function(var){
-		if(is.character(DFmod[,var])) return(levels(factor(DFmod[,var])))
-		if(is.factor(DFmod[,var])) return(levels(DFmod[,var]))
-        detach(env)
-		return(NA)
-	}
-	Llev <- sapply(Vvar,flev)
+	Llev <- sapply(Vvar,flev, DFmod)
     detach(env)
     env$Fit<-Fit
     env$Mmod<-Mmod
     env$Llev<-Llev
 }
+
+mcmc.reg <- new("apop_model", name="MCMC regression",  
+                                estimate_function=TEA.fit.MCMCregress, 
+                                draw_function=TEA.draw.mcmc)
 
 #' Draw posterior predictive values from an MCMCregress fit.
 #' Made to work nicely with a return object from TEA.fit.MCMCregress
@@ -391,28 +409,54 @@ TEA.fit.MCMCregress <- function(env){
 #' predicted data will cause an error; missing levels will accounted for.
 #' @return a vector containing the posterior predictive draws
 
-TEA.predict.MCMCregress <- function(env){
+TEA.regressish.est <- function(env){
 	#check levels of subset versus model
 	#new levels in subset means error
 	#missing levels means add to levels
     attach(env)
-#Flev is defined above.
-	DFsub <- as.data.frame(lapply(all.vars(Formula),flev))
-	Msub <- TEAConformMatrix(model.matrix(Formula,DFsub),Mmod)
+    attach(env$parameterModel)
+    flev <- function(var){
+        Vret <- env$data[,var]
+        Lret <- list(Vret)
+        names(Lret) <- var
+        if(is.character(env$data[,var])) Vsub <- levels(factor(env$data[,var]))
+        if(is.factor(env$data[,var])) Vsub <- levels(env$data[,var])
+        #if a numeric var, just return values
+        else return(Lret)
+        #see if there are new levels
+        Vvar <- Llev[[var]]
+        if(is.null(Vvar)) stop("Couldn't find variable",var,"in levels list")
+        if(length(setdiff(Vsub,Vvar))>0) stop(paste("New levels found for",var,"in prediction data set"))
+        #add missing levels
+        if(length(setdiff(Vvar,Vsub))>0){
+            Vret <- factor(env$data[,var],levels=c(levels(factor(env$data[,var])),setdiff(Vvar,Vsub)))
+            Lret <- list(Vret)
+            names(Lret) <- var
+            return(Lret)
+        }
+        else return(Lret)
+    }
+	env$data <- as.data.frame(lapply(all.vars(Formula),flev))
+	Msub <- TEAConformMatrix(model.matrix(Formula,env$data),Mmod)
 	#get parameter rows
 	#Vrow <- sample(1:nrow(Fit),nrow(Msub),replace=TRUE)
 	#same row for all!
-	Vrow <- rep(sample(1:nrow(Fit),1),nrow(Msub))
+	Vrow <- rep(RapopModelDraw(env$parameterModel),nrow(Msub))
 	#betas
 	Mbeta <- Fit[Vrow,-ncol(Fit)]
-	#sigma
-	Vsig <- sqrt(Fit[Vrow,ncol(Fit)])
-	Vmu <- diag(Msub %*% t(Mbeta))
-	Vdraw <- rnorm(nrow(Msub),Vmu,Vsig)
+    detach(env$parameterModel)
     detach(env)
+    env$Msub <- Msub
+    env$Mbeta <- Mbeta
+}
+
+TEA.regressish.draw <- function(env){
+	Vsig <- sqrt(env$parameterModel$Fit[Vrow,ncol(env$parameterModel$Fit)]) #sigma
+	Vmu <- diag(env$Msub %*% t(env$Mbeta))
+	Vdraw <- rnorm(nrow(env$Msub),Vmu,Vsig)
 	return(Vdraw)
 }
 
-mcmc.reg <- new("apop_model", name="MCMC regression",  
-                                estimate_function=TEA.fit.MCMCregress, 
-                                draw_function=TEA.predict.MCMCregress)
+regressish <- new("apop_model", name="regressish",  
+                                estimate_function=TEA.regressish.est,
+                                draw_function=TEA.regressish.draw)
