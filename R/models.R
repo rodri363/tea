@@ -413,8 +413,8 @@ TEA.regressish.est <- function(env){
 	#check levels of subset versus model
 	#new levels in subset means error
 	#missing levels means add to levels
+    attach(env$parameterModel$env)
     attach(env)
-    attach(env$parameterModel)
     flev <- function(var){
         Vret <- env$data[,var]
         Lret <- list(Vret)
@@ -444,14 +444,15 @@ TEA.regressish.est <- function(env){
 	Vrow <- rep(RapopModelDraw(env$parameterModel),nrow(Msub))
 	#betas
 	Mbeta <- Fit[Vrow,-ncol(Fit)]
-    detach(env$parameterModel)
+    detach(env$parameterModel$env)
     detach(env)
     env$Msub <- Msub
     env$Mbeta <- Mbeta
+    env$Vrow <- Vrow
 }
 
 TEA.regressish.draw <- function(env){
-	Vsig <- sqrt(env$parameterModel$Fit[Vrow,ncol(env$parameterModel$Fit)]) #sigma
+	Vsig <- sqrt(env$parameterModel$env$Fit[env$Vrow,ncol(env$parameterModel$env$Fit)]) #sigma
 	Vmu <- diag(env$Msub %*% t(env$Mbeta))
 	Vdraw <- rnorm(nrow(env$Msub),Vmu,Vsig)
 	return(Vdraw)
