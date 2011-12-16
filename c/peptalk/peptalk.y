@@ -520,15 +520,24 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
     apop_data *all_recodes;
     *outstring=NULL;
     if(tag && strlen(*tag)>0)
-        all_recodes = apop_query_to_text("select distinct key from keys where key like '%s%%' and tag ='%s'",*key, XN(tag[0]));
+        all_recodes = apop_query_to_text("select distinct key from keys where "
+                "(key like '%s%%' and key not like '%s%%no checks')"
+                " and tag ='%s'",*key,*key, XN(tag[0]));
     else
-        all_recodes = apop_query_to_text("select distinct key from keys where key like '%s%%' order by tag", *key);
+        all_recodes = apop_query_to_text("select distinct key from keys where "
+                "(key like '%s%%' and key not like '%s%%no checks')"
+                " order by tag", *key);
     if (!all_recodes || !all_recodes->textsize[0]) return;
     for(int i=0; i < all_recodes->textsize[0]; i++)
         all_recodes->text[i][0] += strlen(*key)+1;
     if (verbose) apop_data_show(all_recodes);
 
-    int new_vars = apop_query_to_float("select count(*) from (select distinct key from keys where key like '%s%%' %s%s%s", *key, tag ? "and tag='":"", tag ? *tag:"", tag ? "')": ")");
+    int new_vars = apop_query_to_float("select count(*) from (select distinct key from keys where "
+                                "(key like '%s%%' and key not like '%s%%no checks') %s%s%s "
+                                , *key, *key, tag ? "and tag='":"", tag ? *tag:"", tag ? "')": ")");
+    apop_data *editcheck = apop_query_to_text("select value from keys where "
+                "key like '%s%%no checks' %s%s%s"
+                , *key, tag ? "and tag='":"", tag ? *tag:"", tag ? "'": " ");
 
     if (!new_vars) return;
     for (int i=0; i < new_vars; i++){
@@ -538,9 +547,10 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         if (!recode_list || !recode_list->textsize[0]) return;
         
         int doedits = 1;
-        apop_data *editcheck = apop_query_to_text("select tag from keys where key = '%s/%s'", *key, varname);
-        if (editcheck && apop_regex(editcheck->text[0][0], "no.*edits")) //this and editcheck leak. Don't care.
-            doedits= 0;
+        if (editcheck)
+            for (int e=0; doedits && e<editcheck->textsize[0]; e++)
+                if (apop_regex(editcheck->text[e][0], varname))
+                    doedits= 0;
 
         //apop_assert(recode_list, "The variable %s appears in the recode list, but has no recodes", varname);
         char *clauses= NULL;
@@ -599,6 +609,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         xprintf(outstring, "%s %c case %s end as %s\n", XN(*outstring), comma, strip(clauses), varname);
     }
     if (verbose) printf("recode string: %s\n", *outstring);
+    apop_data_free(editcheck);
 }
 
 /* This function is for post-parsing. it actually executes the list of pre-edits generated
