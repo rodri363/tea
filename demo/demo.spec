@@ -3,7 +3,7 @@ id: serialno
 
 input {
     input file: dc_pums_08.csv
-    overwrite: yes
+    overwrite: no
     output table: dc
 	types {
 		AGEP: integer
@@ -50,6 +50,7 @@ fields  {
           MI, MN, MS, MO, MT, NE, NV, NH, NJ, NM, NY, NC, ND, MP,   \
           OH, OK, OR, PW, PA, PR, RI, SC, SD, TN, TX, UT, VT, VI,   \
           VA, WA, WV, WI, WY, AE, AA, AE, AE, AP
+    wag real
 }
 
 checks {
@@ -91,11 +92,12 @@ impute{
     }
 
 	models{
-		sex { method: hot deck 
-        }
+		sex { method: hot deck }
+
+        wagp { method: hot deck}
 
         agep { method: ols
-            vars:  rac1p, nativity||sex
+            vars:  wagp, rac1p
         }
 	
 	}

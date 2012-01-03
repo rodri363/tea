@@ -161,6 +161,7 @@ optionalcolon: ':'
 
 numlist : num_item
         | numlist ',' num_item
+        |
         ;
 
 num_item : NUMBER '-' NUMBER  {add_to_num_list_seq($1, $3);}
@@ -312,8 +313,9 @@ char *make_case_list(char *in){
 
 void add_to_num_list(char *v){
     if (pass !=0) return;
-    Apop_assert_c(parsed_type!='r', , 1,
+    Apop_assert_c(!(parsed_type=='r' && (v && strlen(strip(v))>0)), , 1,
          "I ignore ranges for real variables. Please add limits in the check{} section.");
+    if (parsed_type=='r') return; //no warning--just go.
 	if (apop_strcmp(v, "*")){
 		text_in();
 		apop_data *invalues = apop_query_to_text("select distinct %s from %s", current_var, datatab);
@@ -526,7 +528,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
     else
         all_recodes = apop_query_to_text("select distinct key from keys where "
                 "(key like '%s%%' and key not like '%s%%no checks')"
-                " order by tag", *key);
+                " order by tag", *key, *key);
     if (!all_recodes || !all_recodes->textsize[0]) return;
     for(int i=0; i < all_recodes->textsize[0]; i++)
         all_recodes->text[i][0] += strlen(*key)+1;

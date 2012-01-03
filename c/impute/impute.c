@@ -612,38 +612,39 @@ void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
 int impute_is_prepped = 0; //restarts with new read_specs.
 
 /* \key {impute/input table} The table holding the base data, with missing values. 
+  Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called <tt>doInput()</tt> in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one. 
+  \key{impute/seed} The RNG seed
+  \key{impute/draw count} How many multiple imputations should we do? Default: 5.
  */
-void impute(char *tag){ 
+void impute(char **tag, char **idatatab){ 
     char *configbase = "impute";
-    char *idatatab = get_key_word(configbase, "input table");
+    Apop_assert(*idatatab, "I need an input table, "
+                        "via a '%s/input table' key.", configbase);
+    Apop_assert(apop_table_exists(*idatatab), "'%s/input table' is %s, but I can't "
+                     "find that table in the db.", configbase, *idatatab);
     char *underlying = get_key_word(configbase, "underlying table");
-    Apop_assert(idatatab, "I need an input table, via a '%s/input table' key.", configbase);
-    Apop_assert(apop_table_exists(idatatab), "'%s/input table' is %s, but I can't find that table in the db.",
-                                                configbase, idatatab);
-    apop_data *category_matrix = get_key_text_tagged(configbase, "categories", tag);
-    process_category_matrix(category_matrix, idatatab);
+    apop_data *category_matrix = get_key_text_tagged(configbase, "categories", tag?*tag:NULL);
+    process_category_matrix(category_matrix, *idatatab);
     float min_group_size = get_key_float(configbase, "min group size");
     if (isnan(min_group_size)) min_group_size = 1;
     float draw_count = get_key_float(configbase, "draw count");
     if (isnan(draw_count) || !draw_count) draw_count = 1;
-	apop_assert(apop_table_exists(idatatab), "I couldn't find data table %s, "
-					"which is what is listed under %s/table_in in the spec file.", idatatab, configbase);
     //int verbose = get_key_float(configbase, "verbose", .default_val = 0);
     char *id_col = get_key_word(configbase, "id");
     if (!id_col) id_col= get_key_word(NULL, "id");
     if (!id_col) {
         id_col=strdup("rowid");
-        if (verbose)
-            printf("I'm using the rowid as the unique identifier for the index for the imputations."
-                    "This is not ideal; you may want to add an explicit Social Security number-type identifier.");
+        if (verbose) printf("I'm using the rowid as the unique identifier for the "
+                    "index for the imputations. This is not ideal; you may want "
+                    "to add an explicit Social Security number-type identifier.");
     }
     char *tmp_db_name_col = strdup(apop_opts.db_name_column);
     sprintf(apop_opts.db_name_column, "%s", id_col);
 
-    char *tagbit; if (tag) asprintf(&tagbit,"and tag='%s'", tag);
+    char *tagbit; if (tag) asprintf(&tagbit,"and tag='%s'", *tag);
 	apop_data * vars = apop_query_to_text("select distinct key, value from keys where "
-								" key like '%s/models/%%/method' %s order by count", configbase, tag ?tagbit:" ");
-    if(tag) free(tagbit);
+								" key like '%s/models/%%/method' %s order by count", configbase, (tag && *tag) ?tagbit:" ");
+    if(tag && *tag) free(tagbit);
     Apop_assert(vars, "I couldn't find a models section (or a method section with a key of the form '%s/models/yr_variable/method').", configbase);
 	int vars_to_impute = vars->textsize[0];
 	Apop_assert(vars_to_impute, "I couldn't find a models section (or its contents).");
@@ -681,7 +682,7 @@ void impute(char *tag){
     if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r);
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
     for (int i = 0; i< vars_to_impute; i++)
-        impute_a_variable(idatatab, underlying, models+i, min_group_size, r, draw_count, 
+        impute_a_variable(*idatatab, underlying, models+i, min_group_size, r, draw_count, 
                           category_matrix, fingerprint_vars, id_col);
     apop_data_free(fingerprint_vars);
     sprintf(apop_opts.db_name_column, "%s", tmp_db_name_col);

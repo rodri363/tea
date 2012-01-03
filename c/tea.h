@@ -167,7 +167,7 @@ void set_key_text(char *group, char *key, char *value);
 int get_key_float_list(char *part1, char * part2, double **outlist);
 int get_key_float_list_tagged(char *part1, char * part2, char *tag, double **outlist);
 
-void impute(char *);
+void impute(char **tag, char **active_tab);
 void text_in();
 
 void recodes(char **key, char** tag, char **outstring, char **intable); //just the recode string

@@ -173,11 +173,6 @@ print(q)
 # sets its last-edited table as the active_tab, and then the next step of the flow can
 # pick it up. 
 
-# Also, as a favor to C code, I add an "active_table" key to the table of keys,
-# so C functions can just pick that up without redoing this logic (which they
-# can't do anyway, because they don't have access to pepenv).
-# It would be good form but not essential to delete this entry on exit from the routine.
-
 getInputTable <- function(segment, cmd_line_input=NULL){
 	out <- cmd_line_input
 	if (is.null(out))
@@ -187,7 +182,6 @@ getInputTable <- function(segment, cmd_line_input=NULL){
 	if (is.null(out)) 
 		stop(paste("I can't find an \"input table\" setting in the", segment, "part of the spec file, and I currently don't have a default to use."))
 
-	set_key(segment, "active_table", out)
 	return(out)
 }
 
@@ -253,9 +247,9 @@ TEAGetKey <- function(group="", key=NULL, invalue=NULL, errormsg=NULL, usekey=FA
     outval <- eval(invalue)
     specvalue <- PEPGetKey(group, key)
     if ((is.null(invalue) || usekey) && !is.null(specvalue)) outval <- specvalue
-    if (is.null(outvalue) && !is.null(errormsg))
+    if (is.null(outval) && !is.null(errormsg))
         stop(errormsg)
-    return(outvalue)
+    return(outval)
 }
 
 #' Make levels of two model matrices agree.

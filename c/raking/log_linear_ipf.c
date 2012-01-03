@@ -33,9 +33,9 @@ gsl_rng *r  =apop_rng_alloc(231);
     free(rowparity);
 }
 
-void rake_for_r( ){
+void rake_for_r(char **table_name){
 	//Sadly, this function is entirely conversion of forms.
-    /* \key{raking/active table} The table to be raked. 
+    /* \key{raking/input table} The table to be raked. 
     \key{raking/all vars} The full list of variables that will be involved in the
        raking. All others are ignored. 
     \key{raking/max iterations} If convergence to the desired tolerance isn't 
@@ -50,8 +50,8 @@ void rake_for_r( ){
         threading on the R side, specify a separate run\_number for each. If
         single-threading (or if not sure), ignore this.
      */
-	char *table_name = get_key_word("raking", "input table");
-	apop_assert(table_name, "I couldn't find a name for the input table to the raking segment.");
+	Apop_assert(*table_name, "I couldn't find a name for the input table "
+                            "to the raking segment.");
 
     apop_data *all_vars_d = get_key_text("raking", "all vars");
     double max_iterations = get_key_float("raking", "max iterations");
@@ -59,15 +59,15 @@ void rake_for_r( ){
 	double run_number = get_key_float("raking", "run number");
 
     /* \key{raking/thread count} You can thread either on the R side among several tables,
-     or interally to one table raking. To thread a single raking process, set this to the 
+     or interally to one table raking. To thread a single raking process, set this to the
      number of desired threads. 
      */
 	int thread_ct = get_key_float("raking", "thread count");
     int prior_threads= apop_opts.thread_count;
     if (thread_ct > 0) apop_opts.thread_count = thread_ct;
 
-    /* \key{raking/structural zeros} A list of cells that must always be zero, in the form of SQL
-     statements. 
+    /* \key{raking/structural zeros} A list of cells that must always be zero, 
+     in the form of SQL statements. 
      */
 	apop_data *zero_data = get_key_text("raking", "structural zeros");
 
@@ -98,7 +98,7 @@ raking{
 			list_of_contrasts[i] = contras->text[i][0];
 	}
 
-	apop_data* outdata = apop_rake(.table_name = table_name,
+	apop_data* outdata = apop_rake(.table_name = *table_name,
 		.all_vars = all_vars_d ? all_vars_d ->text[0][0] : NULL,
 		.contrasts = contras ? list_of_contrasts : 0,
 		.contrast_ct = contrast_ct,
@@ -112,7 +112,8 @@ raking{
 		.init_count_col = get_key_word("raking", "init count col")
 		);
 	char *outname;
-	asprintf(&outname, "%s_raked", table_name);
+	asprintf(&outname, "%s_raked", *table_name);
+	asprintf(table_name, "%s", outname); //report new name to R
 	apop_table_exists(outname, 'd');
 apop_opts.verbose=0;
 apop_vector_show(outdata->weights);

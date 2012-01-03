@@ -83,8 +83,7 @@ input_table=NULL){
 	pepenv$overlay="vflags"
 }
 
-doMImpute <- function(verbose=0, seed=NULL, input_table=NULL
-
+doMImpute <- function(tag=NULL, input_table=pepenv$active_tab){ 
 #    apop_data *category_matrix = get_key_text(configbase, "categories");
 #    int min_group_size = get_key_float(configbase, "min_group_size");
 #    int iteration_count = get_key_float(configbase, "draw_count");
@@ -96,10 +95,13 @@ doMImpute <- function(verbose=0, seed=NULL, input_table=NULL
 #	apop_data *dtab = get_key_text(configbase, "datatab");
 
 
-){ 
-	getInputTable("impute", input_table)
 	print ("Imputing missing values")
- 	.C("impute") 
+    active_tab <- getInputTable("impute")
+    if (!is.null(tag)) print (paste("tag= ", tag))
+    print (paste("input table= ", active_tab))
+
+    .C("impute", as.character(tag), as.character(active_tab)) 
+	pepenv$active_tab <- active_tab #active_tab may have changed
 }
 
 pepenv <- new.env()

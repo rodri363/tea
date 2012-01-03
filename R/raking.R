@@ -32,10 +32,9 @@ doRake <- function(table=NULL, run_number=1, all_vars=NULL, contrasts=NULL, tole
     set_key("raking", "init table", init_table)
     set_key("raking", "init count col", init_count_col)
     set_key("raking", "nudge", nudge)
-	getInputTable("raking");
-    .Call("rake_for_r")
-
-	pepenv$active_tab <- paste(PEPGetKey("raking/active_table")[[1]], "_raked", sep="")
+    active_tab <- getInputTable("raking")
+    .C("rake_for_r", as.character(active_tab)) 
+	pepenv$active_tab <- active_tab #added "_raked" on the C side
     return(dbGetQuery(pepenv$con, paste("select * from ", pepenv$active_tab)))
 }
 

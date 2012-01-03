@@ -7,7 +7,7 @@ all: tea.bbl keys.tex
 	pdflatex tea
 
 keys:
-	find ../tea/ -name '*.y' -or -name '*.c' -or -name '*.h' -or -name '*.R' | xargs cat | ./make_key_docs.awk  > keys.tex
+	find ../pkg/tea/ -name '*.y' -or -name '*.c' -or -name '*.h' -or -name '*.R' | xargs cat | ./make_key_docs.awk  > keys.tex
 
 imputation: tea.bbl
 	sed -i 's/\\imputationfalse/\\imputationtrue/' tea.tex
