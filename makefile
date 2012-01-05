@@ -39,5 +39,5 @@ pkg: talk
 	cd $(Pkg_dir); autoconf; rm configure.ac; rm -r autom4te.cache
 
 clean:
-	rm -fr $(Pkg_dir)/* tea.Rcheck
+	rm -fr $(Pkg_dir)/* $(Pkg_dir)/../tea.Rcheck $(Pkg_dir)/../tea*.tar.gz
 	rm -f c/peptalk/peptalk.output
