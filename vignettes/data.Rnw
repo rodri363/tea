@@ -1,0 +1,177 @@
+\documentclass{article}
+
+\usepackage{natbib}
+\usepackage{graphics}
+\usepackage{amsmath}
+\usepackage{indentfirst}
+\usepackage[utf8]{inputenc}
+
+\DeclareMathOperator{\var}{var}
+\DeclareMathOperator{\cov}{cov}
+
+% \VignetteIndexEntry{Data}
+
+\begin{document}
+
+\title{TEA Data Handling (Version \Sexpr{foo$Version})}
+\author{Rolando A. Rodriguez}
+\maketitle
+
+\section{Data Input}
+The first and sometimes most onerous task in data processing is reading data into the
+production process.  TEA assumes that the production process begins with post-capture
+data: data that has been coded into some machine-readable format from the actual survey
+or census questionnaires.  Further, it is assumed that the data are available in some
+kind of text format, either delimited or fixed-width, or that the data are easily
+coerced into one of these formats.
+
+Under these assumptions, properly reading in the data into TEA is a matter of
+understanding and setting the options for reading in each format in the spec file.
+General options are:
+
+.quote = What character (if any) is used to surround character strings in the file
+.na = What sequences of characters are used to denote missing values in the file
+for delimited files, extra options are:
+.delim = What is the character used to delimit text (for a delimited file)
+.header = Does the text file contain a list of variable names in the first row
+for fixed width files, extra options are:
+.widths = What are the lengths of each field (in a fixed-width file)
+.names = What are the names of each variable
+
+Figures: illustrations of text formats and options for each format
+
+\subsection{Data Types}
+The options given above are aimed at TEA interpreting the strings in the input text
+files correcty.  The next step in data input is defining how the strings that
+make up each variable should be stored in the system.  TEA stores data in an SQL
+database\footnote{Currently, only the SQLite implementation is supported}.  SQL
+has support for several data types, but there are three of import to the TEA system:
+.text
+.integer
+.real
+
+A ``text'' variable is meant to contain values that do not represent numerical data.
+Common examples are sex, relationship, and race/ethnicity.  Variables listed as
+``integer'' or ``real'' are meant to contain numerical data: data that allow arithmetic
+operations.  These are variables like incomes, age, lot measurements, number of a given item, etc.
+
+The choice of type should reflect how the variable is \emph{used} in analysis, rather
+than how the variable \emph{looks} in the text file.  For instance, although a given
+categorical variable might be coded using numbers (e.g. 1 for 'male' and 2 for 'female'
+for sex), that variable should still be given a text type.  Once the data are brought
+into R for analysis and manipulation, the reasons for this will become clear.
+
+Data types are specified in the spec file under the ??? section, as such:
+????
+
+The default in TEA is that all variables are text unless otherwise specified.
+
+\section{Handling the Database}
+\subsection{R Database Connection}
+Since we will be doing our computation in R but housing our data in an SQL database,
+we need a way to interface these two components of the system.  Thankfully, R comes
+equipped with several packages for interfacing with various implementations of SQL.
+We will focus on the SQLite implementation, but information on other interfaces is
+available in CRAN.
+
+The first step to interfacing with SQL in R is to create a database connection.
+This is a conduit through which R receives and sends data to the database.
+For SQLite, the following invocation does the job:
+con <- dbConnect(dbDriver("SQLite"),"db_file")
+
+With the connection in place, the host of database interfacing functions in R
+can be utilized, with most taking the connection as an argument.  At the end of
+an R session of script, it is advisable to close the connection as such:
+dbDisconnect(con)
+This will let the user know if there are any pending queries remaining on
+the connection, which should be dealt with to prevent errors in the database.
+
+\subsection{Selecting and Data Frames}
+While SQL databases are superb repositories for data, the SQL standard itself has only
+minimal mathematical and statistical abilities.  As such, we need some way of taking
+records from the database into our statistical software of choice (in this case R).
+Records within an SQL database are accessed via ``select queries''.  These queries have
+various keywords that allow users to select specific records to see from the database.
+As an example, the following query:
+select A,B from D where A>5
+would yield the values of the variables A and B from the table T where A has a value
+greater than five.  The result of this query might look like this:
+A|B
+6|a
+6|b
+9|c
+8|d
+In the vignette on R data handling (TBW) we saw that the R data frame is the basic structure for performing statistical.  We thus wish to read in the results of select queries into R data frame.  This is accomplished via the R/SQL interface functions.  To read in
+the select query above into an R data frame, we could use:
+DF <- dbGetQuery(con,"select A,B from D where A>5")
+This will create the data frame DF containing the data shown above.  Types for the variables in the data frame are determined by SQL type, with the following mappings:
+SQL		R
+text	character
+integer	integer
+real	double
+Names for the data frame are obtained from the column headers in SQL:
+%this will be a vignette example in the finished doc
+> names(DF)
+"A" "B"
+
+\subsection{Inserts and Updates}
+Though much of data handling occurs during the initial input into the database,
+there may still be cases where we want to either change or add values to a
+database table.  SQL handles this via ``insert'' and ``update'' statements.
+In particular, updating (changing values already present in a table) is of particular
+use to us, as various production steps (editing, imputation, SDC) will require the
+changing of data items.
+
+\subsection{Recodes, Views, and Triggers}
+Often times survey analysts wish to define variables in terms of the values of other
+variables.  These new variables are called ``recodes''.  Recodes pose two interesting
+problem for the database:
+1) They require updating any time one of their defining variables changes.
+2) Updating a recode implies ambiguous values for the defining variables.
+
+We handle these issues using two SQL features:  views and triggers.  A view is simply
+a select statement that is stored for future use.  Any select statement on the view
+acts just as if the view were a normal table.  ``select * from v'', where v is a view,
+is the same as ``select * from (select ...)'', where the inner select statement defines
+the view.  The upshot of using a view is that, since the implied select statement is
+always run when the view is called, any changes that have been made to the underlying
+table will be reflected automatically in the view.
+
+The relevance of views to recodes is that, if we define recodes in a view, then any
+changes we make to the defining variables in the base table will automatically change
+the value of the recode in the view.  As an example, we might have a recode, C that
+is the sum of two other variables, A and B.  We could define a view containing C as:
+
+.create view V as select *, A+B as C from D
+we could also define a new table containing C as:
+.create table T as select *, A+B as C from D
+
+We might have a given record with values $A=2$ and $B=3$, so $C=5$.  Say for some reason
+(editing, SDC) we update these values to $A=3$ and $B=7$ in tables D and T.  We can now
+see the advantage of using a view to define C.  After the update, if we selected
+the record's value of C from the view, V, we would get $C=10$.  If we selected the
+value from the updated table, T, we would still get $C=5$!  In table T, we have to
+remember that C was originally defined based on A and B and thus must update C every
+time A and B are updated.  In the view V, C is updated automatically with A and B.
+This not only saves time, but also removes possible sources of error (for instance,
+if we incorrectly defined the update of C in table T).
+
+The use of views adds a layer of complexity to our databases.  Ideally, we want to
+avoid switching back and forth between which table or view we are analyzing.  The issue
+is that certain actions, such as updating and insertion, are problematic for views.
+For instance, if we wanted to update C in the view V, we would have to insure that
+the new value of C was amenable to the values of A and B, upon which C is defined.
+But the reason for defining C in the view in the first place was to prevent these kinds
+of inconsistencies from occuring!  Thus we need a mechanism for capturing actions on
+a view and taking appropriate action.  In SQL, this mechanism is known as a ``trigger''.
+
+Our main use of triggers is to update a base table when certain update statements on
+a view on that table are attempted.  For instance, we may have the following trigger:
+
+create trigger TRIG instead of update of A on V begin update T set A = new.A where ID=old.ID; end
+
+This trigger says that instead of updating the variable A on the view V, update A in
+the actual table T, setting A to the new value where record IDs match.  Such triggers
+are automatically created by TEA when a recode is defined in the specification file.
+More complicated triggers can be used to maintain various relationships between base
+variables.
