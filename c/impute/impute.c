@@ -264,7 +264,7 @@ static void get_nans_and_notnans(impustruct *is, apop_data **notnan,
             asprintf(&q, "select %s, %s from %s where 1 and ", id_col, is->selectclause, datatab);
         } else
             q = construct_a_query(datatab, underlying, constraints_left, active_cats,
-												is->selectclause, category_matrix, id_col);
+											is->selectclause, category_matrix, id_col);
         q2 = construct_a_query_II(id_col, is, fingerprint_vars);
         //(varposn) This used to be apop_query_to_mixed_data(var_coltypes, ...) but for now it's all in the matrix.
         if (notnan){//NULL indicates skipping this step
@@ -287,16 +287,18 @@ apop_opts.verbose=2;
         if (*notnan && GSL_MAX((*notnan)->textsize[0], (*notnan)->matrix ? (*notnan)->matrix->size1: 0) > min_group_size)
             done++;
         if (verbose && !done){
-            if (*notnan) printf("I just have %i items in the notnan list. Trying w/smaller category list\n"
-                                ,(*notnan)->textsize[0]);
-            else printf("I have a big fat zero items in the notnan list. Trying w/smaller category list\n");
+            if (*notnan) printf("I just have %i items in the notnan list. "
+                          "Trying w/smaller category list\n" ,(*notnan)->textsize[0]);
+            else printf("I have a big fat zero items in the notnan list. "
+                        "Trying w/smaller category list\n");
         }
 		free(q); q=NULL;
 		free(q2); q2=NULL;
     } while (!done);
     if (notnan){
         Apop_assert(*notnan, "Even with no constraints, I couldn't find any "
-					"non-NaN records to use for fitting a model and drawing values for %s.", is->depvar);
+					"non-NaN records to use for fitting a model and drawing "
+                    "values for %s.", is->depvar);
         int v= apop_opts.verbose=0;apop_opts.verbose=0;
         Apop_assert(!(gsl_isnan(apop_matrix_sum((*notnan)->matrix)+apop_sum((*notnan)->vector))), 
                 "NULL values or infinities where there shouldn't be when fitting the model for %s.", is->depvar);
@@ -455,62 +457,82 @@ static char get_coltype(int total_var_ct, char const* depvar){
     return '\0';
 }
 
-//This function is the inner loop cut out from impute(). As you can see from the list of
-//arguments, it really doesn't stand by itself.
-static void onedraw(char **textx, double *pre_round, gsl_rng *r, impustruct *is, 
-        int *is_fail, int is_hotdeck, char type, int id_number, int fail_id, 
+typedef struct {
+    char *textx;
+    double pre_round;
+    int is_fail;
+} a_draw_struct;
+
+/*This function is the inner loop cut out from impute(). As you can see from the list of
+arguments, it really doesn't stand by itself.
+
+The draw itself is one line---just call apop_draw. The hard part is in checking that the draw is OK.
+This involves bounds-checking, if applicable, 
+then generating a dummy version of the observation that is in an R-friendly format, 
+then sending it to consistency_check for an up-down vote.
+
+The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
+*/
+static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
+        int is_hotdeck, char type, int id_number, int fail_id, 
         int model_id, apop_data *full_record, int col_of_interest){
-    double x;
+    a_draw_struct out = { };
 	static char const *whattodo="passfail";
-    if (*textx) free(*textx);
+    double x;
     apop_draw(&x, r, is->fitted_model);
-    *pre_round=x;
+    out.pre_round=x;
     if (type == '\0'){ // '\0' means not in the index of variables to check.
-        is_fail = 0;
-        asprintf(textx, "%g", x);
+        asprintf(&out.textx, "%g", x);
     } else {
         if (!is_hotdeck) //inputs all valid ==> outputs all valid
-            check_bounds(&x, is->depvar, type); // We're just going to use the rounded value.
+            check_bounds(&x, is->depvar, type); // just use the rounded value.
         apop_data *f;
         char *cats; asprintf(&cats, "<categories for %s>", is->depvar);
         if (f = apop_data_get_page(is->fitted_model->data, cats))
-             asprintf(textx, "%s", *f->text[(int)x]);
-        else asprintf(textx, "%g", x);
+             asprintf(&out.textx, "%s", *f->text[(int)x]);
+        else asprintf(&out.textx, "%g", x);
         free (cats);
         apop_query("insert into impute_log values(%i, %i, %i, %g, '%s', 'cc')",
-                                id_number, fail_id, model_id, *pre_round, *textx);
+                                id_number, fail_id, model_id, out.pre_round, out.textx);
         //copy the new impute to full_record, for re-testing
-        apop_text_add(full_record, 0, col_of_interest, "%s", *textx);
-        consistency_check((char const * restrict *)full_record->names->text,
-                          (char const * restrict *)full_record->text[0],
+        apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
+        consistency_check((char const **)full_record->names->text,
+                          (char const **)full_record->text[0],
                           full_record->textsize+1,
                           &whattodo,
                           &id_number,
-                          is_fail,
+                          &out.is_fail,
                           NULL);//record_fails);
     }
+    return out;
 }
 
 //a shell for do onedraw() while (!done).
-static void make_a_draw(impustruct *is, gsl_rng *r, int is_hotdeck, char type, 
-        int fail_id, int model_id, int col_of_interest, int rowindex, int draw){
-    int is_fail=0, tryctr=0;
-    double pre_round;
-    char *textx = NULL;
-    int id_number = atoi(is->isnan->names->row[rowindex]);
-	Apop_data_row(is->isnan, rowindex, full_record);
-    do onedraw(&textx, &pre_round, r, is, &is_fail, is_hotdeck, type,
-           id_number, fail_id, model_id, full_record, col_of_interest); 
-    while (is_fail && tryctr++ < 1000);
-    Apop_assert(!is_fail, "I just made a thousand attempts to find an "
-        "imputed value that passes checks, and couldn't. "
-        "Something's wrong that a computer can't fix.\n "
-        "I'm at id %i.", id_number);
-    apop_query("insert into filled values( %s, '%s', %i, '%s');\n"
-               "insert into impute_log values(%s, %i, %i, %g, '%s', '? ?')",
-                   is->isnan->names->row[rowindex], is->depvar, draw, textx,
-                   is->isnan->names->row[rowindex], fail_id, model_id, pre_round, textx);
-    free(textx);
+static void make_a_draw(impustruct *is, gsl_rng *r, int is_hotdeck, int fail_id,
+         int model_id, int draw, apop_data const *nanvals){
+    int done_ctr = 0; //for marking what's done.
+    char type = get_coltype(total_var_ct, is->depvar);
+    int col_of_interest=apop_name_find(is->isnan->names, is->depvar, 't');
+    for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){//more==rowids.
+        int tryctr=0;
+        double pre_round;
+        int id_number = atoi(is->isnan->names->row[rowindex]);
+        a_draw_struct drew;
+        Apop_data_row(is->isnan, rowindex, full_record);
+        do drew = onedraw(r, is, is_hotdeck, type,
+               id_number, fail_id, model_id, full_record, col_of_interest);
+        while (drew.is_fail && tryctr++ < 1000);
+        Apop_assert(!drew.is_fail, "I just made a thousand attempts to find an "
+            "imputed value that passes checks, and couldn't. "
+            "Something's wrong that a computer can't fix.\n "
+            "I'm at id %i.", id_number);
+        apop_query("insert into filled values( %s, '%s', %i, '%s');\n"
+                   "insert into impute_log values(%s, %i, %i, %g, '%s', '? ?')",
+                       is->isnan->names->row[rowindex], is->depvar, draw, drew.textx,
+                       is->isnan->names->row[rowindex], fail_id, model_id, drew.pre_round, drew.textx);
+        free(drew.textx);
+        mark_an_id(&done_ctr,is->isnan->names->row[rowindex], nanvals->names->row, nanvals->names->rowct);
+    }
 }
 
 /* As named, impute from a single model, almost certainly a single variable.
@@ -528,7 +550,6 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int is_hotdeck, char type,
    
    */
 static void impute_a_variable(const char *datatab, const char *underlying, impustruct *is, 
-
         const int min_group_size, gsl_rng *r, const int draw_count, const apop_data *category_matrix, 
         const apop_data *fingerprint_vars, const char *id_col){
     static int fail_id=0, model_id=-1;
@@ -541,19 +562,12 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         get_nans_and_notnans(is, &notnan, atoi(nanvals->names->row[i]) /*ego_id*/, 
                 datatab, underlying, min_group_size, category_matrix, fingerprint_vars, id_col);
 		if (!is->isnan) {/* apop_data_free(notnan)*/; continue;} //nothing missing.
-		int col_of_interest=apop_name_find(is->isnan->names, is->depvar, 't');
-        char type = get_coltype(total_var_ct, is->depvar);
 		int is_hotdeck = (is->base_model.estimate == apop_multinomial.estimate 
 								||is->base_model.estimate ==apop_pmf.estimate);
         model_est(notnan, is, &model_id, is_hotdeck); //notnan may be pmf_compressed here.
-        int done_ctr=i;
-        for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){//more==rowids.
-            prep_for_draw(notnan, is);
-            for (int draw=0; draw< draw_count; draw++)
-                make_a_draw(is, r, is_hotdeck, type, ++fail_id, model_id,
-                          col_of_interest, rowindex, draw);
-            mark_an_id(&done_ctr,is->isnan->names->row[rowindex], nanvals->names->row, nanvals->names->rowct);
-       }
+        prep_for_draw(notnan, is);
+        for (int draw=0; draw< draw_count; draw++)
+            make_a_draw(is, r, is_hotdeck, ++fail_id, model_id, draw, nanvals);
         apop_model_free(is->fitted_model); //if (is_hotdeck) apop_data_free(is->fitted_model->data);
         //apop_data_free(notnan);
         apop_data_free(is->isnan);

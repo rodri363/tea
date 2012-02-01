@@ -548,7 +548,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         apop_data *recode_list = get_key_text(*key, varname);
         if (!recode_list || !recode_list->textsize[0]) return;
         
-        int doedits = 1;
+        int doedits = 0;
         if (editcheck)
             for (int e=0; doedits && e<editcheck->textsize[0]; e++)
                 if (apop_regex(editcheck->text[e][0], varname))
@@ -599,8 +599,13 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
                                             , strip(one_rc->text[0][0]), *intab);
                 if (doedits){
                     parsed_type='c';
-                    for (int k=0; k < vals->textsize[0]; k++)
-                        add_to_num_list(strip(vals->text[k][0]));
+                    for (int k=0; k < vals->textsize[0]; k++){
+                        char *ed = apop_query_to_text("select tag from keys where "
+                                    "key='recodes/%s'", *vals->text[k]);
+                        if (!ed || !apop_strcmp(ed, "noedits"))
+                            add_to_num_list(strip(*vals->text[k]));
+                        apop_data_free(ed);
+                    }
                 }
                 apop_data_free(vals);
             }

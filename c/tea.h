@@ -84,7 +84,7 @@ to be called from R, and you can't return nontrivial data structures to R. Inste
 I save the result as <tt>alternatives[id]</tt>, where \c id is the unique id you input.
 Any existing table at that point in the alternatives list gets freed when I write the new table.
   */
-apop_data * consistency_check(char const * restrict *record_name_in, char const * restrict *ud_values, 
+apop_data * consistency_check(char const **record_name_in, char const **ud_values, 
 			int const *record_in_size, char const **what_you_want, 
 			int const *id, int *fails_edits, int *failed_fields);
 

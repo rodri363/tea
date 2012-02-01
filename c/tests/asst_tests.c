@@ -70,7 +70,8 @@ void snowman_test(){
 
     read_spec(&specname, &db_dummy);
     text_in();
-    impute(NULL, NULL);
+    char *d="d";
+    impute(NULL, &d);
 
     test_consistency();
     apop_db_close();
@@ -113,7 +114,8 @@ void just_like_the_R_test(){
     text_in();
     assert(apop_query_to_float("select count(*) from data where age is null") == 2);
     assert(apop_query_to_float("select count(*) from data where sex is null") == 2);
-    impute(NULL, NULL);
+    char *d="data";
+    impute(NULL, &d);
     apop_db_close();
     foreach(s, "spec", "t.db", "indata"){ remove(*s); }
 }

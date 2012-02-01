@@ -51,7 +51,7 @@ int prune_edits(apop_data *d, int row, int col, void *ignore){ //quick callback 
   requested by the user).
   */
 int check_a_record(int const * restrict row,  int * const failures, int const rownumber,
-                         char **data_as_query){
+                         char *const *data_as_query){
 //verbose=1;
     int rowfailures[nflds];
     int out = 0, has_c_edits=0;
@@ -237,30 +237,29 @@ apop_data * get_alternatives(int *restrict record, const char *restrict  *record
     return out;
 }
 
-void fill_a_record(int record[], int const record_width, char const *restrict *record_name_in, 
-                                char const *restrict* ud_values, int const record_in_size, 
-                                int const id, char **qstring){
-		//set up the cross-index conversions. 
-	free(em_to_user);
-	free(user_to_em);
-	em_to_user = malloc(sizeof(int)*total_var_ct);
-	user_to_em = malloc(sizeof(int)*record_in_size);
+//set up the cross-index conversions. 
+void setup_conversion_tables(char const *restrict* record_name_in, int record_in_size){
+	em_to_user = realloc(em_to_user, sizeof(int)*total_var_ct);
+	user_to_em = realloc(user_to_em, sizeof(int)*record_in_size);
 	memset(em_to_user, -1, sizeof(int)*total_var_ct);
 	memset(user_to_em, -1, sizeof(int)*record_in_size);
 	for (int i=0 ; i< record_in_size; i++)
-			for (int j=0 ; j< total_var_ct; j++)
-				if (apop_strcmp((char*)used_vars[j].name, (char*) record_name_in[i])
-                        && used_vars[j].type != 'r'){
-					em_to_user[j] = i;
-					user_to_em[i] = j;
-					break;
-				}
+        for (int j=0 ; j< total_var_ct; j++)
+            if (apop_strcmp((char*)used_vars[j].name, (char*) record_name_in[i])
+                    && used_vars[j].type != 'r'){
+                em_to_user[j] = i;
+                user_to_em[i] = j;
+                break;
+            }
+}
 
-
-        //generate a record in DISCRETE's preferred format
+// Generate a record in DISCRETE's preferred format for the discrete-valued fields,
+// and a query for the real-valued.
+void fill_a_record(int record[], int const record_width, char const *restrict *record_name_in, 
+                                char const *restrict* ud_values, int record_in_size, 
+                                int id, char **qstring){
     for (int i=0; i < record_width; i++)
         record[i]=-1;   //-1 == ignore-this-field marker
-
     for (int i=0; i < record_in_size; i++){
         if (user_to_em[i] < 0)
             continue;  //This variable wasn't declared ==> can't be in an edit.
@@ -272,19 +271,17 @@ void fill_a_record(int record[], int const record_width, char const *restrict *r
         if (ri_position != -100){ //-100 = undeclared = no need to check.
             int bit = find_b[user_to_em[i]]-1 + ri_position-1;
             Apop_assert(bit < record_width && bit >= 0, 
-                        "About to shift position %i in a record, but there are only %i entries.",
-                        bit, record_width);
+                        "About to shift position %i in a record, but there "
+                        "are only %i entries.", bit, record_width);
             record[bit] = 1;
         }
     }
-
     if (verbose){
         printf("record %i:\n", id);
         for (int i=0; i< record_width; i++)
             printf("%i\t", record[i]);
         printf("\n");
     } 
-
     /*qstring will hold a query to generate a sample table, like "create table tea_test(a,
     b); insert into tea_test values('left', 'right');"*/
     char *insert, comma=' ';
@@ -299,23 +296,31 @@ void fill_a_record(int record[], int const record_width, char const *restrict *r
     free(insert);
 }
 
+//A lengthy assertion checking that failed_fields and fails_edits are in sync.
+void do_fields_and_fails_agree(int *failed_fields, int fails_edits, int nflds){
+    int total_fails = 0;
+    for (int k=0; k < nflds; k++)
+        total_fails += failed_fields[k];
+    assert((total_fails !=0 && fails_edits) || (total_fails==0 && !fails_edits));
+}
+
 /* see tea.h for documentation.  */
-apop_data * consistency_check(char const * restrict *record_name_in, char const * restrict *ud_values, 
+apop_data * consistency_check(char const **record_name_in, char const **ud_values, 
 			int const *record_in_size, char const **what_you_want, 
 			int const *id, int *fails_edits, int *failed_fields){
 	assert(*record_in_size > 0);
 	//apop_opts.verbose = 2;
-    if (!edit_grid)
-        init_edit_list();
-    if (!edit_grid){
+    if (!edit_grid) init_edit_list();
+    if (!edit_grid){ //then there are no edits.
 		*fails_edits = 0;
         return NULL;
 	}
-
     int width = edit_grid->matrix->size2;
     assert(width);
     int record[width];
     char *qstring;
+    if (record_name_in)
+    setup_conversion_tables(record_name_in, *record_in_size);
 	fill_a_record(record, width, record_name_in, ud_values, *record_in_size, *id, &qstring);
     if (apop_strcmp((char*)what_you_want[0], "passfail")){
         *fails_edits = check_a_record(record, NULL, 0, &qstring);
@@ -324,16 +329,11 @@ apop_data * consistency_check(char const * restrict *record_name_in, char const 
     }
     *fails_edits = check_a_record(record, failed_fields, *id, &qstring);
     free(qstring);
-    //Let's check that failed_fields and fails_edits are in sync.
-    int total_fails = 0;
-    for (int k=0; k < nflds; k++)
-    //for (int k=0; k < record_in_size; k++)
-        total_fails += failed_fields[k];
-    assert((total_fails !=0 && *fails_edits) || (total_fails==0 && !*fails_edits));
+    do_fields_and_fails_agree(failed_fields, *fails_edits, nflds);
 
-    if (apop_strcmp((char*)what_you_want[0], "failed_fields"))
+    if (apop_strcmp(what_you_want[0], "failed_fields"))
         return NULL;
-    if (apop_strcmp((char*)what_you_want[0], "find_alternatives") && *fails_edits)
+    if (apop_strcmp(what_you_want[0], "find_alternatives") && *fails_edits)
 		return get_alternatives(record, record_name_in, user_to_em, *record_in_size, failed_fields);
 	return NULL;
 }

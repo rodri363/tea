@@ -27,8 +27,8 @@ SEXP RCheckConsistency(SEXP Rrecord_name_in, SEXP Rud_values, SEXP Rrecord_in_si
 	int *fails_edits = INTEGER(Rfails_edits);
 	int *record_fails = INTEGER(Rrecord_fails);
 
-	alternatives = consistency_check((char const *restrict *)record_name_in, 
-						(char const *restrict *)ud_values, record_in_size,
+	alternatives = consistency_check((char const **)record_name_in, 
+						(char const **)ud_values, record_in_size,
 		what_you_want, (const int *) id, fails_edits, record_fails);
 	//apop_data_show(alternatives);
 	//alternatives are right, so losing stuff somwhere below

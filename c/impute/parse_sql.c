@@ -45,7 +45,7 @@ Dummies: Regression on text categories makes no sense: you need to convert the t
 */
 
 
-/* OK, I'm preprossing SQL. There are two things we're looking for:
+/* OK, I'm preprocessing SQL. There are two things we're looking for:
 
    A||B == the 'interaction' between A and B. SQLite uses this form, so I can pass A||B
    through, although I want to add an "as A_B" clause.
@@ -100,6 +100,7 @@ char *process_string(char *inquery, char **typestring){//in which we lament C's 
 }
 
 
+//Most of a test. I should add some assertions in there...
 void inspect_string_processing(){
     apop_query("create table t(age, race, sex);"
                "insert into t values(10, 'A', 'M');"
@@ -115,12 +116,12 @@ void inspect_string_processing(){
     q = process_string("#age, race", &typestring);
     apop_data_show(apop_query_to_mixed_data(typestring, "select %s from t", q));
     free(q); free(typestring); typestring=NULL;
-    q = process_string("#age, sex||race, race", &typestring);
+    q = process_string("#age, sex||race", &typestring);
     apop_data *data;
     apop_data_show(data=apop_query_to_mixed_data(typestring, "select %s from t", q));
     for(int i=0; i< data->textsize[1]; i++)
         apop_data_to_dummies(data, i, .append='y');
-apop_data_show(data);
-    apop_model_print(apop_estimate(data, apop_ols));
+    /*apop_data_show(data);
+    apop_model_print(apop_estimate(data, apop_ols));*/
     free(q); free(typestring); typestring=NULL;
 }
