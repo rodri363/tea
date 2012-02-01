@@ -489,17 +489,15 @@ void read_spec(char **infile, char **dbname_out){
 }
 
 void get_key_count_for_R(char **group,  char **key, int *out, int *is_sub){
-	apop_data *dout;
-	if (*is_sub)
-    	     dout = get_sub_key(*group);
-	else
-	     dout = get_key_text(*group, *key);
+	apop_data *dout = *is_sub 
+                        ? get_sub_key(group ? *group : NULL)
+                        : get_key_text(group ? *group : NULL, *key);
 	if (!dout){
 	    *out = 0;
 	    return;
 	}
     *out = dout->textsize[0];
-    //apop_data_free(dout);
+    apop_data_free(dout);
 }                                                             
                                                               
 void get_key_text_for_R(char **group, char **key, char **out, int *is_sub){

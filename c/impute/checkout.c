@@ -11,8 +11,9 @@ extern char *datatab;
    \param subset I'll put this in the where clause of the query, should you just want a subset of the main table
 */
 
-void check_out_impute(char **origin, char **dest, int *imputation_number, char **subset){
+void check_out_impute(char **origin, char **destin, int *imputation_number, char **subset){
     char *id_column= get_key_word(NULL, "id");
+    const char *dest = destin ? *destin : NULL;
     if (!id_column) 
         id_column= get_key_word("impute", "id");
     int use_rowids = 0;
@@ -21,12 +22,12 @@ void check_out_impute(char **origin, char **dest, int *imputation_number, char *
         id_column = strdup("id_col");
     }
     sprintf(apop_opts.db_name_column, "%s",  id_column);
-    if (dest && *dest){
-        apop_table_exists(*dest, 'd');
-        apop_query("create table %s as select %s * from %s", *dest, use_rowids ? "rowid as id_col, " : " ", *origin);
-        apop_query("create index icwwww on %s(%s)", *dest, id_column);
+    if (dest){
+        apop_table_exists(dest, 'd');
+        apop_query("create table %s as select %s * from %s", dest, use_rowids ? "rowid as id_col, " : " ", *origin);
+        apop_query("create index icwwww on %s(%s)", dest, id_column);
     } else
-        *dest = *origin;
+        dest = *origin;
     apop_assert_c(apop_table_exists("filled"), , 0, "No table named 'filled'; did you already doMImpute()?");
     apop_data *fills = apop_query_to_mixed_data("vtt", "select %s, field, value from filled where draw=%i and %s"
                                                      , id_column, *imputation_number, (subset && *subset) ? *subset : "1");
@@ -35,7 +36,7 @@ void check_out_impute(char **origin, char **dest, int *imputation_number, char *
         for(int i=0; i< fills->vector->size; i++)
             apop_query("update %s set %s = '%s' "
                        "where %s = %g", 
-                          *dest, fills->text[i][0], fills->text[i][1], 
+                          dest, fills->text[i][0], fills->text[i][1], 
                           id_column, fills->vector->data[i]);
     apop_query("commit;");
     apop_data_free(fills);

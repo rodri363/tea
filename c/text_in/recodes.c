@@ -67,7 +67,23 @@ void make_recode_view(char **tag, char **first_or_last){
     }
     else 
         apop_query("create view %s as select * %s from %s", out_name, XN(recodestr), intab);
-apop_opts.verbose=1;
-//	apop_query("create table %s as select * %s from %s", out_name, XN(recodestr), intab);
+
+    //OK! Now let's set up triggers so that users can update the view without thinking
+    //about it.
+    
+
+    intab = get_key_word("input", "output table");
+    char *idcol= get_key_word(NULL, "id");
+    apop_query("create index %sidcol on %s(%s)", intab, intab, idcol);
+    apop_data *o = apop_query_to_data("select * from %s limit 1", intab);
+    for (int i=0; i< o->names->colct; i++){
+        char *col= o->names->column[i];
+        apop_query("drop trigger if exists trig%s%s; "
+                "create trigger trig%s%s instead of update of %s on view%s  "
+                "begin update %s set %s = new.%s where %s=old.%s; end",
+                 intab, col, intab, col, col, intab, intab, col, col, idcol, idcol);
+    }
+    apop_data_free(o);
+
 //	generate_indices(out_name); //exactly the same indices as the main tab.
 }

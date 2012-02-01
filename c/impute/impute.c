@@ -9,10 +9,6 @@ void xprintf(char **q, char *format, ...); //parse_sql.c
 char *strip (const char*); //peptalk.y
 #define XN(in) ((in) ? (in) : "")
 
-//globals!
-int fail_id=0;
-int model_id=-1;
-
 /* The imputation system is arguably the core of PEP; correspondingly, it is the
    most complex part. Fundamentally, all imputations have the same basic form: identify
 that something is missing data, find some other sufficiently complete data
@@ -312,17 +308,15 @@ printf("This set had %i nans.\n", is->isnan->textsize[0]);
 }
 
 //Primarily just call apop_estimate, but also make some minor tweaks.
-static void model_est(apop_data *notnan, impustruct *is){
+static void model_est(apop_data *notnan, impustruct *is, int *model_id, int is_hotdeck){
+    assert(notnan);
     //maybe check here for constant columns in regression estimations.
-    if(notnan->text && !apop_data_get_page(notnan,"<categories")){
+    if(notnan->text && !apop_data_get_page(notnan,"<categories"))
         for(int i=0; i< notnan->textsize[1]; i++)
             apop_data_to_dummies(notnan, i, .append='y');
-    }  
-    assert(notnan);
     Apop_assert (!notnan->vector || !isnan(apop_vector_sum(notnan->vector)), "NaNs in the not-NaN vector that I was going to use to estimate the imputation model. This shouldn't happen")
     Apop_assert (!notnan->matrix || !isnan(apop_matrix_sum(notnan->matrix)), "NaNs in the not-NaN matrix that I was going to use to estimate the imputation model. This shouldn't happen")
-    if (apop_strcmp(is->base_model.name, "Multinomial distribution"))
-        apop_data_pmf_compress(notnan);
+    if (is_hotdeck) apop_data_pmf_compress(notnan);
 	//Apop_model_add_group(&(is->base_model), apop_parts_wanted); //no extras like cov or log like.
 	is->fitted_model = apop_estimate(notnan, is->base_model);
     if (apop_strcmp(is->base_model.name, "Multinomial distribution"))
@@ -331,14 +325,16 @@ static void model_est(apop_data *notnan, impustruct *is){
         is->fitted_model->draw=lil_ols_draw;
     if (verbose)
         apop_model_print(is->fitted_model);
-    model_id++;
-    apop_query("insert into model_log values(%i, 'type', '%s');", model_id, is->fitted_model->name);
+    (*model_id)++;
+    apop_query("insert into model_log values(%i, 'type', '%s');", *model_id, is->fitted_model->name);
     if (is->fitted_model->parameters->vector) //others are hot-deck or kde-type
         for (int i=0; i< is->fitted_model->parameters->vector->size; i++)
             apop_query("insert into model_log values(%i, '%s', %g);",
-                    model_id, is->fitted_model->parameters->names->row[i],
+                    *model_id, is->fitted_model->parameters->names->row[i],
                               is->fitted_model->parameters->vector->data[i]);
-    apop_query("insert into model_log values(%i, 'subuniverse size', %i);", model_id, (int)is->fitted_model->data->matrix->size1);
+    apop_query("insert into model_log values(%i, 'subuniverse size', %i);", *model_id, (int)is->fitted_model->data->matrix->size1);
+    if (is->fitted_model->parameters->vector)
+        assert(!isnan(apop_sum(is->fitted_model->parameters->vector)));
 }
 
 static void prep_for_draw(apop_data *notnan, impustruct *is){
@@ -363,7 +359,7 @@ Return: 1=input wasn't in the list, was modified to nearest value
   If text or real, there's no rounding to be done: it's valid or it ain't. If numeric, then we can do rounding as above.
   I only check for 't' for text; suggest 'n' for numeric but it's up to you.
 */
-int check_bounds(double *val, char *var, char type){
+int check_bounds(double *val, char const *var, char type){
 //Hey, B: Check the SQL that is about only this variable. This will need to be modified for multi-variable models.
 //After checking the SQL, check the declarations.
     if (type=='r' || type=='c') return 0;
@@ -416,132 +412,152 @@ void R_check_bounds(double *val, char **var, int *fails){
       consistency_check can produe are reserved for future work.
       */
 
-//we're guaranteed to find it, so this will run fast---and we're gonzo and don't do checks
-void mark_an_id(int *ctr, char *target, char **list, int len){
-    while (*ctr < len && !apop_strcmp(target, list[*ctr])) (*ctr)++;
-    if (*ctr == len){
+
+static apop_data *get_all_nanvals(impustruct *is, const char *id_col, const char *datatab){
+    //db_name_column may be rowid, which would srsly screw us up.
+	char *nametmp = strdup(apop_opts.db_name_column);
+    sprintf(apop_opts.db_name_column, "%s", id_col);
+    //first pass: get the full list of NaNs; no not-NaNs yet.
+    apop_data *nanvals = apop_query_to_data("select %s, %s from %s where %s is null",
+									 id_col, is->depvar, datatab, is->depvar);
+    sprintf(apop_opts.db_name_column, "%s", nametmp); 
+    free(nametmp);
+    if (verbose){
+        printf("For %s, the following NULLs:\n", is->depvar);
+        apop_data_show(nanvals); //may print NULL.
+    }
+    return nanvals;
+}
+
+//we're guaranteed to find it, so this will run fast---and we're gonzo and don't
+//do checks. We start the ctr at the last found value and allow it to loop around.
+static void mark_an_id(int *ctr, char const *target, char * const *list, int len){
+    int tries=0;
+    //while (*ctr < len && !apop_strcmp(target, list[*ctr])) (*ctr)++;
+    for (int tries=0; tries < len && !apop_strcmp(target, list[*ctr]); tries++)
+        (*ctr)= (*ctr+1) % len;
+    if (tries == len){
         *ctr = 0;
         Apop_assert_c(0,  , 0, "%s isn't in the main list of nans.", target);
     }
     sprintf(list[*ctr], ".");
 }
 
+//Do we need to use the edit check interface, and if so, what is the column type?
+//type = '\0' means not in the index of variables to check.
+static char get_coltype(int total_var_ct, char const* depvar){
+    char type = 'i'; //default to integer
+    for (int v=0; v<total_var_ct; v++)
+        if (!strcasecmp(depvar, used_vars[v].name)){
+            type= used_vars[v].type;
+            return type;
+        }
+    return '\0';
+}
+
+//This function is the inner loop cut out from impute(). As you can see from the list of
+//arguments, it really doesn't stand by itself.
+static void onedraw(char **textx, double *pre_round, gsl_rng *r, impustruct *is, 
+        int *is_fail, int is_hotdeck, char type, int id_number, int fail_id, 
+        int model_id, apop_data *full_record, int col_of_interest){
+    double x;
+	static char const *whattodo="passfail";
+    if (*textx) free(*textx);
+    apop_draw(&x, r, is->fitted_model);
+    *pre_round=x;
+    if (type == '\0'){ // '\0' means not in the index of variables to check.
+        is_fail = 0;
+        asprintf(textx, "%g", x);
+    } else {
+        if (!is_hotdeck) //inputs all valid ==> outputs all valid
+            check_bounds(&x, is->depvar, type); // We're just going to use the rounded value.
+        apop_data *f;
+        char *cats; asprintf(&cats, "<categories for %s>", is->depvar);
+        if (f = apop_data_get_page(is->fitted_model->data, cats))
+             asprintf(textx, "%s", *f->text[(int)x]);
+        else asprintf(textx, "%g", x);
+        free (cats);
+        apop_query("insert into impute_log values(%i, %i, %i, %g, '%s', 'cc')",
+                                id_number, fail_id, model_id, *pre_round, *textx);
+        //copy the new impute to full_record, for re-testing
+        apop_text_add(full_record, 0, col_of_interest, "%s", *textx);
+        consistency_check((char const * restrict *)full_record->names->text,
+                          (char const * restrict *)full_record->text[0],
+                          full_record->textsize+1,
+                          &whattodo,
+                          &id_number,
+                          is_fail,
+                          NULL);//record_fails);
+    }
+}
+
+//a shell for do onedraw() while (!done).
+static void make_a_draw(impustruct *is, gsl_rng *r, int is_hotdeck, char type, 
+        int fail_id, int model_id, int col_of_interest, int rowindex, int draw){
+    int is_fail=0, tryctr=0;
+    double pre_round;
+    char *textx = NULL;
+    int id_number = atoi(is->isnan->names->row[rowindex]);
+	Apop_data_row(is->isnan, rowindex, full_record);
+    do onedraw(&textx, &pre_round, r, is, &is_fail, is_hotdeck, type,
+           id_number, fail_id, model_id, full_record, col_of_interest); 
+    while (is_fail && tryctr++ < 1000);
+    Apop_assert(!is_fail, "I just made a thousand attempts to find an "
+        "imputed value that passes checks, and couldn't. "
+        "Something's wrong that a computer can't fix.\n "
+        "I'm at id %i.", id_number);
+    apop_query("insert into filled values( %s, '%s', %i, '%s');\n"
+               "insert into impute_log values(%s, %i, %i, %g, '%s', '? ?')",
+                   is->isnan->names->row[rowindex], is->depvar, draw, textx,
+                   is->isnan->names->row[rowindex], fail_id, model_id, pre_round, textx);
+    free(textx);
+}
+
 /* As named, impute from a single model, almost certainly a single variable.
    We check bounds, because those can be done on a single-variable basis.
-   But overall consistency gets done on the whole-record basis. */
-static void impute_a_variable(const char *datatab, const char *underlying, impustruct *is, const int min_group_size, gsl_rng *r, 
-            const int draw_count, const apop_data *category_matrix, const apop_data *fingerprint_vars, 
-            const char *id_col){
-    static apop_data *blank_category_matrix= NULL;
-    if (!blank_category_matrix) blank_category_matrix = apop_data_alloc();
-    apop_data *nanvals=NULL, *notnan=NULL;
-	int ctr=0, catctr=0;
+   But overall consistency gets done on the whole-record basis. 
+   
+    The main i-indexed loop is really just a search for representatives
+    of every subgroup. The rowindex-indexed loop is where the filled table is actually filled.
 
-	char *nametmp = strdup(apop_opts.db_name_column);
-    sprintf(apop_opts.db_name_column, "%s", id_col);
-    //first pass: get the full list of NaNs; no not-NaNs yet.
-    nanvals = apop_query_to_data("select %s, %s from %s where %s is null",
-									 id_col, is->depvar, datatab, is->depvar);
-    sprintf(apop_opts.db_name_column, "%s", nametmp); free(nametmp);
+    within the i loop:
+        Get those in the category matching this guy, split by those having the
+        relevant variable and those with NaNs at the var.
+        Set the imputation model based on those w/o NaNs.
+        Loop (rowindex-loop) over those with NaNs to write imputations to table of filled values
+   
+   */
+static void impute_a_variable(const char *datatab, const char *underlying, impustruct *is, 
 
-printf("For %s, the following NULLs:\n", is->depvar);
-apop_data_show(nanvals);
+        const int min_group_size, gsl_rng *r, const int draw_count, const apop_data *category_matrix, 
+        const apop_data *fingerprint_vars, const char *id_col){
+    static int fail_id=0, model_id=-1;
+    apop_data *notnan=NULL;
+    apop_data *nanvals = get_all_nanvals(is, id_col, datatab);
     if (!nanvals) return;
-
-	char const *whattodo="passfail";
     apop_query("begin;");
-
-    //The main i-indexed loop is really just a search for representatives
-    //of every subgroup. The k-indexed loop is where the filled table is actually filled.
-    for (int i=0; i < nanvals->names->rowct; i++){
-        int is_bounded=0, done_ctr=i;
-        //is this guy already OK?
-        if (apop_strcmp(nanvals->names->row[i], "."))
-            continue; //already got this person.
-        /*Get those in the category matching this guy, split by those having the
-            relevant variable and those with NaNs at the var.
-            Set the imputation model based on those w/o NaNs.
-            Loop over those with NaNs to write imputations to table of filled values */
-        int ego_id =  atoi(nanvals->names->row[i]);
-		catctr++;
-        get_nans_and_notnans(is, &notnan, ego_id, datatab, underlying, min_group_size, 
-                                                   category_matrix, fingerprint_vars, id_col);
+    for (int i=0; i < nanvals->names->rowct; i++){ //see notes above.
+        if (apop_strcmp(nanvals->names->row[i], ".")) continue; //already got this person.
+        get_nans_and_notnans(is, &notnan, atoi(nanvals->names->row[i]) /*ego_id*/, 
+                datatab, underlying, min_group_size, category_matrix, fingerprint_vars, id_col);
 		if (!is->isnan) {/* apop_data_free(notnan)*/; continue;} //nothing missing.
 		int col_of_interest=apop_name_find(is->isnan->names, is->depvar, 't');
-        char type = 'i'; //default to integer
-        for (int v=0; v<total_var_ct && !is_bounded; v++)
-            if (!strcasecmp(is->depvar, used_vars[v].name)){
-                is_bounded =1;
-                type= used_vars[v].type;
-            }
-		int is_hotdeck = (is->base_model.estimate ==apop_multinomial.estimate 
+        char type = get_coltype(total_var_ct, is->depvar);
+		int is_hotdeck = (is->base_model.estimate == apop_multinomial.estimate 
 								||is->base_model.estimate ==apop_pmf.estimate);
-    assert(notnan->matrix || notnan->vector || *notnan->textsize);
-		if (is_hotdeck) {
-			apop_data *compressed = apop_data_pmf_compress(notnan);
-//            apop_data_free(notnan);
-            notnan=compressed;
-        }
-        model_est(notnan, is);
-        if (is->fitted_model->parameters->vector)
-            assert(!isnan(apop_sum(is->fitted_model->parameters->vector)));
+        model_est(notnan, is, &model_id, is_hotdeck); //notnan may be pmf_compressed here.
+        int done_ctr=i;
         for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){//more==rowids.
             prep_for_draw(notnan, is);
-            fail_id++;
-			double pre_round,x;
-			int id_number = atoi(is->isnan->names->row[rowindex]);
-			Apop_data_row(is->isnan, rowindex, full_record);
-            for (int draw=0; draw< draw_count; draw++){
-				int is_fail=0, tryctr=0;
-                char *textx = NULL;
-				do {
-                    if (textx) free(textx);
-					apop_draw(&x, r, is->fitted_model);
-					pre_round=x;
-                    if (!is_bounded){
-                        is_fail = 0;
-                        asprintf(&textx, "%g", x);
-                    } else {
-						if (!is_hotdeck) //inputs all valid ==> outputs all valid
-                            check_bounds(&x, is->depvar, type); // We're just going to use the rounded value.
-                        apop_data *f;
-                        char *cats; asprintf(&cats, "<categories for %s>", is->depvar);
-                        if (f = apop_data_get_page(is->fitted_model->data, cats))
-                             asprintf(&textx, "%s", *f->text[(int)x]);
-                        else asprintf(&textx, "%g", x);
-                        free (cats);
-                        apop_query("insert into impute_log values(%i, %i, %i, %g, '%s', 'cc')",
-                                                id_number, fail_id, model_id, pre_round, textx);
-                        //copy the new impute to full_record, for re-testing
-                        apop_text_add(full_record, 0, col_of_interest, "%s", textx);
-                        consistency_check((char const * restrict *)full_record->names->text,
-                                          (char const * restrict *)full_record->text[0],
-                                          full_record->textsize+1,
-                                          &whattodo,
-                                          &id_number,
-                                          &is_fail,
-                                          NULL);//record_fails);
-                    }
-				} while (is_fail && tryctr++ < 1000);
-				Apop_assert(!is_fail, "I just made a thousand attempts to find an "
-					"imputed value that passes checks, and couldn't. "
-					"Something's wrong that a computer can't fix.\n "
-					"I'm at id %i.", id_number);
-                apop_query("insert into filled values( %s, '%s', %i, '%s');\n"
-                           "insert into impute_log values(%s, %i, %i, %g, '%s', '? ?')",
-                                           is->isnan->names->row[rowindex], is->depvar, draw, textx,
-                                           is->isnan->names->row[rowindex], fail_id, model_id, pre_round, textx);
-                free(textx);
-			}
+            for (int draw=0; draw< draw_count; draw++)
+                make_a_draw(is, r, is_hotdeck, type, ++fail_id, model_id,
+                          col_of_interest, rowindex, draw);
             mark_an_id(&done_ctr,is->isnan->names->row[rowindex], nanvals->names->row, nanvals->names->rowct);
-			if (!(ctr++ % 1000)) {printf("cat %i, %i elmts\t%g%% done\r",catctr, is->isnan->names->rowct, ((1000*ctr)/nanvals->names->rowct)/10.0);fflush(NULL);}
-        }
-		//if (is_hotdeck) apop_data_free(is->fitted_model->data);
-        apop_model_free(is->fitted_model);
+       }
+        apop_model_free(is->fitted_model); //if (is_hotdeck) apop_data_free(is->fitted_model->data);
         //apop_data_free(notnan);
         apop_data_free(is->isnan);
     }
-    //gsl_vector_free(ids_to_fill);
     apop_query("commit;");
     apop_data_free(nanvals);
 }
@@ -588,7 +604,6 @@ return		apop_strcmp(name, "normal")
 			apop_strcmp(name, "probit")
 				? apop_probit :
 			apop_strcmp(name, "kernel")
-	      ||apop_strcmp(name, "kerneldensity")
 	      ||apop_strcmp(name, "kernel density")
 				? apop_kernel_density 
 				: (apop_model) {.name="Null model"};

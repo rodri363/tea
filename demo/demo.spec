@@ -94,10 +94,10 @@ impute{
 	models{
 		sex { method: hot deck }
 
-        wagp { method: hot deck}
+        wagp { method: lognormal}
 
         agep { method: ols
-            vars:  wagp, rac1p
+            vars:  wagp
         }
 	
 	}

@@ -198,12 +198,13 @@ rnorm.edit <- function(mean,sigma,alts){
 #' the "filled" table). Give an imputation number, and if you want to pull just a subset of the origin, 
 #' set subset to something to put into a "where" clause.
 
-#' @param origin The main data set, with missing values
+#' @param origin The main data set, with missing values. Default= the active table.
 #' @param dest  If given and not NULL, the output table name. If NULL, fill dest.
 #' @param imputation_number You had multiple imputations; which do you want? First is zero.
 #' @param subset What to put into a 'where' clause if you want less than the whole table.
 
 checkOutImpute <- function(origin=NULL, dest=NULL, imputation_number=0, subset=NULL) {
+    origin <-getInputTable(origin)
 	.C("check_out_impute", as.character(origin), as.character(dest), 
 					as.integer(imputation_number), as.character(subset))
 }

@@ -15,7 +15,7 @@ nodoc:  pkg
 	cd $(Pkg_dir)/..; R_LIBS=$(R_LIBS) R CMD build tea
 	cd $(Pkg_dir)/..; R CMD INSTALL -l ~/.Rlibs tea*.tar.gz
 
-docs:
+docs:	#also set up the demo data.
 	cd $(Pkg_dir) && R CMD roxygen .
 	mkdir -p $(Pkg_dir)/man
 	mv $(Pkg_dir)/..roxygen/man/* $(Pkg_dir)/man/
@@ -23,6 +23,8 @@ docs:
 	cd doc; make;
 	mkdir -p $(Pkg_dir)/inst/doc
 	cp doc/tea.pdf $(Pkg_dir)/inst/doc/tea-overview.pdf
+	cp -r demo $(Pkg_dir)
+	cd $(Pkg_dir)/demo; . insert_bugs; rm ss08pdc.csv insert_bugs
 
 talk:
 	cd c/peptalk && bison --verbose -d -t peptalk.y 
