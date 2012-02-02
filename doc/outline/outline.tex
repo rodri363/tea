@@ -6,26 +6,41 @@
          
 \long\def\ii#1{\begin{enumerate}\item #1\end{enumerate}} 
 
-\ii{Part I: Concepts
-\item Imputation
-	\item Models
-    \ii{Donor-based
-		\ii{Hot-Deck
-		\item Predictive Matching}
+\ii{Philosophy
+	\ii{Imputation $=$ Data$\rightarrow$ Model$\rightarrow$ Fit$\rightarrow$ Draw$\rightarrow$ Data
+	\item Methods $=$ Collections of imputations
+	%communicative (update then re-model) e.g. SRMI 
+	%non-communicative e.g. subsetting
+	%combination e.g. SRMI on subsets
+	\item Multiple Imputation
 	}
-	\ii{Draw-based
-    	\ii{Univariate
-    	\item Conditional
-    	\item Multivariate
+\item Models
+	\ii{Explicit
+		\ii{Univariate
+		\item Regression
+		\item Multivariate
+		}
+	\item Implicit
+		\ii{Classification
+		\item Matching
 		}
 	}
-
+\item Methods
+	\ii{Donor-based
+		\ii{Hot-Deck
+		\item Predictive Matching}
+	\item Density-based
+		\ii{Predictive Distributions
+		\item Sequential Regression
+		\item Bootstrapping
+		}
+	}
 \item Environments
 	\ii{Editing
 	\item Missing Data
 	\item Disclosure
 	}
-\item Multiple Imputation
+
 
 
 \item Part II: Application
@@ -39,8 +54,6 @@
             }
  
 
-}
-                                                                                                                                        
 \ii {Editing
 \item SQL (via RSQLite)
     \ii{Basic {\tt select}  queries
@@ -53,6 +66,7 @@
     \ii {A walk through a spec file
     \item imputation methods
     }
+}
 }                                                                                                                                       
                                                                                                                                         
 \end{document}
