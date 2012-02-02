@@ -87,9 +87,13 @@ the [db] tag sets the location for the database file.
 The first step to interfacing with SQL in R is to create a database connection.
 This is a conduit through which R receives and sends data to the database.
 For SQLite, the following invocation does the job:
-\begin{verbatim}
-con <- dbConnect(dbDriver("SQLite"),"db_file")
-\end{verbatim}
+<<results=hide,echo=FALSE>>=
+library(tea)
+setwd("/cenhome/rodri363/tea/demo/bigdemo/")
+@
+<<>>=
+con <- dbConnect(dbDriver("SQLite"),"demo.db")
+@
 
 With the connection in place, the host of database interfacing functions in R
 can be utilized, with most taking the connection as an argument.  At the end of
@@ -105,28 +109,47 @@ records from the database into our statistical software of choice (in this case 
 Records within an SQL database are accessed via ``select queries''.  These queries have
 various keywords that allow users to select specific records to see from the database.
 As an example, the following query:
-select A,B from D where A>5
-would yield the values of the variables A and B from the table T where A has a value
-greater than five.  The result of this query might look like this:
-A|B
-6|a
-6|b
-9|c
-8|d
+\begin{verbatim}
+select AGEP,SEX from pdc where AGEP>90
+\end{verbatim}
+would yield the values of the variables AGEP and SEX from the table pdc where AGEP
+has a value greater than ninety.
+
 In the vignette on R data handling (TBW) we saw that the R data frame is the basic structure for performing statistical.  We thus wish to read in the results of select queries into R data frame.  This is accomplished via the R/SQL interface functions.  To read in
 the select query above into an R data frame, we could use:
-\begin{verbatim}
-DF <- dbGetQuery(con,"select A,B from D where A>5")
-\end{verbatim}
-This will create the data frame DF containing the data shown above.  Types for the variables in the data frame are determined by SQL type, with the following mappings:
-SQL		R
-text	character
-integer	integer
-real	double
+<<>>=
+DF <- dbGetQuery(con,"select AGEP,SEX from pdc where AGEP>90")
+@
+This will create the data frame DF containing the data shown above.  To see the first five records in the data frame we can do:
+<<>>=
+head(DF,5)
+@
+
 Names for the data frame are obtained from the column headers in SQL:
-%this will be a vignette example using DC in the finished doc
-> names(DF)
-"A" "B"
+<<>>=
+names(DF)
+@
+
+Types for the variables in the data frame are determined by SQL type, with the
+following mappings:
+
+\begin{tabular}{l|l}
+SQL&R\\\hline
+text&character\\
+integer&integer\\
+real&double\\
+\end{tabular}
+
+<<>>=
+lapply(DF,typeof)
+@
+
+We see now why applying the correct database types during input is important in the
+context of using R for data analysis.  Many R models and esimation routines use variables
+types to make automatic decisions about structures.  For instance, the R function lm,
+which performs multiple regression, will automatically make ``dummy variables'' for
+character variables given as predictors in the model.  Thus proper typing gives
+our data frames the expected functionality we expect within R.
 
 \subsection{Inserts and Updates}
 Though much of data handling occurs during the initial input into the database,
@@ -156,9 +179,15 @@ changes we make to the defining variables in the base table will automatically c
 the value of the recode in the view.  As an example, we might have a recode, C that
 is the sum of two other variables, A and B.  We could define a view containing C as:
 
-.create view V as select *, A+B as C from D
+\begin{verbatim}
+create view V as select *, A+B as C from D
+\end{verbatim}
+
 we could also define a new table containing C as:
-.create table T as select *, A+B as C from D
+
+\begin{verbatim}
+create table T as select *, A+B as C from D
+\end{verbatim}
 
 We might have a given record with values $A=2$ and $B=3$, so $C=5$.  Say for some reason
 (editing, SDC) we update these values to $A=3$ and $B=7$ in tables D and T.  We can now
