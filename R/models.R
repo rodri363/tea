@@ -461,3 +461,63 @@ TEA.regressish.draw <- function(env){
 regressish <- new("apop_model", name="regressish",  
                                 estimate_function=TEA.regressish.est,
                                 draw_function=TEA.regressish.draw)
+
+
+#' Estimate a CART model on the given data
+#' The function takes one argument, an environment.  The following are
+#' the elements expected in the environment
+#' @param data = a data frame containing the variables promised in the formula
+#' @param formula = the formula used to generate fit
+#' @return nothing, but update the environment with a new item:
+#' fit = an object of class 'tree', giving the fit.
+
+TEA.tree.est <- function(env){
+	ffact <- function(x){
+		if(is.character(x)) return(factor(x))
+		else return(x)
+	}
+	env$Data <- as.data.frame(lapply(env$Data,ffact)) #factorize characters
+	env$fit <- try(tree(env$Formula,data=env$Data,y=TRUE))
+	if(inherits(env$fit,"try-error")) stop(paste("Tree fit did not work on"))
+}
+
+#' Draw synthetic values from a CART fit, usin Reiter's Bayesian bootstrap method
+#' The function takes one argument, an environment.  The following are
+#' the elements expected in the environment
+#' @param data = a data frame containing the variables promised in the formula
+#' @param formula = the formula used to generate fit
+#' @param fit = an object of class 'tree' giving the fit
+#' @return a vector containing the synthetic values
+
+TEA.tree.draw <- function(env){
+	#do some prediction via Bayes Bootstrap
+	#find all observations in a given leaf
+	#get all leaves
+	vret <- env$fit$y
+	vleaf <- row.names(subset(env$fit$frame,var=="<leaf>"))
+	for(kleaf in vleaf){
+		vwch <- which(rownames(env$fit$frame)[env$fit$where]==kleaf)
+		vvals <- vret[vwch]
+		vsyn <- NULL
+		#not sure if draw of sampling probs occurs just once per leaf...
+		vunif <- c(0,runif(length(vvals)-1,0,1),1)
+		vunif <- vunif[order(vunif)]
+		#repeat this until you get all the values you need
+		idx <- 0
+		while(idx < length(vvals)){
+			vuimp <- runif(length(vvals),0,1)
+			vlow <- vuimp > vunif[-length(vunif)]
+			vhi <- vuimp <= vunif[-1]
+			vimp <- vlow & vhi
+			vsyn <- c(vsyn,vvals[vimp])
+			idx <- idx + sum(vimp)
+		}
+		vsyn <- vsyn[1:length(vvals)] #chop off excess imputes
+		vret[vwch] <- vsyn
+	}
+	return(vret)
+}
+
+teatree <- new("apop_model", name="teatree",  
+                                estimate_function=TEA.tree.est,
+                                draw_function=TEA.tree.draw)
