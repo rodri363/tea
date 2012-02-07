@@ -1,147 +1,42 @@
-#' Given a gam fit (either from gam or step.gam),
-#' Do predictive mean matching using gam.predict object
-#' and (possibly) consistency rules.  To use consistency rules,
-#' gam.predict$data needs to have all variables used by the
-#' consistency checking system
-#' @param gam.fit = a model fit as returned by the gam() function
-#' @param data = a data frame.  The data frame must contain all the variables
-#' promised by gam.fit.  The data frame need not contain the same number of
-#' observations as the data used in the original fit.
-#' @param edit.vars = A character vector containing the variables used in the
-#' consistency checking system.  Defaults to NULL, which implies no checking
-#' @param db = A string giving the database used for the consistency checking system.
-#' Defaults to NULL, which implies no checking.
-#' @param niter = Integer giving the total iterations allow for the consistency checking and
-#' bounds checking systems.  Defaults to 10.
-#' @param kround = Integer giving the number of digits used for rounding synthetic values.
-#' Defaults to 0, which is to the nearest integer.
-#' @param v.floor = A string giving the variable in the data frame that gives
-#' a floor for the synthetic value of reach record.  Default is NULL,
-#' which implies a floor of -Inf.
-#' @param v.ceiling = A string giving the variable in the data frame that gives
-#' a ceiling for the synthetic value of reach record.  Default is NULL,
-#' which implies a ceiling of Inf.
-#'
-#' @return a data frame of the same dimensions as data, with synthetic values
-#' inserted for the response variable.
-PEP.gam.syn.pmm <- function(gam.fit,data,edit.vars=NULL,db=NULL,niter=10,kround=0,
-	v.floor=NULL,v.ceiling=NULL){
-	lhs  <- all.vars(gam.fit$formula)[1]
-	print(gam.fit$formula)
-	originals <- data[,lhs] #store original values
-	predicted <- predict.gam(gam.fit,newdata=data,type="link")
+#' Estimate a GAM (generalized additive  model) on the given data
+#' The function takes one argument, an environment.  The following are
+#' the elements expected in the environment
+#' @param Data = a data frame containing the variables promised in the formula
+#' @param Formula = the formula used to generate fit
+#' @return nothing, but update the environment with a new item:
+#' Fit = an object of class 'tree', giving the fit.
+TEA.gam.est <- function(env){
+	Fit <- try(gam(env$Formula,data=env$Data))
+	if(inherits(Fit,"try-error")) stop(paste("gam on", Formula, "did not work for given data"))
+	env$Fit <- Fit
+}
+
+#' Draw synthetic values from a GAM fit, using predictive mean matching.
+#' The function takes one argument, an environment.  The following are
+#' the elements expected in the environment
+#' @param Data = a data frame containing the variables promised in the formula
+#' @param Formula = the formula used to generate fit
+#' @param Fit = an object of class 'tree' giving the fit
+#' @return a vector containing the synthetic values
+TEA.gam.draw <- function(env){
+	lhs  <- all.vars(env$Formula)[1]
+	originals <- env$Data[,lhs] #store original values
+	predicted <- predict.gam(env$Fit,newdata=env$Data,type="link")
 	if(inherits(predicted,"try-error")) stop("prediction not successful")
-	#sigma not needed in this method
-	#sigma <- sqrt(sum(fit$residuals^2)/fit$df.residual)
 	dists <- as.matrix(dist(predicted)) #get distances of fitted valued
 	diag(dists) <- Inf #set diagonal to infinity
 	dists[is.na(dists)] <- Inf #set NA values to infinity
 	#find maximal -distance, so minimal distance. diag is inf, so will never be minimal
 	donors <- max.col(-dists)
 	donvals <- originals[donors]
-	data[,lhs] <- round(donvals,kround)
-
-	#if no checking to be done, done!
-	if(all(is.null(v.floor),is.null(v.ceiling),is.null(edit.vars))){
-		return(data)
-	}else{
-		#check to see if all edit vars are avaiable!
-		if(!is.null(edit.vars) & !all(edit.vars %in% names(data))){
-			stop(paste("Couldn't find",
-					paste(setdiff(edit.vars,names(data)),collapse=","),
-					"in the data!  Can't do consistency checking."))
-		}
-		if(!is.null(db)) con <- dbConnect(dbDriver("SQLite"),db)
-		if(is.null(db)) stop("Can't do consistency without a database connection")
-		efail <- 1
-		ffail <- 1
-		cfail <- 1
-		iter <- 1
-		#note that logical() gives FALSE as default
-		#start off with everything failing
-		edit.fail <- !logical(nrow(data))
-		floor.fail <- !logical(nrow(data))
-		ceiling.fail <- !logical(nrow(data))
-		edit.vals <- mapply(as.matrix,data[,edit.vars])
-		while(any(efail > 0,ffail>0,cfail>0) & iter<=niter){
-			#method: check values for consistency
-			#for any row that fails
-				#set the row/donor entry of the dists matrix to -inf
-				#go again
-			#do the grunt up from work of getting good values to send into system
-			if(!is.null(edit.vars) & efail > 0){
-				edit.sub <- as.logical(apply(edit.vals[edit.fail,,drop=FALSE],1,CheckConsistency,
-						vars=edit.vars,what_you_want="passfail",con=con))
-				edit.fail[edit.fail] <- edit.sub
-			}else{
-				edit.fail <- logical(nrow(data))
-			}
-			if(!is.null(v.floor) & ffail > 0){
-				floor.sub <- data[floor.fail,lhs] < data[floor.fail,v.floor]
-				floor.fail[floor.fail] <- floor.sub
-			}else{
-				floor.fail <- logical(nrow(data))
-			}
-			if(!is.null(v.ceiling) & cfail > 0){
-				ceiling.sub <- data[ceiling.fail,lhs] > data[ceiling.fail,v.ceiling]
-				ceiling.fail[ceiling.fail] <- ceiling.sub
-			}else{
-				ceiling.fail <- logical(nrow(data))
-			}
-			all.fail <- edit.fail | floor.fail | ceiling.fail
-			#set anything that failed back to original values
-			data[all.fail,lhs] <- originals[all.fail]
-			#set distances to Inf for bad donors
-			dists[cbind(which(all.fail),donors[all.fail])] <- Inf
-			efail <- sum(edit.fail)
-			ffail <- sum(floor.fail)
-			cfail <- sum(ceiling.fail)
-			#draw new donors with new Infs in place
-			donors <- max.col(-dists)
-			donvals <- originals[donors]
-			#put in new donors for failed records
-			data[all.fail,lhs] <- donvals[all.fail]
-			#NEED TO RECOMPUTE FAILURE OVERALL; CAN'T DEPEND ON JUST THE SUB.FAILS!
-			edit.vals <- mapply(as.matrix,data[,edit.vars])
-			#print(edit.vals)
-			if(!is.null(edit.vars) & efail > 0){
-				edit.fail <- as.logical(apply(edit.vals[!logical(nrow(data)),,drop=FALSE],1,CheckConsistency,
-					vars=edit.vars,what_you_want="passfail",con=con))
-			}
-			if(!is.null(v.ceiling) & cfail > 0) ceiling.fail <- data[,lhs] > data[,v.ceiling]
-			if(!is.null(v.floor) & ffail > 0) floor.fail <- data[,lhs] < data[,v.floor]
-			efail <- sum(edit.fail)
-			ffail <- sum(floor.fail)
-			cfail <- sum(ceiling.fail)
-			#print(paste("There are",sum(is.infinite(dists)),"infinite cells"))
-			iter <- iter+1
-		}
-
-		if(!is.null(v.ceiling)) ceiling.fail <- data[,lhs] > data[,v.ceiling]
-		if(!is.null(v.floor)) floor.fail <- data[,lhs] < data[,v.floor]
-		efail <- sum(edit.fail)
-		ffail <- sum(floor.fail)
-		cfail <- sum(ceiling.fail)
-		all.fail <- edit.fail | floor.fail | ceiling.fail
-			
-		print(paste("Out of",nrow(data),"records there were:"))
-		print(paste("There were",efail,"inconsistent draws"))
-		print(paste("There were",ffail,"draws under the floor"))
-		print(paste("There were",cfail,"draws above the ceiling"))
-		#put back the remaining inconsistent records to original values
-		print("Failures")
-		print(data[all.fail,c(lhs,v.floor,v.ceiling)])
-		data[all.fail,lhs] <- originals[all.fail]
-		print("Reset values")
-		print(data[all.fail,c(lhs,v.floor,v.ceiling)])
-		print("All values")
-		print(data[,c(lhs,v.floor,v.ceiling)])
-		print("Originals")
-		print(originals)
-		if(!is.null(con)) dbDisconnect(con)
-		return(data)
-	}
+	ret <- env$Data
+	ret[,lhs] <- donvals
+	return(ret)
 }
+
+teagam <- new("apop_model", name="teagam",  
+                                estimate_function=TEA.gam.est,
+                                draw_function=TEA.gam.draw)
 
 #' Given a multinom fit (either from multinom or stepAIC),
 #' create maximum likelihood-based synthetic data
@@ -233,9 +128,9 @@ PEP.multinom.syn.ml <- function(multinom.fit,data,edit.vars=NULL,db=NULL,niter=1
 	}
 }
 
-flev <- function(var, DFmod){
-    if(is.character(DFmod[,var])) return(levels(factor(DFmod[,var])))
-    if(is.factor(DFmod[,var])) return(levels(DFmod[,var]))
+flev <- function(var, Data){
+    if(is.character(Data[,var])) return(levels(factor(Data[,var])))
+    if(is.factor(Data[,var])) return(levels(Data[,var]))
     return(NA)
 }
 
@@ -253,22 +148,22 @@ flev <- function(var, DFmod){
 #' via the MCMCmnl() function and return a list of items to be used
 #' by TEA.predict.MCMCmnl
 #' @param Formula = a formula object
-#' @param DFmod = a data frame on which to perform modeling
+#' @param Data = a data frame on which to perform modeling
 #' @return a list containing the following named items
 #' Fit: a matrix of posterior parameter draws returned by MCMCmnl
 #' Formula: the formula given as an argument
-#' Mmod: a model matrix generated by model.matrix(multinom(Formula,DFmod))
+#' Mmod: a model matrix generated by model.matrix(multinom(Formula,Data))
 #' Llev: the levels/unique values for every factor/character variable referenced in Formula
 
-#TEA.fit.MCMCmnl <- function(Formula,DFmod){
+#TEA.fit.MCMCmnl <- function(Formula,Data){
 TEA.fit.MCMCmnl <- function(env){
-	Fit <- try(MCMCmnl(env$Formula,data=env$DFmod))
+	Fit <- try(MCMCmnl(env$Formula,data=env$Data))
 	if(inherits(Fit,"try-error")) stop(paste("MCMCmnl() on", Formula, "did not work for given data"))
     attach(env)
-	Mmod <- model.matrix(Formula,DFmod)
+	Mmod <- model.matrix(Formula,Data)
 	#levels of response
 	Vvar <- all.vars(Formula)
-    Llev <- sapply(Vvar,flev, DFmod)
+    Llev <- sapply(Vvar,flev, Data)
     detach(env)
     assign("Llev", Llev, envir=env)
     assign("Fit", Fit, envir=env)
@@ -370,22 +265,22 @@ logitish <- new("apop_model", name="logitish",
 #' via the MCMCregress() function and return a list of items to be used
 #' by TEA.predict.MCMCregress
 #' @param Formula = a formula object
-#' @param DFmod = a data frame on which to perform modeling
+#' @param Data = a data frame on which to perform modeling
 #' @return a list containing the following named items
 #' Fit: a matrix of posterior parameter draws returned by MCMCregress
 #' Formula: the formula given as an argument
-#' Mmod: a model matrix generated by model.matrix(lm(Formula,DFmod))
+#' Mmod: a model matrix generated by model.matrix(lm(Formula,Data))
 #' Llev: the levels/unique values for every factor/character variable referenced in Formula
 TEA.fit.MCMCregress <- function(env){
     attach(env)
-	Fit <- try(MCMCregress(Formula,data=DFmod))
+	Fit <- try(MCMCregress(Formula,data=Data))
 	if(inherits(Fit,"try-error")) stop(paste("MCMCregress() on",Formula,"did not work for given data"))
-	Fitml <- try(lm(Formula, data=DFmod))
+	Fitml <- try(lm(Formula, data=Data))
 	if(inherits(Fit,"try-error")) stop(paste("lm() on",Formula,"did not work for given data"))
 	Mmod <- model.matrix(Fitml)
 	#levels of response
 	Vvar <- all.vars(Formula)
-	Llev <- sapply(Vvar,flev, DFmod)
+	Llev <- sapply(Vvar,flev, Data)
     detach(env)
     env$Fit<-Fit
     env$Mmod<-Mmod
@@ -515,7 +410,10 @@ TEA.tree.draw <- function(env){
 		vsyn <- vsyn[1:length(vvals)] #chop off excess imputes
 		vret[vwch] <- vsyn
 	}
-	return(vret)
+	ret <- env$Data
+	lhs <- all.vars(env$Formula)[1]
+	ret[,lhs] <- vret
+	return(ret)
 }
 
 teatree <- new("apop_model", name="teatree",  

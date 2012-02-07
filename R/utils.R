@@ -109,7 +109,8 @@ UpdateTablefromDF <- function(data,tbl,con,cols,match.key,ncommit=10000,verbose=
 	while(first.row <= nrow(data)){
 		if(verbose) print(paste("Committing rows",first.row,"to",last.row))
 		t0 <- proc.time()
-		dbGetQuery(con,"begin transaction")
+		#dbGetQuery(con,"begin transaction")
+		dbGetQuery(con,"savepoint utfdf")
 		dbGetPreparedQuery(con, query, bind.data=data.frame(data[first.row:last.row,],stringsAsFactors=FALSE))
 		#for(rdx in first.row:last.row){
 		#	query <- paste("update",tbl,"set",
@@ -118,7 +119,8 @@ UpdateTablefromDF <- function(data,tbl,con,cols,match.key,ncommit=10000,verbose=
 		#		paste(match.key,pQuote(data[rdx,match.key]),sep="=",collapse=" and "))
 		#	dbGetQuery(con,query)
 		#}
-		dbGetQuery(con,"commit")
+		#dbGetQuery(con,"commit")
+		dbGetQuery(con,"release utfdf")
 		first.row <- last.row+1
 		last.row <- min(c(first.row+(ncommit-1),nrow(data)))
 		if(verbose) print(proc.time()-t0)
