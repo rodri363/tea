@@ -5,6 +5,7 @@
 #' @param Formula = the formula used to generate fit
 #' @return nothing, but update the environment with a new item:
 #' Fit = an object of class 'tree', giving the fit.
+
 TEA.gam.est <- function(env){
 	Fit <- try(gam(env$Formula,data=env$Data))
 	if(inherits(Fit,"try-error")) stop(paste("gam on", Formula, "did not work for given data"))
@@ -18,6 +19,7 @@ TEA.gam.est <- function(env){
 #' @param Formula = the formula used to generate fit
 #' @param Fit = an object of class 'tree' giving the fit
 #' @return a vector containing the synthetic values
+
 TEA.gam.draw <- function(env){
 	lhs  <- all.vars(env$Formula)[1]
 	originals <- env$Data[,lhs] #store original values
