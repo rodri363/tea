@@ -1,0 +1,77 @@
+\documentclass{article}
+
+\usepackage{natbib}
+\usepackage{graphics}
+\usepackage{amsmath}
+\usepackage{indentfirst}
+\usepackage[utf8]{inputenc}
+
+\DeclareMathOperator{\var}{var}
+\DeclareMathOperator{\cov}{cov}
+
+% \VignetteIndexEntry{Data}
+
+\begin{document}
+
+\title{TEA Models}
+\author{Rolando A. Rodriguez}
+\maketitle
+
+\section{A Model of Modeling}
+Separating components from the gestalt of a mature (or in some cases, elderly) production
+system can be a tedious, sometimes impossible task.  One of the cornerstones of the TEA
+system is the modularity of its components.  One should not have to modify the entire
+production system simply to change how a particular recode is made, or if one wants
+to change one consistency rule.  We feel this should hold true for data modeling as well.
+
+When we use the term ``model'' in TEA to mean any kind of algorithm that has
+parameters\footnote{We use the term ``parameter'' generally here.  For instance, the
+parameters of a hot deck would be a donor list.} we wish to obtain from a particular
+data set.  In this way, models and data sets are intimately associated.  Once we obtain
+the model parameters from a data set, we say that the model has been ``fit'' to the data.
+Once a model is fit, we can define functions that make use of the fit for production
+purposes.  Typically, a fit will be used either for inference, making decisions about
+the data, or synthesis, making new data.
+
+Here are two concrete examples of models fit on a dataset D:
+\begin{description}
+\item[Bivariate normal]  We assume that two variables (with missing values) in D,
+Y1 and Y2, follow a bivariate normal distribution with parameters mu and Sigma.
+Bayesian priors are placed on the parameters, and we use the algorithm of Schafer
+to obtain posterior distributions on the parameters.
+\item[Hot Deck]  We use the variables X in D to define donor cells for a variable Y.
+Using the algorithm of ... we create donor stacks for each cell.
+\begin{end}
+
+\section{Methods to the Madness} If models form the structural basis for inference and
+synthesis in TEA, then methods form the operational components.  We define a ``method''
+recursively as a collection of models or methods, along with functions to guide the
+method.  Methods have added complexity since they must function over a series of fits,
+and each fit may depend upon aspects of the previous fit.  To give a framework for how
+methods operate, we describe the components of a method that creates synthetic data and
+checks it against consistency rules might work when the data are contained in a database.
+
+\begin{description}
+\item[Initialization] Define the records of the database that will be used for the
+model fits of the method.  Define a savepoint in the database so we can revert back
+to the original data upon if necessary.  Run algorithms to determine model order if necessary.
+\item[Model fit] Fit the first model on the data containing the records identified
+in initialization.  Generate new data from the fit.
+\item[Update] Insert the synthetic data from the fit into the database, which updates
+all views/recodes.  Test the new data from consistency errors.  If model order
+is based on criteria related to the fit, recalculate order.
+\item[next fit]  If there were no errors, fit the next model.  If there were errors,
+refit or redraw the previous model.
+\item[loop] If the particular method requires looping (e.g. SRMI, EM), check for any convergence criteria, and loop to the first model fit if necessary.
+\item[Finalization] If desired, roll back changes to the data.
+\end{description}
+
+At the end of this algorithm we would say the method has been ``fit'', much like for
+models.  We can then use the method for inference and synthesis as well.  One could
+thus ask why the distinction between models and methods?  We intend for models to be
+self-contained: an algorithm for producing parameters from data.  Methods are more
+fluid, and indeed, the hallmark of many methods is that the particular models within
+the method can be changed.  For instance, the particular regression models that go into
+an SRMI fit can vary, but the method is still SRMI.
+
+\end{document}

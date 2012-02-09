@@ -15,19 +15,23 @@
 srmi <- function(srmilist){
 	ee <- as.environment(srmilist)
 	ee$con <- dbConnect(dbDriver("SQLite"),ee$kdb)
+	#all the unique variables given in the formulas
 	vvars <- unique(c(ee$vmatch,unlist(lapply(ee$lform,all.vars))))
-	print(vvars)
 	#ID data frame
 	query <- paste("select",paste(ee$vmatch,collapse=","),"from",
 		ee$kstab,"where",ee$kuniv)
 	ee$DFID <- dbGetQuery(ee$con,query)
 	#get records via prepped query
+	#The reason for using a prepared select is that,
+	#if the variables used to define the where clause are modified
+	#we might get different records for each model!
 	ee$prepq <- paste("select",paste(vvars,collapse=","),"from",
 		ee$kstab,"where",paste(ee$vmatch,paste(":",ee$vmatch,sep=""),collapse=" and ",sep="="))
 	ee$Data <- dbGetPreparedQuery(con,ee$prepq,ee$DFID)
 	#setup models
 	lmod <- lapply(ee$lmodel,setupRapopModel)
 	#initilization stuff
+	#this could also be an input function
 	dbGetQuery(ee$con,paste("savepoint",ee$ksave))
 
 	#first run
@@ -54,13 +58,14 @@ srmi <- function(srmilist){
 
 	#loop run
 	#could also base stop on convergence criteria
-	#for each model
+	#for each model (future plans)
 	kloop <- 0
 	while(kloop < 10){
 		for(ldx in 1:length(ee$lform)){
 			print(kloop)
 			print(ldx)
-			fit <- estimateRapopModel(list(Formula=ee$lform[[ldx]],Data=ee$Data),lmod[[ldx]])
+			fit <- estimateRapopModel(list(Formula=ee$lform[[ldx]],Data=ee$Data),
+				lmod[[ldx]])
 			ee$Data <- RapopModelDraw(fit)
 			ee$kcol <- all.vars(ee$lform[[ldx]])[1]
 			ee$fupdate(ee)
