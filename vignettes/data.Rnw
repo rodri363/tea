@@ -212,7 +212,9 @@ modify a view and taking appropriate action.  In SQL, this mechanism is known as
 Our main use of triggers is to update a base table when certain update statements on
 a view on that table are attempted.  For instance, we may have the following trigger:
 
+\begin{verbatim}
 create trigger TRIG instead of update of A on V begin update T set A = new.A where ID=old.ID; end
+\end{verbatim}
 
 This trigger says that instead of updating the variable A on the view V, update A in
 the actual table T, setting A to the new value where record IDs match.  Such triggers
