@@ -289,9 +289,9 @@ TEA.fit.MCMCregress <- function(env){
     env$Llev<-Llev
 }
 
-mcmc.reg <- new("apop_model", name="MCMC regression",  
-                                estimate_function=TEA.fit.MCMCregress, 
-                                draw_function=TEA.draw.mcmc)
+#mcmc.reg <- new("apop_model", name="MCMC regression",  
+#                                estimate_function=TEA.fit.MCMCregress, 
+#                                draw_function=TEA.draw.mcmc)
 
 #' Draw posterior predictive values from an MCMCregress fit.
 #' Made to work nicely with a return object from TEA.fit.MCMCregress
@@ -387,13 +387,24 @@ TEA.tree.est <- function(env){
 #' @return a vector containing the synthetic values
 
 TEA.tree.draw <- function(env){
+	#TODO
+	#with newdata, first step is to assign leaves to each record
+	#then proceed as below
+	ffact <- function(x){
+		if(is.character(x)) return(factor(x))
+		else return(x)
+	}
+	env$Data <- as.data.frame(lapply(env$Data,ffact)) #factorize characters
+	vwhere <- predict.tree(env$fit,env$Data,type="where")
+
 	#do some prediction via Bayes Bootstrap
 	#find all observations in a given leaf
 	#get all leaves
 	vret <- env$fit$y
 	vleaf <- row.names(subset(env$fit$frame,var=="<leaf>"))
 	for(kleaf in vleaf){
-		vwch <- which(rownames(env$fit$frame)[env$fit$where]==kleaf)
+		#vwch <- which(rownames(env$fit$frame)[env$fit$where]==kleaf)
+		vwch <- which(rownames(env$fit$frame)[vwhere]==kleaf)
 		vvals <- vret[vwch]
 		vsyn <- NULL
 		#not sure if draw of sampling probs occurs just once per leaf...
@@ -421,3 +432,65 @@ TEA.tree.draw <- function(env){
 teatree <- new("apop_model", name="teatree",  
                                 estimate_function=TEA.tree.est,
                                 draw_function=TEA.tree.draw)
+
+
+
+TEA.MCMCregress.est <- function(env){
+	env$Fit <- try(MCMCregress(env$Formula,data=env$Data))
+	if(inherits(env$Fit,"try-error")) stop(paste("MCMCregress() on",env$Formula,"did not work for given data"))
+	Fitml <- try(lm(env$Formula, data=env$Data))
+	if(inherits(env$Fit,"try-error")) stop(paste("lm() on",Formula,"did not work for given data"))
+	#model matrix
+	env$Mmod <- model.matrix(Fitml)
+	#levels of response
+	Vvar <- all.vars(env$Formula)
+	flev <- function(var, Data){
+		if(is.character(Data[,var])) return(levels(factor(Data[,var])))
+		if(is.factor(Data[,var])) return(levels(Data[,var]))
+		return(NA)
+	}
+	env$Llev <- sapply(Vvar,flev, env$Data)
+	env$Newdata <- env$Data #set new data to data used for fit; user can modify this
+}
+
+TEA.MCMCregress.draw <- function(env){
+    flev <- function(var){
+        Vret <- env$Newdata[,var]
+        Lret <- list(Vret)
+        names(Lret) <- var
+        if(is.character(env$Newdata[,var])) Vsub <- levels(factor(env$Newdata[,var]))
+        if(is.factor(env$Newdata[,var])) Vsub <- levels(env$Newdata[,var])
+        #if a numeric var, just return values
+        else return(Lret)
+        #see if there are new levels
+        Vvar <- env$Llev[[var]]
+        if(is.null(Vvar)) stop("Couldn't find variable",var,"in levels list")
+        if(length(setdiff(Vsub,Vvar))>0) stop(paste("New levels found for",var,"in prediction data set"))
+        #add missing levels
+        if(length(setdiff(Vvar,Vsub))>0){
+            Vret <- factor(env$Newdata[,var],levels=c(levels(factor(env$Newdata[,var])),setdiff(Vvar,Vsub)))
+            Lret <- list(Vret)
+            names(Lret) <- var
+            return(Lret)
+        }
+        else return(Lret)
+    }
+	#trim off response from formula so model.matrix works
+	env$Newdata <- as.data.frame(lapply(all.vars(env$Formula),flev))
+	newform <- as.formula(paste("~",paste(all.vars(env$Formula)[-1],collapse="+")))
+	Msub <- TEAConformMatrix(model.matrix(newform,env$Newdata),env$Mmod)
+	#get parameter rows
+	#Vrow <- sample(1:nrow(Fit),nrow(Msub),replace=TRUE)
+	#same row for all!
+	Vrow <- rep(sample(1:nrow(env$Fit),1),nrow(Msub))
+	#betas
+	Mbeta <- env$Fit[Vrow,-ncol(env$Fit)]
+	Vsig <- sqrt(env$Fit[Vrow,ncol(env$Fit)]) #sigma
+	Vmu <- diag(Msub %*% t(Mbeta))
+	Vdraw <- rnorm(nrow(Msub),Vmu,Vsig)
+	return(Vdraw)
+}
+
+mcmc.reg <- new("apop_model", name="MCMC regression",  
+                                estimate_function=TEA.MCMCregress.est, 
+                                draw_function=TEA.MCMCregress.draw)

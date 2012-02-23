@@ -9,13 +9,13 @@ con <- dbConnect(dbDriver("SQLite"),"dc.db")
 #set.seed(825265)
 kiter <- 100
 #do graphs for animated gif; requires ./graph/ directory
-kgraph <- FALSE
+kgraph <- TRUE
 Vid <- c("serialno","sporder")
 #USE COLCLASSES HERE TO GET TRUE VALUES
-DFdc <- read.csv("~/tea/data/ss08pdc.csv",colClasses="character")
+DFdc <- read.csv("/cenhome/rodri363/tea/data/ss08pdc.csv",colClasses="character")
 DFdc[DFdc=="NaN"] <- NA
 names(DFdc) <- tolower(names(DFdc))
-#subset to only hh, spouse, and biochildren
+#subset to only hh, spouse, biochildren, and parents
 DFdc <- subset(DFdc,rel %in% c("00","01","02","06"))
 DFdc$sch[is.na(DFdc$sch)] <- "0"
 DFdc$schl[is.na(DFdc$schl)] <- "0"
@@ -26,9 +26,12 @@ WriteTable(DFdc,"dc",con,Mtypes,c("serialno","sporder"),overwrite=TRUE)
 
 
 query <- paste("create view v as select a.*,a.hisp != '01' as ishisp,",
-	"b.hhage,b.spage,b.hhsex,b.spsex,b.hhsize,b.sppresent,b.maxage,b.minage,b.youngest",
+	"b.hhage,b.spage,b.hhsex,b.spsex,b.hhsize,b.sppresent,b.maxage,b.minage,b.youngest,",
+	"b.nhh,b.nsp",
 	"from dc as a,",
 	"(select serialno,",
+	"sum(rel='00') as nhh,",
+	"sum(rel='01') as nsp,",
 	"max(case rel when '00' then agep end) as hhage,",
 	"max(case rel when '01' then agep end) as spage,",
 	"max(case rel when '00' then sex end) as hhsex,",
@@ -117,14 +120,13 @@ if(FALSE){
 	DFfix <- do.call(rbind,Lfix)
 	Vfix <- numeric(nrow(DFfix))
 	for(rdx in 1:nrow(DFfix)) Vfix[rdx] <- CheckConsistency(DFfix[rdx,Vedvar],Vedvar,"passfail",con)
-}
 
 #Stepwise AIC selection of regression for imputation
 #requires a lot of variable handling for factors
 #vars with no missing
 Vcomplete <- names(DFo)[unlist(lapply(DFo[Vbad==0,],function(x) return(sum(is.na(x))==0)))]
 #vars we know we don't want or that are problematic (such as "youngest")
-Vcomplete <- Vcomplete[-grep("agep|pwgt|serialno|sporder|st|puma|rt|adjinc|hhage|hhsex|youngest",Vcomplete)]
+Vcomplete <- Vcomplete[-grep("agep|pwgt|serialno|sporder|st|puma|rt|adjinc|hhage|hhsex|youngest|nhh|nsp",Vcomplete)]
 #remove flags
 Vcomplete <- Vcomplete[-grep("^f[[:alnum:]]+p",Vcomplete)]
 #vars with too many levels
@@ -146,6 +148,7 @@ form.age <- as.formula(paste("agep",paste(Vstep[1:3],collapse="+"),sep="~"))
 Fitage <- lm(form.age, data=DFo[Vbad==0,])
 Vfitvar <- all.vars(formula(Fitage))
 ksigma <- summary(Fitage)$sigma
+}
 
 #use model instead
 fmodel <- function(DFsub){
@@ -169,7 +172,7 @@ fmodel <- function(DFsub){
 			#get data to graph
 			DFgraph <- dbGetQuery(con,"select serialno,agep,rel,hhage,youngest,hhsize from v")
 			DFgraph$ishh <- as.character(as.numeric(DFgraph$serialno==DFsub$serialno[1]))
-			png(file=paste("./graphs/plot.",paste(DFsub$serialno[1],kiter,sep="."),".png",sep=""),
+			png(file=paste("./graph/plot.",paste(DFsub$serialno[1],kiter,sep="."),".png",sep=""),
 				width=1024,height=768)
 			grid.newpage()
 			pushViewport(viewport(layout=grid.layout(2,1)))
@@ -203,6 +206,7 @@ fmodel <- function(DFsub){
 		return(DF1)
 	}
 }
+if(FALSE){
 Lmod <- by(DFdc,DFdc$serialno,fmodel)
 DFmod <- do.call(rbind,Lmod)
 Vmod <- numeric(nrow(DFmod))
@@ -219,13 +223,16 @@ p <- ggplot(subset(DFg,rel != "06"),aes(x=agep,fill=data,color=data))
 p <- p + geom_density(alpha=1/3,adjust=1.25,trim=TRUE)
 p <- p + scale_fill_brewer(pal="Dark2")
 p <- p + scale_color_brewer(pal="Dark2")
-png(file="plot.png",width=10,height=7,unit="in",res=300)
+#png(file="plot.png",width=10,height=7,unit="in",res=300)
+png(file="plot.png",width=800,height=600)
 print(p)
 dev.off()
 p1 <- p + facet_grid(rel ~ sex)
-png(file="facet.png",width=10,height=7,unit="in",res=300)
+#png(file="facet.png",width=10,height=7,unit="in",res=300)
+png(file="facet.png",width=800,height=600)
 print(p1)
 dev.off()
 
 if(!interactive()) save.image(file="out.RData")
 if(!interactive()) rm(list=ls(all=TRUE))
+}
