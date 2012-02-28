@@ -64,6 +64,7 @@ CheckConsistency <- function(vals,vars,what_you_want,con,run_id=1,na.char="NULL"
 }
 
 #' Check all rows of a data frame for failing any edits
+#' or bounds
 #' @param DF data frame you want to check
 #' @param con a connection to a database that has the tables necessary for consistency checking
 #' @param vars set of variables to check; if null, all variables are selected from the 'variables' table in DB
@@ -79,6 +80,17 @@ CheckDF <- function(DF,con,vars=NULL){
 	#rather than conversion to their numeric equivalents
 	Mdf <- matrix(unlist(lapply(DF,as.character)),nrow=nrow(DF))
 	colnames(Mdf) <- names(DF)
+#		dbGetQuery(con,"begin transaction")
+#		#check bounds
+#		Vfail <- rep(FALSE,nrow(DF))
+#		for(var in vars){
+#			if(is.numeric(DF[,var])) Vfail <- Vfail | as.logical(CheckBounds(DF[,var],var))
+#		}
+#		#if you didn't fail a bound, see if you fail a consistency check
+#		Vfail[!Vfail] <- apply(Mdf[!Vfail,vars],1,CheckConsistency,vars,"passfail",con)
+#		dbGetQuery(con,"commit")
+#		return(Vfail)
+#
 	if(nrow(Mdf)>1) return(apply(Mdf[,vars],1,CheckConsistency,vars,"passfail",con))
 	return(CheckConsistency(Mdf[,vars],vars,"passfail",con))
 }

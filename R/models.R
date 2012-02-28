@@ -85,6 +85,7 @@ TEA.MCMCmnl.est <- function(env){
 
 #TEA.predict.MCMCmnl <- function(Fit,Formula,Mmod,Llev,DFsub,kzero=TRUE){
 TEA.MCMCmnl.draw <- function(env){
+	if(is.null(env$kzero)) env$kzero <- TRUE
     flev <- function(var){
         Vret <- env$Newdata[,var]
         Lret <- list(Vret)
@@ -138,7 +139,11 @@ TEA.MCMCmnl.draw <- function(env){
 		Mp <- Mp/rowSums(Mp)
 	}
 	Vdraw <- apply(Mp,1,function(Vp) return(sample(Vlev,1,prob=Vp)))
-	return(Vdraw)
+
+	lhs <- all.vars(env$Formula)[1]
+	DFret <- env$Newdata
+	DFret[,lhs] <- Vdraw
+	return(DFret)
 }
 
 mcmc.mnl <- new("apop_model", name="MCMC multinomial",  
@@ -259,8 +264,10 @@ TEA.MCMCregress.est <- function(env){
 #' @param Llev = the levels/unique values for every factor/character variable referenced in Formula.
 #' Used to match levels of predicted data with that of the fitting data.  New levels in
 #' predicted data will cause an error; missing levels will accounted for.
+#' @param fround = a function with which to round the draws; defaults to floor
 #' @return a vector containing the posterior predictive draws
 TEA.MCMCregress.draw <- function(env){
+	if(is.null(env$fround)) fround <- floor
     flev <- function(var){
         Vret <- env$Newdata[,var]
         Lret <- list(Vret)
@@ -298,7 +305,11 @@ TEA.MCMCregress.draw <- function(env){
 	Vsig <- sqrt(env$Fit[Vrow,ncol(env$Fit)]) #sigma
 	Vmu <- diag(Msub %*% t(Mbeta))
 	Vdraw <- rnorm(nrow(Msub),Vmu,Vsig)
-	return(Vdraw)
+
+	lhs <- all.vars(env$Formula)[1]
+	DFret <- env$Newdata
+	DFret[,lhs] <- fround(Vdraw)
+	return(DFret)
 }
 
 mcmc.reg <- new("apop_model", name="MCMC regression",  

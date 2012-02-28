@@ -43,3 +43,4 @@ pkg: talk
 clean:
 	rm -fr $(Pkg_dir)/* $(Pkg_dir)/../tea.Rcheck $(Pkg_dir)/../tea*.tar.gz
 	rm -f c/peptalk/peptalk.output
+	rm -f tests/edit-rel_age/graph/*
