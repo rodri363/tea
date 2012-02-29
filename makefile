@@ -44,3 +44,11 @@ clean:
 	rm -fr $(Pkg_dir)/* $(Pkg_dir)/../tea.Rcheck $(Pkg_dir)/../tea*.tar.gz
 	rm -f c/peptalk/peptalk.output
 	rm -f tests/edit-rel_age/graph/*
+
+push:
+	@if [ "x$(MSG)" = 'x' ] ; then echo "MSG='whatever, dude.'" make push; fi
+	@test "x$(MSG)" != 'x'
+	git commit -a  -m "$(MSG)"
+	git svn fetch
+	git svn rebase
+	git svn dcommit
