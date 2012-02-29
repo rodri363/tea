@@ -5,7 +5,7 @@
 #include <rapophenia.h>
 
 char **(*TEA_R_STRSXP_TO_C)(SEXP s);
-data_frame_from_apop_data_type *rapop_df_from_ad;//alloced in doPEP.c:R_init_tea
+data_frame_from_apop_data_type *rapop_df_from_ad;//alloced in PEPedits.c:R_init_tea
 
 void R_init_tea(DllInfo *info){
 	TEA_R_STRSXP_TO_C = (char **(*)(SEXP)) R_GetCCallable("Rapophenia","R_STRSXP_TO_C");

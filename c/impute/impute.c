@@ -10,7 +10,7 @@ void xprintf(char **q, char *format, ...); //parse_sql.c
 char *strip (const char*); //peptalk.y
 #define XN(in) ((in) ? (in) : "")
 
-data_frame_from_apop_data_type *rapop_df_from_ad;//alloced in doPEP.c:R_init_tea
+data_frame_from_apop_data_type *rapop_df_from_ad;//alloced in PEPedits.c:R_init_tea
 
 /* The imputation system is arguably the core of PEP; correspondingly, it is the
    most complex part. Fundamentally, all imputations have the same basic form: identify
