@@ -600,9 +600,9 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
                 if (doedits){
                     parsed_type='c';
                     for (int k=0; k < vals->textsize[0]; k++){
-                        char *ed = apop_query_to_text("select tag from keys where "
+                        apop_data *ed = apop_query_to_text("select tag from keys where "
                                     "key='recodes/%s'", *vals->text[k]);
-                        if (!ed || !apop_strcmp(ed, "noedits"))
+                        if (!ed || !apop_strcmp(*ed->text[0], "noedits"))
                             add_to_num_list(strip(*vals->text[k]));
                         apop_data_free(ed);
                     }

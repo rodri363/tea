@@ -291,7 +291,7 @@ double get_key_float(char *part1, char * part2){
      char *p = NULL;
      if (part1 && part2)
          asprintf(&p, "%s/%s", part1, part2);
-    double out = apop_query_to_float("select value from keys where key ='%s' order by count", 
+    double out = apop_query_to_float("select value from keys where key like '%s' order by count", 
                             p ? p : part1 ? part1 : part2);
     if (p) free(p);
     return out;
@@ -305,7 +305,7 @@ double get_key_float(char *part1, char * part2){
 */
 apop_data* get_key_text(char *part1, char *part2){
     apop_data* out = apop_query_to_text("select value from keys where "
-									    "key ='%s%s%s' order by count",
+									    "key like '%s%s%s' order by count",
 										XN(part1),
 										(part1&&part2)?"/":"",
 										XN(part2));
@@ -315,7 +315,7 @@ apop_data* get_key_text(char *part1, char *part2){
 apop_data* get_key_text_tagged(char *part1, char *part2, char *tag){
     if (!tag) return get_key_text(part1,part2);
     apop_data* out = apop_query_to_text("select value from keys where "
-									    "key ='%s%s%s' and tag like '%%%s%%'",
+									    "key like '%s%s%s' and tag like '%%%s%%'",
 										XN(part1),
 										(part1&&part2)?"/":"",
 										XN(part2), XN(tag));
@@ -410,7 +410,7 @@ void start_over(){ //Reset everything in case this wasn't the first call
     lineno = 1;
     pass =
     nflds =
-    edit_ct  = 
+    edit_ct =
     query_ct =
     has_edits =
     file_read =
@@ -488,10 +488,10 @@ void read_spec(char **infile, char **dbname_out){
 	commit_transaction();
 }
 
-void get_key_count_for_R(char **group,  char **key, int *out, int *is_sub){
+void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *is_sub){
 	apop_data *dout = *is_sub 
                         ? get_sub_key(group ? *group : NULL)
-                        : get_key_text(group ? *group : NULL, *key);
+                        : get_key_text_tagged(group ? *group : NULL, *key, (tag ? *tag:NULL));
 	if (!dout){
 	    *out = 0;
 	    return;
@@ -500,12 +500,12 @@ void get_key_count_for_R(char **group,  char **key, int *out, int *is_sub){
     apop_data_free(dout);
 }                                                             
                                                               
-void get_key_text_for_R(char **group, char **key, char **out, int *is_sub){
+void get_key_text_for_R(char **group, char **key, char **tag, char **out, int *is_sub){
 	apop_data *dout;
 	if(*is_sub)
     	    dout = get_sub_key(*group);
 	else
-	    dout = get_key_text(*group, *key);
+	    dout = get_key_text_tagged(*group, *key, (tag ? *tag:NULL));
 	if (!dout)
 	    return;
     for (int i=0; i< dout->textsize[0]; i++)

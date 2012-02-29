@@ -219,15 +219,17 @@ checkOutImpute <- function(origin=NULL, dest=NULL, imputation_number=0, subset=N
 #' @param group the key group
 #' @param key the key
 #' @return character vector containing all the lines from the key
-PEPGetKey <- function(group, key=NULL){
+PEPGetKey <- function(group, key=NULL, tag=NULL){
 	group <- as.character(group)
 	sub <- FALSE
 	if(is.null(key)) sub <- TRUE
 	key <- as.character(key)
+	tag <- as.character(tag)
 	sub <- as.integer(sub)
-	out <- character(.C("get_key_count_for_R",group, key,integer(1),sub)[[3]])
+	cout <- .C("get_key_count_for_R",group, key, tag,integer(1),sub)[[4]]
+	out <- character(cout)
 	if(length(out)==0) return(NULL)
-	vals <- .C("get_key_text_for_R",group,key,out,sub)[[3]]
+	vals <- .C("get_key_text_for_R",group,key,tag, out,sub)[[4]]
 	if(sub>0){
 		#pull out text before "/" and find unique keys
 		vals <- unique(unlist(lapply(strsplit(vals,"/"),"[[",1)))
@@ -246,9 +248,9 @@ PEPGetKey <- function(group, key=NULL){
 #'   and print the message. If errormsg=NULL (the default), then if the 
 #'   variable has no set value, return NULL.
 
-TEAGetKey <- function(group="", key=NULL, invalue=NULL, errormsg=NULL, usekey=FALSE){
+TEAGetKey <- function(group="", key=NULL, tag=NULL, invalue=NULL, errormsg=NULL, usekey=FALSE){
     outval <- eval(invalue)
-    specvalue <- PEPGetKey(group, key)
+    specvalue <- PEPGetKey(group, key, tag)
     if ((is.null(invalue) || usekey) && !is.null(specvalue)) outval <- specvalue
     if (is.null(outval) && !is.null(errormsg))
         stop(errormsg)

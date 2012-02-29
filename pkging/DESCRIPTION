@@ -6,6 +6,7 @@ Date: 2010-05-01
 Author: Lots of people
 Maintainer: Rolando Rodriguez <rolando.a.rodriguez@census.gov>
 Depends: R (>= 2.9.2), Rapophenia, RSQLite, MASS, nnet, gam, multicore, MCMCpack
+LinkingTo: Rapophenia
 Description: As the name states, tea does everything. Fully-implemented (>=1.0) versions of tea
 	will have the complete range of survey processing capabilities, from sampling to imputation
 	to weighting and beyond.

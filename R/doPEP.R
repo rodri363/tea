@@ -46,8 +46,8 @@ doInput <- function(input_file=NULL,output_table=NULL,types=NULL,primary.key=NUL
 
 	.C("text_in")
 	tbl <- PEPGetKey("input", "output table")
-	if(is.null(tbl)) 
-		stop("I need an 'output table' name in the input section of the spec.")
+	if(is.null(tbl)) stop("I need an 'output table' name in the input section of the spec.")
+    print(paste("Reading text file '", input_file, "' into output table '", tbl, "'."))
 
     #Pre-edits are here for now, at read-in, on the raw data table.
     doPreedits(tbl)
@@ -100,6 +100,12 @@ doMImpute <- function(tag=NULL, input_table=pepenv$active_tab){
     if (!is.null(tag)) print (paste("tag= ", tag))
     print (paste("input table= ", active_tab))
 
+#    rmodel <- TEAGetKey("impute", "%%/Rmodel", tag)
+#    mod <- NULL
+#    if (!is.null(rmodel)){
+#        mod <- get(rmodel)$model
+#        #est <- estimateRapopModel(list(), mod)
+#    }
     .C("impute", as.character(tag), as.character(active_tab)) 
 	pepenv$active_tab <- active_tab #active_tab may have changed
 }

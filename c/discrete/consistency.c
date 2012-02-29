@@ -144,7 +144,7 @@ int check_a_record(int const * restrict row,  int * const failures, int const ro
     have passed.
 
    */
-void do_a_combo(int *record, const char *restrict  *record_name_in, int const *user_to_em, int const record_in_size, 
+void do_a_combo(int *record, char *const restrict  *record_name_in, int const *user_to_em, int const record_in_size, 
          int const *failed_edits_in, int const this_field, int const field_count, apop_data *fillme,
 		jmp_buf jmpbuf, time_t const timeout){
 
@@ -204,7 +204,7 @@ void do_a_combo(int *record, const char *restrict  *record_name_in, int const *u
     and fills via the recursive \c do_a_combo function above. So this is really just the
     prep function for the recursion, where the real work happens.
 */
-apop_data * get_alternatives(int *restrict record, const char *restrict  *record_name_in, 
+apop_data * get_alternatives(int *restrict record, char *const  restrict  *record_name_in, 
 							int const *restrict user_to_em, int const record_in_size, 
 							int const *restrict  failing_records){
     int total_fails = 0;
@@ -238,7 +238,7 @@ apop_data * get_alternatives(int *restrict record, const char *restrict  *record
 }
 
 //set up the cross-index conversions. 
-void setup_conversion_tables(char const *restrict* record_name_in, int record_in_size){
+void setup_conversion_tables(char * const restrict* record_name_in, int record_in_size){
 	em_to_user = realloc(em_to_user, sizeof(int)*total_var_ct);
 	user_to_em = realloc(user_to_em, sizeof(int)*record_in_size);
 	memset(em_to_user, -1, sizeof(int)*total_var_ct);
@@ -255,8 +255,8 @@ void setup_conversion_tables(char const *restrict* record_name_in, int record_in
 
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
-void fill_a_record(int record[], int const record_width, char const *restrict *record_name_in, 
-                                char const *restrict* ud_values, int record_in_size, 
+void fill_a_record(int record[], int const record_width, char * const restrict *record_name_in, 
+                                char * const restrict* ud_values, int record_in_size, 
                                 int id, char **qstring){
     for (int i=0; i < record_width; i++)
         record[i]=-1;   //-1 == ignore-this-field marker
@@ -305,8 +305,8 @@ void do_fields_and_fails_agree(int *failed_fields, int fails_edits, int nflds){
 }
 
 /* see tea.h for documentation.  */
-apop_data * consistency_check(char const **record_name_in, char const **ud_values, 
-			int const *record_in_size, char const **what_you_want, 
+apop_data * consistency_check(char * const *record_name_in, char * const *ud_values, 
+			int const *record_in_size, char *const *what_you_want, 
 			int const *id, int *fails_edits, int *failed_fields){
 	assert(*record_in_size > 0);
 	//apop_opts.verbose = 2;
@@ -322,7 +322,7 @@ apop_data * consistency_check(char const **record_name_in, char const **ud_value
     if (record_name_in)
     setup_conversion_tables(record_name_in, *record_in_size);
 	fill_a_record(record, width, record_name_in, ud_values, *record_in_size, *id, &qstring);
-    if (apop_strcmp((char*)what_you_want[0], "passfail")){
+    if (apop_strcmp(what_you_want[0], "passfail")){
         *fails_edits = check_a_record(record, NULL, 0, &qstring);
         free(qstring);
         return NULL;
