@@ -43,7 +43,10 @@ CheckConsistency <- function(vals,vars,what_you_want,con,run_id=1,na.char="NULL"
 					record_name_in, ud_values, record_in_size,
 					what_you_want, run_id, fails_edits, record_fails);
 		valframe <- NULL
-		if(!is.null(editmat) && (nrow(editmat)>0)){
+		if(is.null(editmat)) return(valframe)
+		editmat <- as.data.frame(editmat)
+		editmat$Vector <- NULL
+		if((nrow(editmat)>0)){
 			editmat <- as.matrix(unique(editmat,MARGIN=1))
 			vars <- colnames(editmat)
 			query <- paste("select", paste(vars,vars,sep=".",collapse=","),
@@ -51,8 +54,9 @@ CheckConsistency <- function(vals,vars,what_you_want,con,run_id=1,na.char="NULL"
 							paste(paste(vars,"rowid",sep="."),paste(":",vars,sep=""),
 							sep="=",collapse=" and "));
 			dbGetQuery(con,"begin")
+			#changed editmat+1 to editmat with new C code
 			valframe <- dbGetPreparedQuery(con, query,
-				 bind.data=as.data.frame(editmat+1,stringsAsFactors=FALSE)) ;
+				 bind.data=as.data.frame(editmat,stringsAsFactors=FALSE)) ;
 			dbGetQuery(con,"commit")
 		}
 		#return(unique(valmat,MARGIN=1)) #return unique rows

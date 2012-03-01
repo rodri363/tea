@@ -34,9 +34,9 @@ SEXP RCheckConsistency(SEXP Rrecord_name_in, SEXP Rud_values, SEXP Rrecord_in_si
 	//apop_data_show(alternatives);
 	//alternatives are right, so losing stuff somwhere below
 	if(alternatives){
-		SEXP Rmat = rapop_df_from_ad(alternatives);
+		SEXP Rdf = rapop_df_from_ad(alternatives);
 		apop_data_free(alternatives);
-		return(Rmat);
+		return(Rdf);
 	}else{
 		return(R_NilValue);
 	}
