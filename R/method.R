@@ -26,10 +26,9 @@ srmi.fupdate.default <- function(env.meth,env.fit){
 #' @param lmodel = a list of TEA models, corresponding to lform
 #' @return an environment, containing the model fits and all results
 
-srmi.fit <- function(lsrmi){
-	esrmi <- as.environment(lsrmi)
+srmi.est <- function(esrmi){
+	#esrmi <- as.environment(lsrmi)
 	DFo <- esrmi$Data #keep original copy
-	rm(lsrmi)
 		if(is.null(esrmi$kloop)) esrmi$kloop <- 10
 		if(is.null(esrmi$kdb)) warning("No database interface; recode updates will not occur")
 		if(is.null(esrmi$lform)) stop("I need a list of formulas (lform)")
@@ -129,3 +128,7 @@ srmi.draw <- function(esrmi){
 	}
 	return(esrmi$Newdata)
 }
+
+teasrmi <- new("apop_model", name="srmi",  
+                                estimate_function=srmi.est,
+                                draw_function=srmi.draw)

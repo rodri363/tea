@@ -26,28 +26,24 @@ is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.90)
 lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=2,
 			lform=list(AGEP ~ SCHL + RELP,SEX ~ AGEP + SCHL + RELP),
 			lmodel=list(mcmc.reg,mcmc.mnl))
-esrmi <- srmi.fit(lsrmi)
+modsrmi <- setupRapopModel(teasrmi)
+fitsrmi <- estimateRapopModel(lsrmi,modsrmi)
+DFsyn <- RapopModelDraw(fitsrmi)
+fitsrmi$env$Newdata <- DF
 
-esrmi$Newdata <- DF
-DFsyn <- srmi.draw(esrmi)
-ved <- dbGetQuery(pepenv$con,"select * from variables")$name
 #test consistency
-Vbound <- as.logical(DFsyn$AGEP < 0 | DFsyn$AGEP > 115)
-Vfail <- as.logical(CheckDF(DFsyn[!Vbound,],pepenv$con))
-
-#CheckConsistency(DFsyn[!Vbound,ved][which(Vfail)[1],],ved,"passfail",pepenv$con)
-#print(DFsyn[!Vbound,ved][which(Vfail)[1],])
-#DFalt <- CheckConsistency(DFsyn[!Vbound,ved][which(Vfail)[1],],ved,"find_alternatives",pepenv$con)
-
-while(sum(Vbound)>0 | sum(Vfail) > 0){
-	print(sum(Vbound))
-	print(sum(Vfail))
-	DFnew <- srmi.draw(esrmi)
-	DFsyn[Vbound,] <- DFnew[Vbound,]
-	DFsyn[!Vbound,][which(Vfail),] <- DFnew[!Vbound,][which(Vfail),]
-	Vbound <- as.logical(DFsyn$AGEP < 0 | DFsyn$AGEP > 115)
-	Vfail <- as.logical(CheckDF(DFsyn[!Vbound,],pepenv$con))
-}
+#ved <- dbGetQuery(pepenv$con,"select * from variables")$name
+#Vbound <- as.logical(DFsyn$AGEP < 0 | DFsyn$AGEP > 115)
+#Vfail <- as.logical(CheckDF(DFsyn[!Vbound,],pepenv$con))
+#while(sum(Vbound)>0 | sum(Vfail) > 0){
+#	print(sum(Vbound))
+#	print(sum(Vfail))
+#	DFnew <- RapopModelDraw(fitsrmi)
+#	DFsyn[Vbound,] <- DFnew[Vbound,]
+#	DFsyn[!Vbound,][which(Vfail),] <- DFnew[!Vbound,][which(Vfail),]
+#	Vbound <- as.logical(DFsyn$AGEP < 0 | DFsyn$AGEP > 115)
+#	Vfail <- as.logical(CheckDF(DFsyn[!Vbound,],pepenv$con))
+#}
 
 DFo$DAT <- "Original"
 DFsyn$DAT <- "Synthetic"
