@@ -8,6 +8,7 @@ input {
 	types {
 		AGEP: integer
 		SPORDER: integer
+		PWGTP: integer
 	}
 	primary key {
 		SERIALNO

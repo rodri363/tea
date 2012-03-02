@@ -58,7 +58,8 @@ srmi.est <- function(esrmi){
 		#set newdata for model to rows with missing lhs
 		fit$env$Newdata <- esrmi$Data[vna,]
 		#draw completion values and sub into Data for missing records
-		esrmi$Data[vna,lhs] <- RapopModelDraw(fit)[,lhs]
+		#if no missing records, nothing to update
+		if(sum(vna)>0) esrmi$Data[vna,lhs] <- RapopModelDraw(fit)[,lhs]
 		esrmi$kcol <- lhs
 		#esrmi$fupdate(esrmi,fit$env)
 	}
@@ -88,7 +89,9 @@ srmi.est <- function(esrmi){
 			fit <- estimateRapopModel(list(Formula=esrmi$lform[[ldx]],Data=esrmi$Data),lmod[[ldx]])
 			fit$env$Newdata <- esrmi$Data[vna,]
 			#draw completion values and sub into Data for missing records
+			print(table(esrmi$Data[,lhs]))
 			esrmi$Data[vna,lhs] <- RapopModelDraw(fit)[,lhs]
+			print(table(esrmi$Data[,lhs]))
 			esrmi$kcol <- lhs
 		#	esrmi$fupdate(esrmi,fit$env)
 		}
@@ -122,7 +125,7 @@ srmi.draw <- function(esrmi){
 		print(esrmi$lform[[ldx]])
 		lhs <- all.vars(esrmi$lfit[[ldx]]$env$Formula)[1]
 		#give model Newdata for draw
-		esrmi$lfit[[ldx]]$Newdata <- esrmi$Newdata
+		esrmi$lfit[[ldx]]$env$Newdata <- esrmi$Newdata
 		#draw completion values and sub into Data for missing records
 		esrmi$Newdata[,lhs] <- RapopModelDraw(esrmi$lfit[[ldx]])[,lhs]
 	}

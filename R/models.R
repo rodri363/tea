@@ -53,11 +53,13 @@ teagam <- new("apop_model", name="teagam",
 
 #TEA.fit.MCMCmnl <- function(Formula,Data){
 TEA.MCMCmnl.est <- function(env){
-	env$Fit <- try(MCMCmnl(env$Formula,data=env$Data))
-	if(inherits(env$Fit,"try-error")) stop(paste("MCMCmnl() on", env$Formula, "did not work for given data"))
-	env$Mmod <- model.matrix(env$Formula,env$Data)
-	#levels of response
+	#all variables
 	Vvar <- all.vars(env$Formula)
+	env$Data <- env$Data[,Vvar]
+#	#make character lhs a factor; this helps MCMCmnl get the names right!
+#	env$Data <- as.data.frame(lapply(env$Data[,Vvar],
+#		function(x) if(is.character(x)) return(factor(x)) else return(x)))
+
 	#function to get all factor levels in the original fit
 	flev <- function(var){
 		if(is.character(env$Data[,var])) return(levels(factor(env$Data[,var])))
@@ -65,6 +67,10 @@ TEA.MCMCmnl.est <- function(env){
 		return(NA)
 	}
     env$Llev <- sapply(Vvar,flev)
+
+	env$Fit <- try(MCMCmnl(env$Formula,data=env$Data))
+	if(inherits(env$Fit,"try-error")) stop(paste("MCMCmnl() on", env$Formula, "did not work for given data"))
+	env$Mmod <- model.matrix(env$Formula,env$Data)
 	env$Newdata <- env$Data #set new data to data used for fit; user can modify this
 }
 
@@ -108,11 +114,14 @@ TEA.MCMCmnl.draw <- function(env){
         }
         else return(Lret)
     }
+	Vvar <- all.vars(env$Formula)
+#	env$Newdata <- as.data.frame(lapply(env$Newdata[,Vvar],
+#		function(x) if(is.character(x)) return(factor(x)) else return(x)))
 	#trim off response from formula so model.matrix works
 	newform <- as.formula(paste("~",paste(all.vars(env$Formula)[-1],collapse="+")))
 	#do level check on each character/factor variable
-	env$Newdata <- as.data.frame(lapply(all.vars(newform),flev))
-	Msub <- TEAConformMatrix(model.matrix(newform,env$Newdata),env$Mmod)
+	checkdata <- as.data.frame(lapply(all.vars(newform),flev))
+	Msub <- TEAConformMatrix(model.matrix(newform,checkdata),env$Mmod)
 
 	#get parameter rows; these are constant across response levels
 	#Vrow <- sample(1:nrow(Fit),nrow(Msub),replace=TRUE)
@@ -125,7 +134,10 @@ TEA.MCMCmnl.draw <- function(env){
     Mp <- NULL
 	for(ldx in 2:length(Vlev)){
 		klev <- Vlev[ldx]
-		Vcol <- grep(paste("[.]",klev,sep=""),colnames(env$Fit))
+		#don't grep, use dimensions
+#		Vcol <- grep(paste("[.]",klev,sep=""),colnames(env$Fit))
+		Vcol <- ((1:ncol(env$Fit))-(ldx-1))%%(length(Vlev)-1)==0
+		print(head(env$Fit[Vrow,Vcol]))
 		#params for each row
 		Mlev <- env$Fit[Vrow,Vcol]
 		if(nrow(Msub)==1) Mlev <- t(matrix(Mlev)) #handle vector beta for a single row
@@ -142,6 +154,7 @@ TEA.MCMCmnl.draw <- function(env){
 
 	lhs <- all.vars(env$Formula)[1]
 	DFret <- env$Newdata
+	print(table(Vdraw))
 	DFret[,lhs] <- Vdraw
 	return(DFret)
 }

@@ -12,10 +12,9 @@ DF$SCHL[is.na(DF$SCHL)] <- "00"
 #DF$RELP <- substr(DF$RELP,2,2)
 
 DFo <- DF
-
 #randomly blank out RELP,AGEP,SEX
 is.na(DF$AGEP) <- as.logical(runif(nrow(DF),0,1)>0.90)
-#is.na(DF$RELP) <- as.logical(runif(nrow(DF),0,1)>0.90)
+is.na(DF$RELP) <- as.logical(runif(nrow(DF),0,1)>0.90)
 is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.90)
 
 #blank based on flags
@@ -23,43 +22,64 @@ is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.90)
 #is.na(DF$RELP) <- as.logical(DF$FRELP=="1")
 #is.na(DF$SEX) <- as.logical(DF$FSEX=="1")
 
-lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=2,
-			lform=list(AGEP ~ SCHL + RELP,SEX ~ AGEP + SCHL + RELP),
-			lmodel=list(mcmc.reg,mcmc.mnl))
+#ee <- as.environment(list(Formula=RELP ~ AGEP + SEX,Data=DFo))
+#u <- TEA.MCMCmnl.est(ee)
+#debug(TEA.MCMCmnl.draw)
+#v <- TEA.MCMCmnl.draw(ee)
+#
+#fit SRMI model on all of DF
+lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=1,
+			lform=list(AGEP ~ SCHL,SEX ~ AGEP + SCHL, RELP ~ SEX + AGEP + SCHL),
+			lmodel=list(mcmc.reg,mcmc.mnl,mcmc.mnl))
+#			lform=list(AGEP ~ SCHL + RELP,SEX ~ AGEP + SCHL + RELP),
+#			lmodel=list(mcmc.reg,mcmc.mnl))
 modsrmi <- setupRapopModel(teasrmi)
 fitsrmi <- estimateRapopModel(lsrmi,modsrmi)
-DFsyn <- RapopModelDraw(fitsrmi)
-fitsrmi$env$Newdata <- DF
 
-#test consistency
-#ved <- dbGetQuery(pepenv$con,"select * from variables")$name
-#Vbound <- as.logical(DFsyn$AGEP < 0 | DFsyn$AGEP > 115)
-#Vfail <- as.logical(CheckDF(DFsyn[!Vbound,],pepenv$con))
-#while(sum(Vbound)>0 | sum(Vfail) > 0){
-#	print(sum(Vbound))
-#	print(sum(Vfail))
-#	DFnew <- RapopModelDraw(fitsrmi)
-#	DFsyn[Vbound,] <- DFnew[Vbound,]
-#	DFsyn[!Vbound,][which(Vfail),] <- DFnew[!Vbound,][which(Vfail),]
-#	Vbound <- as.logical(DFsyn$AGEP < 0 | DFsyn$AGEP > 115)
-#	Vfail <- as.logical(CheckDF(DFsyn[!Vbound,],pepenv$con))
-#}
+#subset to synthesize is anyone missing age or sex
+#DF[vsub,] is original data to replace
+vsub <- is.na(DF$AGEP)|is.na(DF$SEX)
+#everyone starts off "bad"
+vbad <- 1:nrow(DF[vsub,])
+while(length(vbad)>0){
+	print(length(vbad))	
+	#set Newdata to all "bad" records
+	fitsrmi$env$Newdata <- DF[vsub,][vbad,]
+	DFsyn <- RapopModelDraw(fitsrmi)
+	#nrow(DFsyn) == length(vbad) here
+	#keep previous bad indices
+	#find bound failures
+	vbound <- as.logical(DFsyn$AGEP < 0 | DFsyn$AGEP > 115)
+	#find edit fails on in-bounds records
+	vfail <- rep(FALSE,length(vbound))
+	vfail[!vbound] <- as.logical(CheckDF(DFsyn[!vbound,],pepenv$con))
+	DF[vsub,][vbad[!(vbound|vfail)],c("AGEP","SEX","RELP")] <- DFsyn[!(vbound|vfail),c("AGEP","SEX","RELP")]
+	vbad <- vbad[vbound|vfail]
+}
 
+#weighted graphs
 DFo$DAT <- "Original"
-DFsyn$DAT <- "Synthetic"
-DFg <- rbind(DFo,DFsyn)
-
-p <- ggplot(DFg,aes(x=AGEP,fill=DAT))
+DF$DAT <- "Synthetic"
+DFg <- rbind(DFo,DF)
+p <- ggplot(DFg,aes(x=AGEP,weight=PWGTP,fill=DAT))
 p <- p + scale_fill_brewer(pal="Dark2")
 p <- p + facet_grid(SEX ~ RELP)
-#p <- p + facet_grid(SEX ~ .)
 p1 <- p + geom_density(alph=1/3,adjust=1.25,trim=TRUE)
 p2<- p + stat_bin(binwidth=1,position="identity",alpha=1/2)
-png(file="dagexsex.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
+png(file="dageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
 print(p1)
 dev.off()
-png(file="agexsex.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
+png(file="ageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
 print(p2)
 dev.off()
-
-
+p <- p + facet_grid(SEX ~ .)
+p1 <- p + geom_density(alph=1/3,adjust=1.25,trim=TRUE)
+p2<- p + stat_bin(binwidth=1,position="identity",alpha=1/2)
+png(file="dageXsex.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
+print(p1)
+dev.off()
+png(file="ageXsex.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
+print(p2)
+dev.off()
+if(FALSE){
+}
