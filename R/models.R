@@ -137,7 +137,6 @@ TEA.MCMCmnl.draw <- function(env){
 		#don't grep, use dimensions
 #		Vcol <- grep(paste("[.]",klev,sep=""),colnames(env$Fit))
 		Vcol <- ((1:ncol(env$Fit))-(ldx-1))%%(length(Vlev)-1)==0
-		print(head(env$Fit[Vrow,Vcol]))
 		#params for each row
 		Mlev <- env$Fit[Vrow,Vcol]
 		if(nrow(Msub)==1) Mlev <- t(matrix(Mlev)) #handle vector beta for a single row
@@ -154,7 +153,6 @@ TEA.MCMCmnl.draw <- function(env){
 
 	lhs <- all.vars(env$Formula)[1]
 	DFret <- env$Newdata
-	print(table(Vdraw))
 	DFret[,lhs] <- Vdraw
 	return(DFret)
 }

@@ -1,5 +1,5 @@
 database: demo.db
-id: SERIALNO
+id: ANC1
 
 input {
     input file: ss10pdc.csv
