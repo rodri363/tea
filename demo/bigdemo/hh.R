@@ -17,6 +17,9 @@ is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.50)
 #insert NAs into database, otherwise no missing values to update in SRMI
 UpdateTablefromDF(DF,"pdc",pepenv$con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
 
+u <- .Call("r_check_a_table",DF[1:2,])
+
+if(FALSE){
 #blank based on flags
 #is.na(DF$AGEP) <- as.logical(DF$FAGEP=="1")
 #is.na(DF$RELP) <- as.logical(DF$FRELP=="1")
@@ -109,5 +112,4 @@ dev.off()
 png(file="ageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
 print(p2)
 dev.off()
-if(FALSE){
 }

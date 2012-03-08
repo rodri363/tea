@@ -14,7 +14,7 @@ echo "could not determine R_HOME"
 exit 1
 fi
 CC=`"${R_HOME}/bin/R" CMD config CC`
-CFLAGS=`"${R_HOME}/bin/R" CMD config CFLAGS`
+CFLAGS="`"${R_HOME}/bin/R" CMD config CFLAGS` -O0"
 CPPFLAGS=`"${R_HOME}/bin/R" CMD config CPPFLAGS`
 
 

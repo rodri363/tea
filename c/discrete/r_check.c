@@ -16,7 +16,7 @@ double check_one_row(apop_data *row, void *colnames_in){
    for (int i=0; colnames[i][0]!='\0'; i++){
        int datacol = apop_name_find(row->names, colnames[i], 'c');
        if (datacol > -2)
-           asprintf(values[i], "%g", apop_data_get(row, .row=0, datacol));
+           asprintf(&values[i], "%g", apop_data_get(row, .row=0, datacol));
        else {
            datacol = apop_name_find(row->names, colnames[i], 't');
            Apop_assert(datacol > -2, "I can't find %s in the names list.", colnames[i])
