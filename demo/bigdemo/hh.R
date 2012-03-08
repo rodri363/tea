@@ -49,7 +49,6 @@ DFsyn <- dbGetQuery(pepenv$con,paste("select * from viewpdc",
 #write IDs to a table
 dbWriteTable(pepenv$con,"syntemp",DFsyn[,c("SERIALNO","SPORDER")],row.names=FALSE,overwrite=TRUE)
 dbGetQuery(pepenv$con,"create index syndx on syntemp(SERIALNO,SPORDER)")
-#start savepoint for rolling back changes to data
 kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
 kloop <- 0
 while(kleft>0 & kloop<50){
@@ -60,24 +59,32 @@ while(kleft>0 & kloop<50){
 		"where a.SERIALNO=b.SERIALNO and a.SPORDER=b.SPORDER"))
 	#synthesize the data
 	fitsrmi$env$Newdata <- DFsyn
+	print("Synthesizing")
 	DFsyn <- RapopModelDraw(fitsrmi)
-	#dbGetQuery(pepenv$con,paste("savepoint checksave"))
+	print("Updating")
 	UpdateTablefromDF(DFsyn,"pdc",pepenv$con,vsyn,c("SERIALNO","SPORDER"),verbose=TRUE)
 	#now that we've updated, check records of all households with someone who was synthesized
 	query <- paste("select * from viewpdc",
 		"where SERIALNO in (select distinct SERIALNO from syntemp)")
 	DFcheck <- dbGetQuery(pepenv$con,query)
 
+	print("Checking Bounds")
 	#find bounds errors in age, and reupdate
-	vbound <- with(DFcheck,
-		CheckBounds(AGEP,"AGEP")+CheckBounds(HHAGE,"HHAGE")+CheckBounds(SPAGE,"SPAGE"))
+	#annoying that SPAGE and HHAGE are not always numeric!!!!
+	Mbnd <- with(DFcheck,cbind(AGEP<0|AGEP>115,as.numeric(HHAGE)<0|as.numeric(HHAGE)>115,
+		as.numeric(SPAGE)<0|as.numeric(SPAGE)>115))
+	Mbnd[is.na(Mbnd)] <- FALSE
+	vbound <- as.logical(rowSums(Mbnd))
+	print("Checking Consistency")
 	vfail <- CheckDF(DFcheck[!vbound,],pepenv$con)
 	vbad <- vbound
 	vbad[!vbad] <- vfail
 	#any SERIALNO with any bound or consistency failures must be run through again
 	#so find good serialnos, remove them from syntemp, then run again
 	Vdel <- setdiff(DFcheck[vfail==0,"SERIALNO"],DFcheck[vfail==1,"SERIALNO"])
+	dbGetQuery(con,"savepoint syn_del")
 	if(length(Vdel)>0)	dbGetPreparedQuery(con,"delete from syntemp where SERIALNO = ?",bind.data=as.data.frame(Vdel))
+	dbGetQuery(con,"release savepoint syn_del")
 	kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
 	kloop <- kloop+1
 }
@@ -85,7 +92,6 @@ while(kleft>0 & kloop<50){
 #final synthetic data
 #need to reset bad records to original values, so need to save that DF
 DFsyn <- dbGetQuery(con,"select * from viewpdc")
-
 
 
 #weighted graphs
