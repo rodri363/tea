@@ -6,10 +6,12 @@
 
 char **(*TEA_R_STRSXP_TO_C)(SEXP s);
 data_frame_from_apop_data_type *rapop_df_from_ad;//alloced in PEPedits.c:R_init_tea
+apop_data_from_frame_type *rapop_ad_from_df;//alloced in PEPedits.c:R_init_tea
 
 void R_init_tea(DllInfo *info){
 	TEA_R_STRSXP_TO_C = (char **(*)(SEXP)) R_GetCCallable("Rapophenia","R_STRSXP_TO_C");
     rapop_df_from_ad =  (void*) R_GetCCallable("Rapophenia", "data_frame_from_apop_data");
+    rapop_ad_from_df =  (void*) R_GetCCallable("Rapophenia", "apop_data_from_frame");
 }
 
 SEXP RCheckConsistency(SEXP Rrecord_name_in, SEXP Rud_values, SEXP Rrecord_in_size,
