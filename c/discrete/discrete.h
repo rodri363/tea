@@ -31,3 +31,6 @@ void xprintf(char **q, char *format, ...); //impute/parse_sql.c
 
 void begin_transaction();
 void commit_transaction();
+
+
+apop_data * get_variables_to_impute(char *tag); //impute/impute.c

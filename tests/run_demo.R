@@ -1,3 +1,4 @@
+if (FALSE){
 setwd("../demo")
 source("demo.R")
 
@@ -11,3 +12,4 @@ stopifnot(length(sexlist[sexlist=="1"]) + length(sexlist[sexlist=="2"])
 #agelist <- sapply(show_db_table("viewdc", col="agep"),as.numeric)
 agelist <- checkOutImpute()
 stopifnot(length(agelist[agelist<0 || agelist > 90]) > 0)
+}

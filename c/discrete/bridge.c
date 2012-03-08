@@ -515,15 +515,11 @@ void get_key_text_for_R(char **group, char **key, char **tag, char **out, int *i
 
 int transacting;
 void begin_transaction(){
-	if (!transacting){ 
-        apop_query("begin;");
-        transacting++;
-    } //else, do nothing.
+    if (!transacting) apop_query("begin;");
+    transacting++;
 }
 
 void commit_transaction(){
-	if (transacting){ 
-        apop_query("commit;");
-        transacting=0;
-    } //else, do nothing.
+    transacting--;
+    if (!transacting) apop_query("commit;");
 }

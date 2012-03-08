@@ -601,7 +601,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
     static int fail_id=0, model_id=-1;
     apop_data *nanvals = get_all_nanvals(is, id_col, datatab);
     if (!nanvals) return;
-    apop_query("begin;");
+    begin_transaction();
     for (int i=0; i < nanvals->names->rowct; i++){ //see notes above.
         if (apop_strcmp(nanvals->names->row[i], ".")) continue; //already got this person.
         get_nans_and_notnans(is, atoi(nanvals->names->row[i]) /*ego_id*/, 
@@ -617,7 +617,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         apop_data_free(is->notnan);
         apop_data_free(is->isnan);
     }
-    apop_query("commit;");
+    commit_transaction();
     apop_data_free(nanvals);
 }
 
@@ -696,6 +696,23 @@ void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
 
 int impute_is_prepped = 0; //restarts with new read_specs.
 
+apop_data * get_variables_to_impute(char *tag){ //This function is so very awkward.
+    char *configbase = "impute";
+    char *tagbit; if (tag) asprintf(&tagbit,"and tag='%s'", tag);
+	apop_data * rawkeys = apop_query_to_text("select distinct key, value from keys "
+								" where key like '%s/models/%%/method' %s order by count"
+                                        , configbase, tag?tagbit:" ");
+    if (tag) free(tagbit);
+    if (!rawkeys) return NULL;
+
+    for (int i=0; i< rawkeys->textsize[0]; i++){
+        *rawkeys->text[i] = strchr(*rawkeys->text[i], '/')+1; //skip a slash
+        *rawkeys->text[i] = strdup(strchr(*rawkeys->text[i], '/')+1); //skip a slash
+		*(strchr(*rawkeys->text[i], '/')) = '\0';  //set last slash to \0.
+    }
+    return rawkeys;
+}
+
 /* \key {impute/input table} The table holding the base data, with missing values. 
   Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called <tt>doInput()</tt> in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one. 
   \key{impute/seed} The RNG seed
@@ -726,11 +743,7 @@ void impute(char **tag, char **idatatab){
     char *tmp_db_name_col = strdup(apop_opts.db_name_column);
     sprintf(apop_opts.db_name_column, "%s", id_col);
 
-    char *tagbit; if (tag) asprintf(&tagbit,"and tag='%s'", *tag);
-	apop_data * vars = apop_query_to_text("select distinct key, value from keys where "
-								" key like '%s/%%/method' %s order by count"
-                                        , configbase, (tag && *tag) ?tagbit:" ");
-    if(tag && *tag) free(tagbit);
+	apop_data * vars = get_variables_to_impute(tag ? *tag : NULL);
     Apop_assert(vars, "I couldn't find a models section (or a method section with a "
                       "key of the form '%s/yr_variable/method').", configbase);
 	int vars_to_impute = vars->textsize[0];
@@ -740,9 +753,7 @@ void impute(char **tag, char **idatatab){
         //I don't use vartypes; it's there if I need it. Search for (varposn).
         models[i] = (impustruct) {.position=-2, .vartypes=strdup("nm")}; //zero out everything; posn to be filled in later.
 		models[i].depvar = strdup(vars->text[i][0]);
-		models[i].depvar = strchr(models[i].depvar, '/')+1; //skip a slash
 		models[i].depvar_count = 1; //TO DO: implement more than one.
-		*(strchr(models[i].depvar, '/')) = '\0';  //set last slash to \0.
 
         //find the right model.
         models[i].base_model = tea_get_model_by_name(vars->text[i][1]);

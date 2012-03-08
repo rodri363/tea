@@ -1,4 +1,5 @@
 #include "tea.h"
+#include "discrete.h" //begin_transaction; commit_transaction;
 extern char *datatab;
 
 /* Our imputation system gave us a fill tab, and there's the original tab with its NaN or
@@ -31,14 +32,14 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
     apop_assert_c(apop_table_exists("filled"), , 0, "No table named 'filled'; did you already doMImpute()?");
     apop_data *fills = apop_query_to_mixed_data("vtt", "select %s, field, value from filled where draw=%i and %s"
                                                      , id_column, *imputation_number, (subset && *subset) ? *subset : "1");
-    apop_query("begin;");
+    begin_transaction();
     if (fills)
         for(int i=0; i< fills->vector->size; i++)
             apop_query("update %s set %s = '%s' "
                        "where %s = %g", 
                           dest, fills->text[i][0], fills->text[i][1], 
                           id_column, fills->vector->data[i]);
-    apop_query("commit;");
+    commit_transaction();
     apop_data_free(fills);
     free(id_column);
 }

@@ -4,8 +4,15 @@
 void generate_indices(char const *tablename); //in text_in.c
 extern int file_read;
 
-/* \key {group recodes/group id} The column with a unique ID for each group (e.g., household number).
- \key {group recodes/recodes} A set of recodes like the main set, but each calculation of the recode will be grouped by the group id, so you can use things like {\tt max(age)} or {\tt sum(income)}.
+/* Generate the recode view using the recodes segment.
+
+We're also going to create triggers for those variables which have an imputation
+section. So far, imputation is the only way in which variables can change, so if the
+variable isn't mentioned in the imputes, it doesn't need a trigger.
+
+
+\key {group recodes/group id} The column with a unique ID for each group (e.g., household number).
+\key {group recodes/recodes} A set of recodes like the main set, but each calculation of the recode will be grouped by the group id, so you can use things like {\tt max(age)} or {\tt sum(income)}.
  */
 void make_recode_view(char **tag, char **first_or_last){
     //first_or_last may be "first", "last", "both", or "middle"
@@ -71,19 +78,27 @@ void make_recode_view(char **tag, char **first_or_last){
     //OK! Now let's set up triggers so that users can update the view without thinking
     //about it.
     
+    apop_data *imputables= get_variables_to_impute(NULL);
+    if (!imputables) return;
 
     intab = get_key_word("input", "output table");
     char *idcol= get_key_word(NULL, "id");
     apop_query("create index %sidcol on %s(%s)", intab, intab, idcol);
     apop_data *o = apop_query_to_data("select * from %s limit 1", intab);
-//    for (int i=0; i< o->names->colct; i++){
-//        char *col= o->names->column[i];
-//        apop_query("drop trigger if exists trig%s%s; "
-//                "create trigger trig%s%s instead of update of %s on view%s  "
-//                "begin update %s set %s = new.%s where %s=old.%s; end",
-//                 intab, col, intab, col, col, intab, intab, col, col, idcol, idcol);
-//    }
+    for (int i=0; i< o->names->colct; i++){
+        int is_imputable=0; //only variables in the impute list need triggers.
+        char *col= o->names->column[i];
+        for (int j=0; !is_imputable && j< imputables->textsize[0]; j++)
+            if (apop_strcmp(*imputables->text[j], col))
+                is_imputable++;
+        if (is_imputable)
+            apop_query("drop trigger if exists trig%s%s; "
+                "create trigger trig%s%s instead of update of %s on view%s  "
+                "begin update %s set %s = new.%s where %s=old.%s; end",
+                 intab, col, intab, col, col, intab, intab, col, col, idcol, idcol);
+    }
     apop_data_free(o);
+    apop_data_free(imputables);
 
 //	generate_indices(out_name); //exactly the same indices as the main tab.
 }
