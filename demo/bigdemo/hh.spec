@@ -20,13 +20,13 @@ fields {
 	RELP 00,01,02,06
 	AGEP int 0-115
 	SEX 1,2
-	NHH 0-20
-	NSP 0-20
-	NUP 0-20
-	HHAGE 0-115
-	SPAGE 0-115
-	SPORDER int 0-20
-	SPORD 0-20
+	NHH int 0-10
+	NSP int 0-10
+	NUP int 0-10
+	HHAGE int 0-115
+	SPAGE int 0-115
+	SPORDER int 0-10
+	SPORD int 0-10
 	HHSEX 1,2
 	SPSEX 1,2
 }
@@ -41,9 +41,9 @@ group recodes {
         NHH: sum(RELP='00')
         NSP: sum(RELP='01')
         NUP: sum(RELP='15')
-		HHAGE: min(case RELP when '00' then AGEP end)
-		SPAGE: min(case RELP when '01' then AGEP end)
-		SPORD: min(case RELP when '01' then SPORDER end)
+		HHAGE: max(case RELP when '00' then AGEP end)
+		SPAGE: max(case RELP when '01' then AGEP end)
+		SPORD: max(case RELP when '01' then SPORDER end)
 		HHSEX: cast(round(avg(case RELP when '00' then SEX end)) as integer)
 		SPSEX: cast(round(avg(case RELP when '01' then SEX end)) as integer)
     }

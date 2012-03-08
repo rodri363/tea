@@ -1,15 +1,18 @@
 srmi.fupdate.default <- function(Data,kutab,kstab,con,vupdate,vmatch,vgrab=names(Data)){
-	#get IDs from Data
-	#will use these to re-extract and return new data
-	DFid <- Data[,vmatch]
 	#update table to re-establish correct recodes
 	#this is especially important if you're doing consistency checking
 	UpdateTablefromDF(Data,kutab,con,vupdate,vmatch,verbose=TRUE)
 	#Re-get data via IDs
-	query <- paste("select",paste(unique(c(vgrab,vmatch)),collapse=","),"from",kstab,
-		"where",paste(vmatch,paste(":",vmatch,sep=""),sep="=",collapse=" and "))
-	print(query)
-	DFret <- dbGetPreparedQuery(con,query,bind.data=DFid)
+	query <- paste("select",
+		paste(paste("a",unique(c(vgrab,vmatch)),sep="."),paste(unique(c(vgrab,vmatch))),sep=" as ",collapse=","),
+		"from",kstab,
+		"as a,srmi_temp as b where",
+		paste(paste("a",vmatch,sep="."),paste("b",vmatch,sep="."),sep="=",collapse=" and "))
+	DFret <- dbGetQuery(con,query)
+#	query <- paste("select",paste(unique(c(vgrab,vmatch)),collapse=","),"from",kstab,
+#		"where",paste(vmatch,paste(":",vmatch,sep=""),sep="=",collapse=" and "))
+#	print(query)
+#	DFret <- dbGetPreparedQuery(con,query,bind.data=DFid)
 	return(DFret)
 }
 
@@ -38,15 +41,26 @@ srmi.fupdate.default <- function(Data,kutab,kstab,con,vupdate,vmatch,vgrab=names
 srmi.est <- function(esrmi){
 	#esrmi <- as.environment(lsrmi)
 	DFo <- esrmi$Data #keep original copy
-		if(is.null(esrmi$kloop)) esrmi$kloop <- 10
+	if(is.null(esrmi$kloop)) esrmi$kloop <- 10
 		if(is.null(esrmi$kdb)) warning("No database interface; recode updates will not occur")
-		if(!is.null(esrmi$kdb)) con <- dbConnect(dbDriver("SQLite"),esrmi$kdb)
+	if(!is.null(esrmi$kdb)) con <- dbConnect(dbDriver("SQLite"),esrmi$kdb)
 		if(is.null(esrmi$lform)) stop("I need a list of formulas (lform)")
 	vvars <- unique(c(esrmi$vmatch,unlist(lapply(esrmi$lform,all.vars))))
 	#setup models
 		if(is.null(esrmi$lmodel)) stop("I need a list of Rapop models for each formula")
 		if(length(esrmi$lmodel) != length(esrmi$lform)) stop("# of models must match # of formulas")
 	lmod <- lapply(esrmi$lmodel,setupRapopModel)
+	
+	#if using a database, write table of IDs from Data
+	#this will be used to redraw data to update recodes as
+	#synthesis goes along
+	#get IDs from Data
+	#will use these to re-extract and return new data
+	if(!is.null(esrmi$kdb)){
+		DFid <- esrmi$Data[,esrmi$vmatch]
+		#write to a temp table
+		dbWriteTable(con,"srmi_temp",DFid,row.names=FALSE,overwrite=TRUE)
+	}
 
 	#if using database, start a savepoint
 	if(!is.null(esrmi$kdb) & is.null(esrmi$ksave)) esrmi$ksave <- "srmi_save"
@@ -90,6 +104,7 @@ srmi.est <- function(esrmi){
 			paste("~ . +",paste(vadd,collapse="+")))
 	}
 
+	#browser()
 	#loop run
 	#in future will base stop on convergence criteria
 	loopdx <- 0
@@ -108,9 +123,9 @@ srmi.est <- function(esrmi){
 			esrmi$Data[vna,lhs] <- RapopModelDraw(fit)[,lhs]
 			esrmi$kcol <- lhs
 			if(!is.null(esrmi$kdb))
-			esrmi$Data[vna,] <- srmi.fupdate.default(esrmi$Data[vna,lhs],
+			esrmi$Data[vna,] <- srmi.fupdate.default(esrmi$Data,
 					esrmi$kutab,esrmi$kstab,con,
-					lhs,esrmi$vmatch,vvars)
+					lhs,esrmi$vmatch,vvars)[vna,]
 		}
 		loopdx <- loopdx+1
 	}
@@ -134,6 +149,7 @@ srmi.est <- function(esrmi){
 	#if using database, end savepoint and restore data
 	if(!is.null(esrmi$kdb))	dbGetQuery(con,paste("rollback to",esrmi$ksave))
 	if(!is.null(esrmi$kdb))	dbGetQuery(con,paste("release",esrmi$ksave))
+	if(!is.null(esrmi$kdb)) dbGetQuery(con,"drop table srmi_temp")
 	return(esrmi)
 }
 

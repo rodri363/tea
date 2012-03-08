@@ -1,19 +1,21 @@
 library(tea)
 library(ggplot2)
+con <- dbConnect(dbDriver("SQLite"),"demo.db")
+options(warn=1)
 read_spec("hh.spec")
 doInput()
-DF <- dbGetQuery(pepenv$con,"select * from viewpdc where RELP in ('00','01','02','06')")
-#remove na schl
-DF$SCHL[is.na(DF$SCHL)] <- "00"
-#remove leading zeros from RELP, due to naming issues in predicted values from MCMCmnl
-#HATE THIS
-#DF$RELP <- substr(DF$RELP,2,2)
+#drop data that has values we don't have in spec yet
+dbGetQuery(pepenv$con,"delete from pdc where not RELP in ('00','01','02','06') or SCHL is null")
+vedvar <- c("SERIALNO",dbGetQuery(pepenv$con,"select * from variables")$name)
+DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
 
 DFo <- DF
 #randomly blank out RELP,AGEP,SEX
 is.na(DF$AGEP) <- as.logical(runif(nrow(DF),0,1)>0.50)
 is.na(DF$RELP) <- as.logical(runif(nrow(DF),0,1)>0.50)
 is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.50)
+#insert NAs into database, otherwise no missing values to update in SRMI
+UpdateTablefromDF(DF,"pdc",pepenv$con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
 
 #blank based on flags
 #is.na(DF$AGEP) <- as.logical(DF$FAGEP=="1")
@@ -28,39 +30,68 @@ is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.50)
 #fit SRMI model on all of DF
 lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=1,
 			lform=list(AGEP ~ SCHL,SEX ~ AGEP + SCHL, RELP ~ SEX + AGEP),
-#			kdb="demo.db",kstab="viewpdc",kutab="pdc",vmatch=c("SERIALNO","SPORDER"),
+			kdb="demo.db",kstab="viewpdc",kutab="pdc",vmatch=c("SERIALNO","SPORDER"),
 			ksave="srmi_save",
 			lmodel=list(mcmc.reg,mcmc.mnl,mcmc.mnl))
 modsrmi <- setupRapopModel(teasrmi)
-#debug(srmi.est)
+#problem comes due to missing SCHL for infants... need to check in SRMI for missing X (covariates)
 #srmi.est(as.environment(lsrmi))
 fitsrmi <- estimateRapopModel(lsrmi,modsrmi)
 
-#subset to synthesize is anyone missing age or sex
-#DF[vsub,] is original data to replace
-vsub <- is.na(DF$AGEP)|is.na(DF$SEX)|is.na(DF$RELP)
-#everyone starts off "bad"
-vbad <- 1:nrow(DF[vsub,])
-while(length(vbad)>0){
-	print(length(vbad))	
-	#set Newdata to all "bad" records
-	fitsrmi$env$Newdata <- DF[vsub,][vbad,]
+#draw, check each household, flag it if it is still inconsistent
+#Data for all households having any missing items
+#Write serialnos of interest to new table
+vsyn <- c("AGEP","SEX","RELP") #vars we are synthesizing
+#Scheme
+DFsyn <- dbGetQuery(pepenv$con,paste("select * from viewpdc",
+	"where (AGEP is null or SEX is null or RELP is null)"))
+#remove na schl
+#write IDs to a table
+dbWriteTable(pepenv$con,"syntemp",DFsyn[,c("SERIALNO","SPORDER")],row.names=FALSE,overwrite=TRUE)
+dbGetQuery(pepenv$con,"create index syndx on syntemp(SERIALNO,SPORDER)")
+#start savepoint for rolling back changes to data
+kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
+kloop <- 0
+while(kleft>0 & kloop<50){
+	print(kleft)
+	print(kloop)
+	#get data from syntemp ids
+	DFsyn <- dbGetQuery(pepenv$con,paste("select * from viewpdc as a, syntemp as b",
+		"where a.SERIALNO=b.SERIALNO and a.SPORDER=b.SPORDER"))
+	#synthesize the data
+	fitsrmi$env$Newdata <- DFsyn
 	DFsyn <- RapopModelDraw(fitsrmi)
-	#nrow(DFsyn) == length(vbad) here
-	#keep previous bad indices
-	#find bound failures
-	vbound <- as.logical(DFsyn$AGEP < 0 | DFsyn$AGEP > 115)
-	#find edit fails on in-bounds records
-	vfail <- rep(FALSE,length(vbound))
-	vfail[!vbound] <- as.logical(CheckDF(DFsyn[!vbound,],pepenv$con))
-	DF[vsub,][vbad[!(vbound|vfail)],c("AGEP","SEX","RELP")] <- DFsyn[!(vbound|vfail),c("AGEP","SEX","RELP")]
-	vbad <- vbad[vbound|vfail]
+	#dbGetQuery(pepenv$con,paste("savepoint checksave"))
+	UpdateTablefromDF(DFsyn,"pdc",pepenv$con,vsyn,c("SERIALNO","SPORDER"),verbose=TRUE)
+	#now that we've updated, check records of all households with someone who was synthesized
+	query <- paste("select * from viewpdc",
+		"where SERIALNO in (select distinct SERIALNO from syntemp)")
+	DFcheck <- dbGetQuery(pepenv$con,query)
+
+	#find bounds errors in age, and reupdate
+	vbound <- with(DFcheck,
+		CheckBounds(AGEP,"AGEP")+CheckBounds(HHAGE,"HHAGE")+CheckBounds(SPAGE,"SPAGE"))
+	vfail <- CheckDF(DFcheck[!vbound,],pepenv$con)
+	vbad <- vbound
+	vbad[!vbad] <- vfail
+	#any SERIALNO with any bound or consistency failures must be run through again
+	#so find good serialnos, remove them from syntemp, then run again
+	Vdel <- setdiff(DFcheck[vfail==0,"SERIALNO"],DFcheck[vfail==1,"SERIALNO"])
+	if(length(Vdel)>0)	dbGetPreparedQuery(con,"delete from syntemp where SERIALNO = ?",bind.data=as.data.frame(Vdel))
+	kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
+	kloop <- kloop+1
 }
+
+#final synthetic data
+#need to reset bad records to original values, so need to save that DF
+DFsyn <- dbGetQuery(con,"select * from viewpdc")
+
+
 
 #weighted graphs
 DFo$DAT <- "Original"
-DF$DAT <- "Synthetic"
-DFg <- rbind(DFo,DF)
+DFsyn$DAT <- "Synthetic"
+DFg <- rbind(DFo,DFsyn)
 p <- ggplot(DFg,aes(x=AGEP,weight=PWGTP,fill=DAT))
 p <- p + scale_fill_brewer(pal="Dark2")
 p <- p + facet_grid(SEX ~ RELP)
@@ -72,6 +103,5 @@ dev.off()
 png(file="ageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
 print(p2)
 dev.off()
-
 if(FALSE){
 }

@@ -91,6 +91,7 @@ TEA.MCMCmnl.est <- function(env){
 
 #TEA.predict.MCMCmnl <- function(Fit,Formula,Mmod,Llev,DFsub,kzero=TRUE){
 TEA.MCMCmnl.draw <- function(env){
+	if(nrow(env$Newdata)==0) stop("Newdata has 0 rows")
 	if(is.null(env$kzero)) env$kzero <- TRUE
     flev <- function(var){
         Vret <- env$Newdata[,var]
@@ -114,6 +115,7 @@ TEA.MCMCmnl.draw <- function(env){
         }
         else return(Lret)
     }
+	#browser()
 	Vvar <- all.vars(env$Formula)
 #	env$Newdata <- as.data.frame(lapply(env$Newdata[,Vvar],
 #		function(x) if(is.character(x)) return(factor(x)) else return(x)))
@@ -278,6 +280,7 @@ TEA.MCMCregress.est <- function(env){
 #' @param fround = a function with which to round the draws; defaults to floor
 #' @return a vector containing the posterior predictive draws
 TEA.MCMCregress.draw <- function(env){
+	if(nrow(env$Newdata)==0) stop("Newdata has 0 rows")
 	if(is.null(env$fround)) fround <- floor
     flev <- function(var){
         Vret <- env$Newdata[,var]
@@ -304,8 +307,9 @@ TEA.MCMCregress.draw <- function(env){
 	#trim off response from formula so model.matrix works
 	newform <- as.formula(paste("~",paste(all.vars(env$Formula)[-1],collapse="+")))
 	#do level check on each character/factor variable
-	env$Newdata <- as.data.frame(lapply(all.vars(newform),flev))
-	Msub <- TEAConformMatrix(model.matrix(newform,env$Newdata),env$Mmod)
+#	env$Newdata <- as.data.frame(lapply(all.vars(newform),flev))
+	checkdata <- as.data.frame(lapply(all.vars(newform),flev))
+	Msub <- TEAConformMatrix(model.matrix(newform,checkdata),env$Mmod)
 	#get parameter rows
 	#Vrow <- sample(1:nrow(Fit),nrow(Msub),replace=TRUE)
 	#same row for all!
