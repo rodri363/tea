@@ -59,29 +59,48 @@ upon aspects of the previous fit.  To give a framework for how methods operate, 
 describe the components of a method that creates synthetic data and checks it against
 consistency rules when the data are contained in a database:
 
+Method Fit
 \begin{description}
 \item[Initialization] Define the records of the database that will be used for the
-model fits of the method.  Define a savepoint in the database so we can revert back
-to the original data upon if necessary.  Run algorithms to determine model order if necessary.
-\item[Model fit] Fit the first model on the data containing the records identified
-in initialization.  Generate new data from the fit.
-\item[Update] Insert the synthetic data from the fit into the database, which updates
-all views/recodes.  Test the new data from consistency errors.  If model order
-is based on criteria related to the fit, recalculate order.
-\item[next fit]  If there were no errors, fit the next model.  If there were errors,
-refit or redraw the previous model.
-\item[loop] If the particular method requires looping (e.g. SRMI, EM), check for any convergence criteria, and loop to the first model fit if necessary.  Changes to models
-can be made if necessary (as in SRMI where models are changed after the first round
+model fits of the method.  Run algorithms to determine model order if necessary.
+\item[Model loop]
+\begin{description}
+	\item[Model fit] Fit the next model in the modeling order on the data containing the records identified
+	in initialization.  Generate new data from the fit.
+	\item[Update] Insert the synthetic data from the fit into the database, which updates
+	all views/recodes, and redraw the data.  If model order
+	is based on criteria related to the fit, recalculate order.
+\end{description}
+\item[Method loop] If the particular method requires looping (e.g. SRMI, EM), check for any convergence criteria, and run the model loop again if necessary.  Changes to models
+can be made (as in SRMI where models are changed after the first round
 of fits)
-\item[Finalization] If desired, roll back changes to the data.
+\item[return] Return all the model fits
 \end{description}
 
 At the end of this algorithm we would say the method has been ``fit'', much like for
-models.  We can then use the method for inference and synthesis as well.  One could
-thus ask why the distinction between models and methods?  We intend for models to be
-self-contained: an algorithm for producing parameters from data.  Methods can be more
-fluid, and indeed, the hallmark of many methods is that the particular models within
-the method can be changed.  For instance, the particular regression models that go into
-an SRMI fit can vary, but the method is still SRMI.
+models.  Indeed, the simplest methods are just models themselves, and the only distinction
+between models and methods is that the latter may contain more than one of the former.  Thus
+we can speak of methods alone.
 
+\section{Synthetic Worlds}
+The end goal of modeling in TEA is to produce new data for a variety of
+situations\footnote{For instance, erroneous data, missing data, and identifying data}
+We do this ``imputation'' by making draws from method fits and replacing data
+with these draws.  The general scheme for drawing from methods is:
+
+\begin{description}
+\item[Define new data] Provide the method fit with new data for which we wish to make draws.  This can be
+the same data as was used for the fit.
+\item[Consistency Loop]
+\begin{description}
+	\item[Make draws] Make draws using all the model fits and the new data, and insert these draws into
+	the new data.
+	\item[Check consistency] Run the ``synthesized'' data through the consistency checking system.
+\end{description}
+\item[Insert] Insert the consistent synthetic data into the database.
+\end{description}
 \end{document}
+
+Creating synthetic data from a method substitutes the data-generation process of the method for the
+actual data-generation process that produced the data.  How well the final data mirrors reality
+depends on the particular interaction of the method with population parameters of interest.

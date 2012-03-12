@@ -8,6 +8,8 @@ doInput()
 dbGetQuery(pepenv$con,"delete from pdc where not RELP in ('00','01','02','06') or SCHL is null")
 vedvar <- c("SERIALNO",dbGetQuery(pepenv$con,"select * from variables")$name)
 DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
+#to check original data for consistency failures
+#vfail <- CheckDF(DF,pepenv$con)
 
 DFo <- DF
 #randomly blank out RELP,AGEP,SEX
@@ -17,9 +19,8 @@ is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.50)
 #insert NAs into database, otherwise no missing values to update in SRMI
 UpdateTablefromDF(DF,"pdc",pepenv$con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
 
-u <- .Call("r_check_a_table",DF[1:2,])
+if(FALSE) u <- .Call("r_check_a_table",DF[1:2,])
 
-if(FALSE){
 #blank based on flags
 #is.na(DF$AGEP) <- as.logical(DF$FAGEP=="1")
 #is.na(DF$RELP) <- as.logical(DF$FRELP=="1")
@@ -32,10 +33,12 @@ if(FALSE){
 #
 #fit SRMI model on all of DF
 lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=1,
-			lform=list(AGEP ~ SCHL,SEX ~ AGEP + SCHL, RELP ~ SEX + AGEP),
+#			lform=list(AGEP ~ SCHL,SEX ~ AGEP + SCHL, RELP ~ SEX + AGEP),
+			lform=list(RELP ~ SPORDER,SEX ~ RELP + SPORDER,AGEP ~ SEX + RELP + SPORDER),
 			kdb="demo.db",kstab="viewpdc",kutab="pdc",vmatch=c("SERIALNO","SPORDER"),
 			ksave="srmi_save",
-			lmodel=list(mcmc.reg,mcmc.mnl,mcmc.mnl))
+#			lmodel=list(mcmc.reg,mcmc.mnl,mcmc.mnl))
+			lmodel=list(mcmc.mnl,mcmc.mnl,mcmc.reg))
 modsrmi <- setupRapopModel(teasrmi)
 #problem comes due to missing SCHL for infants... need to check in SRMI for missing X (covariates)
 #srmi.est(as.environment(lsrmi))
@@ -90,11 +93,26 @@ while(kleft>0 & kloop<50){
 	dbGetQuery(con,"release savepoint syn_del")
 	kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
 	kloop <- kloop+1
+
+	#weighted graphs
+	DFsyn <- dbGetQuery(con,"select * from viewpdc")
+	DFo$DAT <- "Original"
+	DFsyn$DAT <- "Synthetic"
+	DFg <- rbind(DFo,DFsyn)
+	p <- ggplot(DFg,aes(x=AGEP,weight=PWGTP,fill=DAT))
+	p <- p + scale_fill_brewer(pal="Dark2")
+	p <- p + facet_grid(SEX ~ RELP)
+	p1 <- p + geom_density(alph=1/3,adjust=1.25,trim=TRUE)
+	p2<- p + stat_bin(binwidth=1,position="identity",alpha=1/2)
+	png(file=paste("syn",kloop,"png",sep="."),width=11*(5/11),height=8.5*(5/11),units="in",res=600)
+	print(p1)
+	dev.off()
 }
 
 #final synthetic data
 #need to reset bad records to original values, so need to save that DF
 DFsyn <- dbGetQuery(con,"select * from viewpdc")
+DFsyn[vfail,] <- DFo[vfail,]
 
 
 #weighted graphs
@@ -112,4 +130,6 @@ dev.off()
 png(file="ageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
 print(p2)
 dev.off()
+
+if(FALSE){
 }

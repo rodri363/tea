@@ -15,9 +15,13 @@ double check_one_row(apop_data *row, void *colnames_in){
    char *values[record_count];
    for (int i=0; colnames[i][0]!='\0'; i++){
        int datacol = apop_name_find(row->names, colnames[i], 'c');
-       if (datacol > -2)
-           asprintf(&values[i], "%g", apop_data_get(row, .row=0, datacol));
-       else {
+       if (datacol > -2){
+	   		double val = apop_data_get(row, .row=0, datacol);
+			if (gsl_isnan(val))
+			   asprintf(&values[i], apop_opts.db_nan);
+		    else
+			   asprintf(&values[i], "%g", val);
+		} else {
            datacol = apop_name_find(row->names, colnames[i], 't');
            Apop_assert(datacol > -2, "I can't find %s in the names list.", colnames[i])
            values[i] =strdup(row->text[0][datacol]);
