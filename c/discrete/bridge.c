@@ -128,7 +128,7 @@ int ri_from_ext(char const *varname, char const * ext_val){
         return -100;
     char ct = apop_opts.db_name_column[0];
     apop_opts.db_name_column[0] = '\0';
-    double out = (ext_val && strcasecmp(ext_val, "NULL"))
+    double out = (ext_val && strcasecmp(ext_val, "NULL") && strcasecmp(ext_val,apop_opts.db_nan))
             ? apop_query_to_float("select rowid from %s where %s = '%s'",
                                                 varname, varname, (char*)ext_val)
             : apop_query_to_float("select rowid from %s where %s is null",

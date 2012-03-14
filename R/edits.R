@@ -95,8 +95,11 @@ CheckDF <- function(DF,con,vars=NULL){
 #		dbGetQuery(con,"commit")
 #		return(Vfail)
 #
-	if(nrow(Mdf)>1) return(apply(Mdf[,vars],1,CheckConsistency,vars,"passfail",con))
-	return(CheckConsistency(Mdf[,vars],vars,"passfail",con))
+	if(is.null(nrow(Mdf[,vars])))
+		return(sapply(Mdf[,vars],CheckConsistency,vars,"passfail",con))
+	else if(nrow(Mdf[,vars])>1)
+		return(apply(Mdf[,vars],1,CheckConsistency,vars,"passfail",con))
+	else return(NULL)
 }
 
 #' Check a real/integer vector for values outside of declared consistency values

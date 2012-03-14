@@ -33,6 +33,7 @@ void text_in(){
     char *table_out = get_key_word("input", "output table");
     char *nan_marker = get_key_word("input", "missing marker");
     if (nan_marker) sprintf(apop_opts.db_nan, "%s", nan_marker);
+    if (!nan_marker) nan_marker=apop_opts.db_nan;
     Apop_assert_c(!file_read, , 0, "Already read in the input file %s; not doing it again.", file_in);
     Apop_assert(file_in, "I don't have an input file name");
     Apop_assert(table_out, "I don't have a name for the output table.");
