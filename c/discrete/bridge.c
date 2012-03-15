@@ -119,39 +119,6 @@ char is_new_edit(apop_data *explicits, int current_row){
 	return 'e';
 }
 
-
-/* ri stands for rowid, ext for external, user-defined value. This translates.
-   -100 means that the variable is undeclared.
- */
-int ri_from_ext(char const *varname, char const * ext_val){
-    if (!apop_table_exists((char*)varname))
-        return -100;
-    char ct = apop_opts.db_name_column[0];
-    apop_opts.db_name_column[0] = '\0';
-    double out = (ext_val && strcasecmp(ext_val, "NULL") && strcasecmp(ext_val,apop_opts.db_nan))
-            ? apop_query_to_float("select rowid from %s where %s = '%s'",
-                                                varname, varname, (char*)ext_val)
-            : apop_query_to_float("select rowid from %s where %s is null",
-                                                varname, varname);
-	Apop_assert(!isnan(out), "I couldn't find the value %s in your "
-"declarations for the variable %s. Please remove the error from the data or add that value to "
-"the declaration, then restart the program so I can rebuild some internal data structures.",
-		ext_val, varname);
-    apop_opts.db_name_column[0] = ct;
-	return out;
-}
-
-char * ext_from_ri(char const *varname, int const ri_val){
-    char ct = apop_opts.db_name_column[0];
-    apop_opts.db_name_column[0] = '\0';
-    apop_data *outd= apop_query_to_text("select %s from %s where rowid = %i",
-                                                varname, varname, ri_val);
-    char *out = strdup(outd->text[0][0]);
-    apop_data_free(outd);
-    apop_opts.db_name_column[0] = ct;
-    return out;
-}
-
 apop_data *edit_grid; //generated here; useed by consistency_check.
 
 		
@@ -398,6 +365,7 @@ void start_over(){ //Reset everything in case this wasn't the first call
     extern int file_read, impute_is_prepped;
     extern apop_data *pre_edits;
     free(edit_list); 
+    reset_ri_ext_table();
     apop_data_free(edit_grid);
     apop_data_free(pre_edits);
     edit_list = NULL;
