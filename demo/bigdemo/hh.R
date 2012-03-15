@@ -19,36 +19,26 @@ is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.50)
 #insert NAs into database, otherwise no missing values to update in SRMI
 UpdateTablefromDF(DF,"pdc",pepenv$con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
 DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
-#to check original data for consistency failures
 
-DFc <- rbind(subset(DF,is.na(AGEP))[1,vedvar],subset(DF,AGEP==22)[1,vedvar])
-u <- CheckDF(DFc,con)
-v <- .Call("r_check_a_table",DFc)
-
-if(FALSE){
 #blank based on flags
 #is.na(DF$AGEP) <- as.logical(DF$FAGEP=="1")
 #is.na(DF$RELP) <- as.logical(DF$FRELP=="1")
 #is.na(DF$SEX) <- as.logical(DF$FSEX=="1")
 
-#ee <- as.environment(list(Formula=RELP ~ AGEP + SEX,Data=DFo))
-#u <- TEA.MCMCmnl.est(ee)
-#debug(TEA.MCMCmnl.draw)
-#v <- TEA.MCMCmnl.draw(ee)
-#
 #fit SRMI model on all of DF
 lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=1,
-#			lform=list(AGEP ~ SCHL,SEX ~ AGEP + SCHL, RELP ~ SEX + AGEP),
-			lform=list(RELP ~ SPORDER,SEX ~ RELP + SPORDER,AGEP ~ SEX + RELP + SPORDER),
+#			lform=list(RELP ~ SPORDER+NP,
+			lform=list(RELP ~ SPORDER,
+				SEX ~ RELP + SPORDER,AGEP ~ SEX + RELP + SPORDER),
 			kdb="demo.db",kstab="viewpdc",kutab="pdc",vmatch=c("SERIALNO","SPORDER"),
 			ksave="srmi_save",
-#			lmodel=list(mcmc.reg,mcmc.mnl,mcmc.mnl))
 			lmodel=list(mcmc.mnl,mcmc.mnl,mcmc.reg))
 modsrmi <- setupRapopModel(teasrmi)
 #problem comes due to missing SCHL for infants... need to check in SRMI for missing X (covariates)
 #srmi.est(as.environment(lsrmi))
 fitsrmi <- estimateRapopModel(lsrmi,modsrmi)
 
+if(FALSE){
 #draw, check each household, flag it if it is still inconsistent
 #Data for all households having any missing items
 #Write serialnos of interest to new table

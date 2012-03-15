@@ -10,5 +10,8 @@ dbGetQuery(con,"commit")
 
 read_spec("spec")
 DF <- dbGetQuery(con,"select * from edit")
-vcheck <- CheckDF(DF,con)
-ucheck <- .Call("r_check_a_table",DF)$Vector
+va <- as.integer(CheckDF(DF,con))
+vb <- as.integer(.Call("r_check_a_table",DF)$Vector)
+vc <- as.integer(c(0,1,1,0,1,1))
+
+if(!identical(va,vc) | !identical(vb,vc)) stop("Error in consistency checking")
