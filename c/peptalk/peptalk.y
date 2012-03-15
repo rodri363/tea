@@ -654,7 +654,7 @@ void add_check(char *this_query){
 				"The query \n%s\ndoesn't use any declared variables, which is a problem. "
                 "Please check your typing/syntax, and make sure you've declared the variables you'd "
                 "like me to check.\n", this_query);
-    char *not_nans= NULL, *select = NULL;
+    char *select = NULL;
 
 	//select part1.rowid as part1, var2.rowid as var2 ... 
 	char comma = ' ';
@@ -664,18 +664,14 @@ void add_check(char *this_query){
 		comma =',';
 	}
 
-    for (int i=0; i< edit_list[query_ct].var_ct; i++)
-        if (nan_marker) xprintf(&not_nans, "%s and (not %s = '%s')" , XN(not_nans), edit_list[query_ct].vars_used[i].name, nan_marker);
-        else            xprintf(&not_nans, "%s and (%s is not null)", XN(not_nans), edit_list[query_ct].vars_used[i].name);
 	ud_queries = apop_text_alloc(ud_queries, (ud_queries ?  ud_queries->textsize[0] : 0) +1, 1);
-	apop_text_add(ud_queries, ud_queries->textsize[0]-1, 0, "select distinct %s from %s where %s %s", 
-																		select, var_list, this_query, not_nans);
+	apop_text_add(ud_queries, ud_queries->textsize[0]-1, 0, "select distinct %s from %s where %s", 
+							select, var_list, this_query);
     if (preed) {
         last_preed = strdup(preed);
         preed[0]='\0';
     }
     free(var_list); var_list=NULL;
-    free(not_nans);
     query_ct++;
     explicit_ct++;
 }
