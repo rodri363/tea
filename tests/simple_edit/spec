@@ -1,0 +1,14 @@
+database: db
+id: id
+
+input{
+	output table: edit
+	overwrite: no
+}
+fields{
+	age int 1-2
+}
+checks{
+	age = 2
+	age is null
+}
