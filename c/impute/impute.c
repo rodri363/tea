@@ -645,7 +645,7 @@ void process_category_matrix(apop_data *category_matrix, char *idatatab){
 apop_model tea_get_model_by_name(char *name){
     get_am_from_registry_type *rapop_model_from_registry;
     static int is_inited=0;
-    if (!is_inited)
+    if (!is_inited && using_r)
         rapop_model_from_registry =  (void*) R_GetCCallable("Rapophenia", "get_am_from_registry");
 
     apop_model out=		apop_strcmp(name, "normal")
@@ -671,7 +671,7 @@ apop_model tea_get_model_by_name(char *name){
 	      ||apop_strcmp(name, "kernel density")
 				? apop_kernel_density 
 				: (apop_model) {.name="Null model"};
-        if (apop_strcmp(out.name, "Null model")) //probably an R model.
+        if (using_r && apop_strcmp(out.name, "Null model")) //probably an R model.
             out= *rapop_model_from_registry(name);
         Apop_assert(!apop_strcmp(out.name, "Null model"), 
                 "I couldn't find the model named '%s' in my list of supported "
