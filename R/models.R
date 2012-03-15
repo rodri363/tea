@@ -143,7 +143,9 @@ TEA.MCMCmnl.draw <- function(env){
 		Mlev <- env$Fit[Vrow,Vcol]
 		if(nrow(Msub)==1) Mlev <- t(matrix(Mlev)) #handle vector beta for a single row
 		Vlogits <- diag(Msub %*% t(Mlev)) #logits
-		Vp <- exp(Vlogits)/(1+exp(Vlogits)) #probs for this outcome
+		#OVERFLOW MUCH!?
+#		Vp <- exp(Vlogits)/(1+exp(Vlogits)) #probs for this outcome
+		Vp <- (exp(-Vlogits)+1)^(-1)
 		Mp <- cbind(Mp,Vp) #append to prob matrix
 	}
 	Mp <- cbind(1-rowSums(Mp),Mp) #complete prob matrix
@@ -151,6 +153,7 @@ TEA.MCMCmnl.draw <- function(env){
 		Mp[Mp<0] <- 0
 		Mp <- Mp/rowSums(Mp)
 	}
+	#browser()
 	Vdraw <- apply(Mp,1,function(Vp) return(sample(Vlev,1,prob=Vp)))
 
 	lhs <- all.vars(env$Formula)[1]

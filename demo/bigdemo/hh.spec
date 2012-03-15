@@ -19,8 +19,8 @@ input {
 
 fields {
 	AGEP int 0-115
-	RELP 00,01,02,06
-	SEX 1,2
+	RELP cat 00,01,02,06
+	SEX cat 1,2
 	NHH int 0-10
 	NSP int 0-10
 	NUP int 0-10
@@ -28,8 +28,8 @@ fields {
 	SPAGE int 0-115
 	SPORDER int 0-10
 	SPORD int 0-10
-	HHSEX 1,2
-	SPSEX 1,2
+	HHSEX cat 1,2
+	SPSEX cat 1,2
 }
 
 recodes{

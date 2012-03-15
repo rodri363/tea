@@ -1,5 +1,6 @@
 library(tea)
 library(ggplot2)
+set.seed(1234567891)
 con <- dbConnect(dbDriver("SQLite"),"demo.db")
 options(warn=1)
 read_spec("hh.spec")
@@ -20,6 +21,9 @@ is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.50)
 UpdateTablefromDF(DF,"pdc",pepenv$con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
 DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
 
+#print(system.time(u <- CheckDF(DFo,con)))
+#print(system.time(v <- .Call("r_check_a_table",DFo)))
+
 #blank based on flags
 #is.na(DF$AGEP) <- as.logical(DF$FAGEP=="1")
 #is.na(DF$RELP) <- as.logical(DF$FRELP=="1")
@@ -27,7 +31,6 @@ DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
 
 #fit SRMI model on all of DF
 lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=1,
-#			lform=list(RELP ~ SPORDER+NP,
 			lform=list(RELP ~ SPORDER,
 				SEX ~ RELP + SPORDER,AGEP ~ SEX + RELP + SPORDER),
 			kdb="demo.db",kstab="viewpdc",kutab="pdc",vmatch=c("SERIALNO","SPORDER"),
@@ -38,7 +41,6 @@ modsrmi <- setupRapopModel(teasrmi)
 #srmi.est(as.environment(lsrmi))
 fitsrmi <- estimateRapopModel(lsrmi,modsrmi)
 
-if(FALSE){
 #draw, check each household, flag it if it is still inconsistent
 #Data for all households having any missing items
 #Write serialnos of interest to new table
@@ -52,7 +54,7 @@ dbWriteTable(pepenv$con,"syntemp",DFsyn[,c("SERIALNO","SPORDER")],row.names=FALS
 dbGetQuery(pepenv$con,"create index syndx on syntemp(SERIALNO,SPORDER)")
 kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
 kloop <- 0
-while(kleft>0 & kloop<50){
+while(kleft>0 & kloop<10){
 	print(kleft)
 	print(kloop)
 	#get data from syntemp ids
@@ -105,9 +107,10 @@ while(kleft>0 & kloop<50){
 }
 
 #final synthetic data
-#need to reset bad records to original values, so need to save that DF
-DFsyn <- dbGetQuery(con,"select * from viewpdc")
-DFsyn[vfail,] <- DFo[vfail,]
+#need to reset bad records to original values
+#for now am selecting everything that wasn't still bad
+DFsyn <- dbGetQuery(pepenv$con,paste("select * from viewpdc except select a.* from viewpdc as a, syntemp as b",
+	"where a.SERIALNO=b.SERIALNO and a.SPORDER=b.SPORDER"))
 
 
 #weighted graphs
@@ -126,4 +129,6 @@ png(file="ageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=60
 print(p2)
 dev.off()
 
+save.image(file="img.RData")
+if(FALSE){
 }
