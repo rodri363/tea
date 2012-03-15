@@ -96,10 +96,12 @@ CheckDF <- function(DF,con,vars=NULL){
 #		return(Vfail)
 #
 	if(is.null(nrow(Mdf[,vars])))
-		return(sapply(Mdf[,vars],CheckConsistency,vars,"passfail",con))
+		vret <- sapply(Mdf[,vars],CheckConsistency,vars,"passfail",con)
 	else if(nrow(Mdf[,vars])>1)
-		return(apply(Mdf[,vars],1,CheckConsistency,vars,"passfail",con))
-	else return(NULL)
+		vret <- apply(Mdf[,vars],1,CheckConsistency,vars,"passfail",con)
+	else vret <- NULL
+	names(vret) <- NULL
+	return(vret)
 }
 
 #' Check a real/integer vector for values outside of declared consistency values
