@@ -2,7 +2,7 @@ database: demo.db
 id: ANC1
 
 input {
-    input file: ss10pdc.csv
+    input file: ../../data/ss10pdc.csv
     overwrite: yes
     output table: pdc
 	types {
