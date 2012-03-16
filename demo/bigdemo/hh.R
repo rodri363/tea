@@ -2,11 +2,11 @@ library(tea)
 library(ggplot2)
 set.seed(1234567891)
 con <- dbConnect(dbDriver("SQLite"),"demo.db")
-options(warn=1)
+#options(warn=1)
 read_spec("hh.spec")
 doInput()
 #drop data that has values we don't have in spec yet
-dbGetQuery(pepenv$con,"delete from pdc where not RELP in ('00','01','02','06') or SCHL is null")
+dbGetQuery(pepenv$con,"delete from pdc where not RELP in ('00','01','02','06')")
 vedvar <- c("SERIALNO",dbGetQuery(pepenv$con,"select * from variables")$name)
 DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
 #to check original data for consistency failures
@@ -31,8 +31,9 @@ DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
 
 #fit SRMI model on all of DF
 lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=1,
-			lform=list(RELP ~ SPORDER,
-				SEX ~ RELP + SPORDER,AGEP ~ SEX + RELP + SPORDER),
+			lform=list(RELP ~ RORD + RMIG,
+				SEX ~ RELP + RORD + RMIG,
+				AGEP ~ SEX + RELP + RORD + RMIG),
 			kdb="demo.db",kstab="viewpdc",kutab="pdc",vmatch=c("SERIALNO","SPORDER"),
 			ksave="srmi_save",
 			lmodel=list(mcmc.mnl,mcmc.mnl,mcmc.reg))
@@ -54,7 +55,7 @@ dbWriteTable(pepenv$con,"syntemp",DFsyn[,c("SERIALNO","SPORDER")],row.names=FALS
 dbGetQuery(pepenv$con,"create index syndx on syntemp(SERIALNO,SPORDER)")
 kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
 kloop <- 0
-while(kleft>0 & kloop<10){
+while(kleft>0 & kloop<50){
 	print(kleft)
 	print(kloop)
 	#get data from syntemp ids
@@ -66,7 +67,8 @@ while(kleft>0 & kloop<10){
 	DFsyn <- RapopModelDraw(fitsrmi)
 	print("Updating")
 	UpdateTablefromDF(DFsyn,"pdc",pepenv$con,vsyn,c("SERIALNO","SPORDER"),verbose=TRUE)
-	#now that we've updated, check records of all households with someone who was synthesized
+	#now that we've updated,
+	#check records of all households with someone who was synthesized
 	query <- paste("select * from viewpdc",
 		"where SERIALNO in (select distinct SERIALNO from syntemp)")
 	DFcheck <- dbGetQuery(pepenv$con,query)
@@ -84,7 +86,7 @@ while(kleft>0 & kloop<10){
 	vbad[!vbad] <- vfail
 	#any SERIALNO with any bound or consistency failures must be run through again
 	#so find good serialnos, remove them from syntemp, then run again
-	Vdel <- setdiff(DFcheck[vfail==0,"SERIALNO"],DFcheck[vfail==1,"SERIALNO"])
+	Vdel <- setdiff(unique(DFcheck[vbad==0,"SERIALNO"]),unique(DFcheck[vbad==1,"SERIALNO"]))
 	dbGetQuery(con,"savepoint syn_del")
 	if(length(Vdel)>0)	dbGetPreparedQuery(con,"delete from syntemp where SERIALNO = ?",bind.data=as.data.frame(Vdel))
 	dbGetQuery(con,"release savepoint syn_del")
@@ -106,12 +108,21 @@ while(kleft>0 & kloop<10){
 	dev.off()
 }
 
+print(paste("Unable to make consistent synthetic data for",kleft,"records"))
+
 #final synthetic data
 #need to reset bad records to original values
+#so insert from ORIGpdc back into pdc for anything
+#stil in syntemp
 #for now am selecting everything that wasn't still bad
-DFsyn <- dbGetQuery(pepenv$con,paste("select * from viewpdc except select a.* from viewpdc as a, syntemp as b",
+vv <- c("SERIALNO","SPORDER","RELP","SEX","AGEP")
+DFup <- dbGetQuery(con,paste("select",paste("a",vv,sep=".",collapse=","),
+	"from ORIGpdc as a, syntemp as b",
 	"where a.SERIALNO=b.SERIALNO and a.SPORDER=b.SPORDER"))
+UpdateTablefromDF(DFup,"pdc",con,c("RELP","SEX","AGEP"),c("SERIALNO","SPORDER"))
+DFsyn <- dbGetQuery(con,"select * from viewpdc")
 
+save(DFo,DFsyn,file="save.RData")
 
 #weighted graphs
 DFo$DAT <- "Original"
@@ -129,6 +140,5 @@ png(file="ageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=60
 print(p2)
 dev.off()
 
-save.image(file="img.RData")
 if(FALSE){
 }

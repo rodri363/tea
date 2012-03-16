@@ -34,6 +34,8 @@ fields {
 
 recodes{
 	blah: AGEP=22
+	RORD: case SPORDER when 1 then 1 when 2 then 2 else 3 end
+	RMIG: case MIG when 1 then 1 else 0 end
 }
 
 group recodes {
