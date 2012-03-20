@@ -13,10 +13,14 @@ DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
 #vfail <- CheckDF(DF,pepenv$con)
 
 DFo <- DF
-#randomly blank out RELP,AGEP,SEX
+##randomly blank out RELP,AGEP,SEX
 is.na(DF$AGEP) <- as.logical(runif(nrow(DF),0,1)>0.50)
 is.na(DF$RELP) <- as.logical(runif(nrow(DF),0,1)>0.50)
 is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.50)
+##blank based on flags
+#is.na(DF$AGEP) <- as.logical(DF$FAGEP=="1")
+#is.na(DF$RELP) <- as.logical(DF$FRELP=="1")
+#is.na(DF$SEX) <- as.logical(DF$FSEX=="1")
 #insert NAs into database, otherwise no missing values to update in SRMI
 UpdateTablefromDF(DF,"pdc",pepenv$con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
 DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
@@ -24,19 +28,20 @@ DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
 #print(system.time(u <- CheckDF(DFo,con)))
 #print(system.time(v <- .Call("r_check_a_table",DFo)))
 
-#blank based on flags
-#is.na(DF$AGEP) <- as.logical(DF$FAGEP=="1")
-#is.na(DF$RELP) <- as.logical(DF$FRELP=="1")
-#is.na(DF$SEX) <- as.logical(DF$FSEX=="1")
 
 #fit SRMI model on all of DF
 lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=1,
-			lform=list(RELP ~ RORD + RMIG,
-				SEX ~ RELP + RORD + RMIG,
-				AGEP ~ SEX + RELP + RORD + RMIG),
+#			lform=list(RELP ~ DEG + MOVE,
+#				SEX ~ RELP + DEG + MOVE,
+#				AGEP ~ SEX + RELP + DEG + MOVE),
+			lform=list(AGEP ~ DEG + MOVE,
+				RELP ~ AGEP + DEG + MOVE,
+				SEX ~ RELP + AGEP + DEG + MOVE),
+			kdb="demo.db",kstab="viewpdc",kutab="pdc",vmatch=c("SERIALNO","SPORDER"),
 			kdb="demo.db",kstab="viewpdc",kutab="pdc",vmatch=c("SERIALNO","SPORDER"),
 			ksave="srmi_save",
-			lmodel=list(mcmc.mnl,mcmc.mnl,mcmc.reg))
+#			lmodel=list(mcmc.mnl,mcmc.mnl,mcmc.reg))
+			lmodel=list(mcmc.reg,mcmc.mnl,mcmc.mnl))
 modsrmi <- setupRapopModel(teasrmi)
 #problem comes due to missing SCHL for infants... need to check in SRMI for missing X (covariates)
 #srmi.est(as.environment(lsrmi))
@@ -55,12 +60,15 @@ dbWriteTable(pepenv$con,"syntemp",DFsyn[,c("SERIALNO","SPORDER")],row.names=FALS
 dbGetQuery(pepenv$con,"create index syndx on syntemp(SERIALNO,SPORDER)")
 kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
 kloop <- 0
-while(kleft>0 & kloop<50){
+vfail <- NULL
+vbound <- NULL
+while(kleft>0 & kloop<100){
 	print(kleft)
 	print(kloop)
 	#get data from syntemp ids
 	DFsyn <- dbGetQuery(pepenv$con,paste("select * from viewpdc as a, syntemp as b",
 		"where a.SERIALNO=b.SERIALNO and a.SPORDER=b.SPORDER"))
+	print(head(DFsyn[,vedvar]))
 	#synthesize the data
 	fitsrmi$env$Newdata <- DFsyn
 	print("Synthesizing")
@@ -100,10 +108,11 @@ while(kleft>0 & kloop<50){
 	DFg <- rbind(DFo,DFsyn)
 	p <- ggplot(DFg,aes(x=AGEP,weight=PWGTP,fill=DAT))
 	p <- p + scale_fill_brewer(pal="Dark2")
+	p <- p + coord_cartesian(xlim=c(0,115))
 	p <- p + facet_grid(SEX ~ RELP)
 	p1 <- p + geom_density(alph=1/3,adjust=1.25,trim=TRUE)
 	p2<- p + stat_bin(binwidth=1,position="identity",alpha=1/2)
-	png(file=paste("syn",kloop,"png",sep="."),width=11*(5/11),height=8.5*(5/11),units="in",res=600)
+	png(file=paste("syn",formatC(kloop,width=2,flag="0"),"png",sep="."),width=11*(5/11),height=8.5*(5/11),units="in",res=600)
 	print(p1)
 	dev.off()
 }
@@ -130,7 +139,7 @@ DFsyn$DAT <- "Synthetic"
 DFg <- rbind(DFo,DFsyn)
 p <- ggplot(DFg,aes(x=AGEP,weight=PWGTP,fill=DAT))
 p <- p + scale_fill_brewer(pal="Dark2")
-p <- p + facet_grid(SEX ~ RELP)
+p <- p + facet_grid(MF ~ REL)
 p1 <- p + geom_density(alph=1/3,adjust=1.25,trim=TRUE)
 p2<- p + stat_bin(binwidth=1,position="identity",alpha=1/2)
 png(file="dageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
@@ -138,6 +147,10 @@ print(p1)
 dev.off()
 png(file="ageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
 print(p2)
+dev.off()
+p3 <- ggplot(DFg,aes(x=DAT,y=AGEP)) + geom_boxplot() + facet_grid(MF ~ REL)
+png(file="box.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
+print(p3)
 dev.off()
 
 if(FALSE){

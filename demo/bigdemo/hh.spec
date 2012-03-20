@@ -35,7 +35,11 @@ fields {
 recodes{
 	blah: AGEP=22
 	RORD: case SPORDER when 1 then 1 when 2 then 2 else 3 end
-	RMIG: case MIG when 1 then 1 else 0 end
+	MOVE: case MIG when 1 then 'moved' else 'stayed' end
+	DEG: case when SCHL in ('24','23','22','21','20') then 'degree' else 'non-degreed' end
+	MF: case SEX when '1' then 'M' when '2' then 'F' else NULL end
+	REL: case RELP when '00' then 'HH' when '01' then 'SP' when '02' then 'CH' \
+			when '06' then 'PR' else NULL end
 }
 
 group recodes {
@@ -61,7 +65,7 @@ checks {
 	#No sex
 	SEX is null
 
-	#person is householder but there is more than 1 householder
+#	#person is householder but there is more than 1 householder
 	RELP='00' and NHH > 1
 
 	#no householder
@@ -100,7 +104,7 @@ checks {
 
 	#person is a child, listed sequentially with spouse, both >15, different sex, and <7 years apart
 	#the \ at the end of the line means "rule is continued on next line"
-	RELP='02' and abs(SPORDER - SPORD) = 1 and AGEP > 15 and SPAGE > 15 and \
+#	RELP='02' and abs(SPORDER - SPORD) = 1 and AGEP > 15 and SPAGE > 15 and \
 	SEX != SPSEX and abs(AGEP - SPAGE) < 7
 
 	#One spouse and one unmarried partner
