@@ -2,11 +2,13 @@ database: demo.db
 id: ANC
 
 input {
+#    input file: /home/rrod/work/tea/data/ss10pdc.csv
     input file: /cenhome/rodri363/tea/data/ss10pdc.csv
 #    input file: ../../data/ss10pdc.csv
     overwrite: yes
     output table: pdc
 	types {
+		WAGP: integer
 		AGEP: integer
 		SPORDER: integer
 		PWGTP: integer
@@ -33,8 +35,7 @@ fields {
 }
 
 recodes{
-	blah: AGEP=22
-	RORD: case SPORDER when 1 then 1 when 2 then 2 else 3 end
+	EARN: case when WAGP is null or WAGP<=0 then '0' else '1' end
 	MOVE: case MIG when 1 then 'moved' else 'stayed' end
 	DEG: case when SCHL in ('24','23','22','21','20') then 'degree' else 'non-degreed' end
 	MF: case SEX when '1' then 'M' when '2' then 'F' else NULL end

@@ -171,3 +171,96 @@ srmi.draw <- function(esrmi){
 teasrmi <- new("apop_model", name="srmi",  
                                 estimate_function=srmi.est,
                                 draw_function=srmi.draw)
+
+
+#need
+#kdb the database to connect to
+#ktab table to select from
+#kupdate table to update
+#vsyn variables to synthesize
+#kview the view to use
+#DFsyn the data to synthesize (must include all matching vars)
+#vid id variables
+#vgroup vector of grouping variables for consistency checking
+#Lfit list of fits
+
+consistency_draw <- function(envc){
+con <- dbConnect(dbDriver("SQLite"),kdb) #database connection
+#write IDs to a table, make indices
+dbWriteTable(con,"syntemp",envc$DFsyn[,unique(c(envc$vid,envc$vgroup))],row.names=FALSE,overwrite=TRUE)
+dbGetQuery(con,"drop index if exists syndx")
+dbGetQuery(con,"create index syndx on syntemp(",envc$vid,")")
+#records left to synthesize
+kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
+kloop <- 0
+vfail <- NULL
+vbound <- NULL
+while(kleft>0 & kloop<25){
+	print(kleft)
+	print(kloop)
+	#get data from syntemp ids
+	envc$DFsyn <- dbGetQuery(con,paste("select * from",ktab,"as a, syntemp as b",
+		"where",
+		paste(paste("a",vid,sep="."),
+			paste("b",vid,sep="."),
+			sep="=",collapse=" and "))
+	#synthesize the data
+	#set newdata in Fit to DFsyn
+	envc$Fit$env$Newdata <- envc$DFsyn
+	print("Synthesizing")
+	envc$DFsyn <- RapopModelDraw(envc$Fit)
+	print("Updating")
+	UpdateTablefromDF(envc$DFsyn,envc$kupdate,con,envc$vsyn,envc$vid,verbose=TRUE)
+	#now that we've updated,
+	#check records of all households with someone who was synthesized
+	query <- paste("select * from",ktab,
+		"where",
+		paste(sprintf("%s in (select distinct %s from syntemp)",envc$vgroup,envc$vgroup),
+			collapse=" or "))
+	print(query)
+	envc$DFcheck <- dbGetQuery(con,query)
+
+	print("Checking Bounds")
+	#find bounds errors in age, and reupdate
+	#annoying that SPAGE and HHAGE are not always numeric!!!!
+	#get all edit variables
+	vedvar <- dbGetQuery(pepenv$con,"select * from variables")$name
+	Mbnd <- sapply(vedvar, function(x) return(CheckBounds(DFcheck[,x],x)))
+	Mbnd <- as.logical(Mbnd)
+	Mbnd[is.na(Mbnd)] <- FALSE
+	vbound <- as.logical(rowSums(Mbnd))
+	print("Checking Consistency")
+	vfail <- CheckDF(DFcheck[!vbound,],con)
+	vbad <- vbound
+	vbad[!vbad] <- vfail
+	#any SERIALNO with any bound or consistency failures must be run through again
+	DFtmp <- dbGetPreparedQuery(con,"select * from syntemp where SERIALNO=@SERIALNO",
+		bind.data=unique(envc$DFcheck[vbad==1,envc$vgroup,drop=FALSE]))
+	#overwrite syntemp
+	dbWriteTable(con,"syntemp",DFtmp,row.names=FALSE,overwrite=TRUE)
+	dbGetQuery(con,"drop index if exists syndx")
+	dbGetQuery(con,"create index syndx on syntemp(",envc$vid,")")
+#	dbGetQuery(con,"savepoint syn_del")
+#	if(nrow(DFkeep)>0) dbGetPreparedQuery(con,query,bind.data=DFkeep))
+#	dbGetQuery(con,"release savepoint syn_del")
+	kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
+	kloop <- kloop+1
+}
+
+print(paste("Unable to make consistent synthetic data for",kleft,"records"))
+
+#TODO
+#need to figure out best way to restore bad values
+#final synthetic data
+#need to reset bad records to original values
+#so insert from ORIGpdc back into pdc for anything
+#stil in syntemp
+#for now am selecting everything that wasn't still bad
+vv <- c(vid,vsyn)
+DFup <- dbGetQuery(con,paste("select",paste("a",vv,sep=".",collapse=","),
+	"from ORIGpdc as a, syntemp as b",
+	"where a.SERIALNO=b.SERIALNO and a.SPORDER=b.SPORDER"))
+UpdateTablefromDF(DFup,"pdc",con,c("RELP","SEX","AGEP"),c("SERIALNO","SPORDER"))
+DFsyn <- dbGetQuery(con,"select * from viewpdc")
+}
+	

@@ -110,8 +110,6 @@ CheckDF <- function(DF,con,vars=NULL){
 #' @param con a connection to a database that has the tables necessary for consistency checking
 #' @return a vector giving the result (1 = fail, 0 = pass) for each element of the vector
 CheckBounds <- function(Vvar,kname){
-	#if(!is.numeric(Vvar))	stop("Bounds check only works on numeric values")
-	if(!is.numeric(Vvar))	Vvar <- as.numeric(Vvar)
 	if(is.na(kname) | is.null(kname)) stop("I need a variable name")
 	ftmp <- function(x){
 		if(is.na(x)) return(0)
