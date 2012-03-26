@@ -117,3 +117,9 @@ CheckBounds <- function(Vvar,kname){
 	}
 	return(sapply(as.double(Vvar),ftmp))
 }
+
+CheckBounds <- function(Vvar,kname,con){
+	if(is.na(kname) | is.null(kname)) stop("I need a variable name")
+	Vset <- dbGetQuery(con,paste("select * from",kname))[,kname]
+	return(as.integer(!(Vvar %in% Vset)))
+}

@@ -8,8 +8,9 @@
 
 TEA.gam.est <- function(env){
 	Fit <- try(gam(env$Formula,data=env$Data))
-	if(inherits(Fit,"try-error")) stop(paste("gam on", Formula, "did not work for given data"))
+	if(inherits(Fit,"try-error")) stop(paste("gam on", env$Formula, "did not work for given data"))
 	env$Fit <- Fit
+	env$Newdata <- env$Data #set new data to data used for fit; user can modify this
 }
 
 #' Draw synthetic values from a GAM fit, using predictive mean matching.
@@ -22,16 +23,27 @@ TEA.gam.est <- function(env){
 
 TEA.gam.draw <- function(env){
 	lhs  <- all.vars(env$Formula)[1]
-	originals <- env$Data[,lhs] #store original values
-	predicted <- predict.gam(env$Fit,newdata=env$Data,type="link")
+	originals <- env$Data[,lhs] #store original non-missing values from data used for FIT
+	vwch <- which(!is.na(originals))
+	originals <- originals[vwch]
+	#predicted from original data non-missing
+	opredicted <- predict.gam(env$Fit,newdata=env$Data[vwch,],type="link")
+	#predicted from NEW data
+	npredicted <- predict.gam(env$Fit,newdata=env$Newdata,type="link")
+	#all predicted together
+	predicted <- c(opredicted,npredicted)
 	if(inherits(predicted,"try-error")) stop("prediction not successful")
 	dists <- as.matrix(dist(predicted)) #get distances of fitted valued
 	diag(dists) <- Inf #set diagonal to infinity
 	dists[is.na(dists)] <- Inf #set NA values to infinity
+	#take off rows for original data
+	dists <- dists[-(1:length(opredicted)),]
+	#take off columns for newdata
+	dists <- dists[,-(1:length(npredicted))]
 	#find maximal -distance, so minimal distance. diag is inf, so will never be minimal
 	donors <- max.col(-dists)
 	donvals <- originals[donors]
-	ret <- env$Data
+	ret <- env$Newdata
 	ret[,lhs] <- donvals
 	return(ret)
 }

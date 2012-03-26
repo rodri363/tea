@@ -28,31 +28,41 @@ DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
 #print(system.time(u <- CheckDF(DFo,con)))
 #print(system.time(v <- .Call("r_check_a_table",DFo)))
 
+#lgam <- list(Formula=AGEP ~ DEG,Data=DF)
+#$modgam <- setupRapopModel(teagam)
+#$fitgam <- estimateRapopModel(lgam,modgam)
+#$debug(TEA.gam.draw)
+#$u <- TEA.gam.draw(fitgam$env)
+
 
 #fit SRMI model on all of DF
 lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=1,
-#			lform=list(RELP ~ DEG + MOVE,
-#				SEX ~ RELP + DEG + MOVE,
-#				AGEP ~ SEX + RELP + DEG + MOVE),
 			lform=list(AGEP ~ DEG + MOVE + EARN,
 				RELP ~ AGEP + DEG + MOVE + EARN,
 				SEX ~ RELP + AGEP + DEG + MOVE + EARN),
+#			lform=list(AGEP ~ DEG,
+#				RELP ~ AGEP + DEG,
+#				SEX ~ RELP + AGEP + DEG),
 			kdb="demo.db",kstab="viewpdc",kutab="pdc",vmatch=c("SERIALNO","SPORDER"),
 			ksave="srmi_save",
-#			lmodel=list(mcmc.mnl,mcmc.mnl,mcmc.reg))
-			lmodel=list(mcmc.reg,mcmc.mnl,mcmc.mnl))
+#			lmodel=list(mcmc.reg,mcmc.mnl,mcmc.mnl))
+			lmodel=list(teagam,mcmc.mnl,mcmc.mnl))
 modsrmi <- setupRapopModel(teasrmi)
 #problem comes due to missing SCHL for infants... need to check in SRMI for missing X (covariates)
 #srmi.est(as.environment(lsrmi))
 fitsrmi <- estimateRapopModel(lsrmi,modsrmi)
 
-#draw, check each household, flag it if it is still inconsistent
-#Data for all households having any missing items
-#Write serialnos of interest to new table
 vsyn <- c("AGEP","SEX","RELP") #vars we are synthesizing
-#Scheme
 DFsyn <- dbGetQuery(pepenv$con,paste("select * from viewpdc",
 	"where (AGEP is null or SEX is null or RELP is null)"))
+Lconsist <- list(kdb="demo.db",ktab="viewpdc",kupdate="pdc",vsyn=vsyn,
+	DFsyn=DFsyn,vid=c("SERIALNO","SPORDER"),vgroup="SERIALNO",Lfit=list(fitsrmi),kmaxloop=10)
+
+#TODO
+#see why we're still getting some inconsistent ages at the end of this
+DFsyn <- consistency_draw(as.environment(Lconsist))
+
+if(FALSE){
 #remove na schl
 #write IDs to a table
 dbWriteTable(pepenv$con,"syntemp",DFsyn[,c("SERIALNO","SPORDER")],row.names=FALSE,overwrite=TRUE)
@@ -122,6 +132,7 @@ while(kleft>0 & kloop<2){
 }
 
 print(paste("Unable to make consistent synthetic data for",kleft,"records"))
+}
 
 #final synthetic data
 #need to reset bad records to original values
@@ -158,5 +169,3 @@ png(file="box.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
 print(p3)
 dev.off()
 
-if(FALSE){
-}
