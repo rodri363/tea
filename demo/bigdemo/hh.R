@@ -8,7 +8,7 @@ doInput()
 #drop data that has values we don't have in spec yet
 dbGetQuery(pepenv$con,"delete from pdc where not RELP in ('00','01','02','06')")
 vedvar <- c("SERIALNO",dbGetQuery(pepenv$con,"select * from variables")$name)
-DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
+DF <- dbGetQuery(pepenv$con,"select * from viewpdc where WAGP is not null")
 #to check original data for consistency failures
 #vfail <- CheckDF(DF,pepenv$con)
 
@@ -23,21 +23,17 @@ is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)>0.05)
 #is.na(DF$SEX) <- as.logical(DF$FSEX=="1")
 #insert NAs into database, otherwise no missing values to update in SRMI
 UpdateTablefromDF(DF,"pdc",pepenv$con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
-DF <- dbGetQuery(pepenv$con,"select * from viewpdc")
+DF <- dbGetQuery(pepenv$con,"select * from viewpdc where WAGP is not null")
 
-#print(system.time(u <- CheckDF(DFo,con)))
-#print(system.time(v <- .Call("r_check_a_table",DFo)))
-
-#lgam <- list(Formula=AGEP ~ DEG,Data=DF)
-#$modgam <- setupRapopModel(teagam)
-#$fitgam <- estimateRapopModel(lgam,modgam)
-#$debug(TEA.gam.draw)
-#$u <- TEA.gam.draw(fitgam$env)
-
+#lgam <- list(Formula=AGEP ~ DEG + MOVE + s(WAGP),Data=DF)
+#modgam <- setupRapopModel(teagam)
+#fitgam <- estimateRapopModel(lgam,modgam)
+#debug(TEA.gam.draw)
+#u <- TEA.gam.draw(fitgam$env)
 
 #fit SRMI model on all of DF
 lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=1,
-			lform=list(AGEP ~ DEG + MOVE + EARN,
+			lform=list(AGEP ~ DEG + MOVE + s(WAGP),
 				RELP ~ AGEP + DEG + MOVE + EARN,
 				SEX ~ RELP + AGEP + DEG + MOVE + EARN),
 #			lform=list(AGEP ~ DEG,
@@ -55,11 +51,10 @@ fitsrmi <- estimateRapopModel(lsrmi,modsrmi)
 vsyn <- c("AGEP","SEX","RELP") #vars we are synthesizing
 DFsyn <- dbGetQuery(pepenv$con,paste("select * from viewpdc",
 	"where (AGEP is null or SEX is null or RELP is null)"))
-Lconsist <- list(kdb="demo.db",ktab="viewpdc",kupdate="pdc",vsyn=vsyn,
-	DFsyn=DFsyn,vid=c("SERIALNO","SPORDER"),vgroup="SERIALNO",Lfit=list(fitsrmi),kmaxloop=10)
 
 #TODO
-#see why we're still getting some inconsistent ages at the end of this
+Lconsist <- list(kdb="demo.db",ktab="viewpdc",kupdate="pdc",vsyn=vsyn,
+	DFsyn=DFsyn,vid=c("SERIALNO","SPORDER"),vgroup="SERIALNO",Lfit=list(fitsrmi),kmaxloop=20)
 DFsyn <- consistency_draw(as.environment(Lconsist))
 
 if(FALSE){
@@ -132,7 +127,6 @@ while(kleft>0 & kloop<2){
 }
 
 print(paste("Unable to make consistent synthetic data for",kleft,"records"))
-}
 
 #final synthetic data
 #need to reset bad records to original values
@@ -147,6 +141,7 @@ UpdateTablefromDF(DFup,"pdc",con,c("RELP","SEX","AGEP"),c("SERIALNO","SPORDER"))
 DFsyn <- dbGetQuery(con,"select * from viewpdc")
 
 save(DFo,DFsyn,file="save.RData")
+}
 
 #weighted graphs
 DFo$DAT <- "Original"

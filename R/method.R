@@ -185,7 +185,6 @@ teasrmi <- new("apop_model", name="srmi",
 #kmaxloop number of consistency loops to run
 
 consistency_draw <- function(envc){
-	#browser()
 	con <- dbConnect(dbDriver("SQLite"),envc$kdb) #database connection
 	#write IDs to a table, make indices
 	dbWriteTable(con,"syntemp",envc$DFsyn[,unique(c(envc$vid,envc$vgroup))],row.names=FALSE,overwrite=TRUE)
@@ -197,6 +196,7 @@ consistency_draw <- function(envc){
 	kloop <- 0
 	vfail <- NULL
 	vbound <- NULL
+	#browser()
 	while(kleft>0 & kloop<envc$kmaxloop){
 		print(kleft)
 		print(kloop)
@@ -209,9 +209,10 @@ consistency_draw <- function(envc){
 		envc$DFsyn <- dbGetQuery(con,query)
 		#synthesize the data
 		#set newdata in Fit to DFsyn
-		envc$Fit$env$Newdata <- envc$DFsyn
+		#envc$Fit$env$Newdata <- envc$DFsyn
 		print("Synthesizing")
 		for(fit in envc$Lfit){
+			fit$env$Newdata <- envc$DFsyn
 			envc$DFsyn <- RapopModelDraw(fit)
 		}
 		print("Updating")
@@ -262,6 +263,7 @@ consistency_draw <- function(envc){
 	#for now am selecting everything that wasn't still bad
 	vv <- c(envc$vid,envc$vsyn)
 	query <- paste("select",paste("a",vv,sep=".",collapse=","),
+#	query <- paste("select",paste("a","*",sep=".",collapse=","),
 		"from",paste("ORIG",envc$kupdate,sep=""),"as a, syntemp as b",
 		"where",
 		paste(paste("a",envc$vid,sep="."),
