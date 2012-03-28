@@ -44,7 +44,7 @@ clean:
 	rm -fr $(Pkg_dir)/* $(Pkg_dir)/../tea.Rcheck $(Pkg_dir)/../tea*.tar.gz
 	rm -f c/peptalk/peptalk.output
 	rm -f tests/edit-rel_age/graph/*
-	rm /cenhome/rodri363/tea/demo/bigdemo/*.png
+	rm -f demo/bigdemo/*.png
 
 push:
 	@if [ "x$(MSG)" = 'x' ] ; then echo "MSG='whatever, dude.'" make push; fi

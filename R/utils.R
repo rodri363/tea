@@ -77,9 +77,9 @@ WriteTable <- function(data,tbl,con,var.def=NULL,primary.key=NULL,
 	last.row <- min(c(first.row+(ncommit-1),nrow(data)))
 	while(first.row <= nrow(data)){
 		print(paste("Committing rows",first.row,"to",last.row))
-		dbGetQuery(con,"begin transaction")
+		dbGetQuery(con,"savepoint write_table")
 		dbGetPreparedQuery(con, query, bind.data=data[first.row:last.row,])
-		dbGetQuery(con,"commit")
+		dbGetQuery(con,"release write_table")
 		first.row <- last.row+1
 		last.row <- min(c(first.row+(ncommit-1),nrow(data)))
 	}
@@ -100,31 +100,23 @@ UpdateTablefromDF <- function(data,tbl,con,cols,match.key,ncommit=10000,verbose=
 			"not found in data frame"));
 	}
 	query <- paste("update",tbl,"set",
-		paste(cols,paste(":",cols,sep=""),sep="=",collapse=","),
+		paste(cols,paste("$",cols,sep=""),sep="=",collapse=","),
 		"where",
-		paste(match.key,paste(":",match.key,sep=""),sep="=",collapse=" and "))
+		paste(match.key,paste("$",match.key,sep=""),sep="=",collapse=" and "))
     if(verbose) print(query)
 	first.row <- 1
 	last.row <- min(c(first.row+(ncommit-1),nrow(data)))
 	while(first.row <= nrow(data)){
 		if(verbose) print(paste("Committing rows",first.row,"to",last.row))
 		t0 <- proc.time()
-		#dbGetQuery(con,"begin transaction")
 		dbGetQuery(con,"savepoint utfdf")
-		dbGetPreparedQuery(con, query, bind.data=data.frame(data[first.row:last.row,],stringsAsFactors=FALSE))
-		#for(rdx in first.row:last.row){
-		#	query <- paste("update",tbl,"set",
-		#		paste(cols,pQuote(data[rdx,cols]),sep="=",collapse=","),
-		#		"where",
-		#		paste(match.key,pQuote(data[rdx,match.key]),sep="=",collapse=" and "))
-		#	dbGetQuery(con,query)
-		#}
-		#dbGetQuery(con,"commit")
+		dbGetPreparedQuery(con, query, bind.data=data[first.row:last.row,])
 		dbGetQuery(con,"release utfdf")
 		first.row <- last.row+1
 		last.row <- min(c(first.row+(ncommit-1),nrow(data)))
 		if(verbose) print(proc.time()-t0)
 	}
+		return(NULL)
 }
 
 #' Show a database table

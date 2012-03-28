@@ -1,4 +1,5 @@
 srmi.fupdate.default <- function(Data,kutab,kstab,con,vupdate,vmatch,vgrab=names(Data)){
+	#browser()
 	#update table to re-establish correct recodes
 	#this is especially important if you're doing consistency checking
 	UpdateTablefromDF(Data,kutab,con,vupdate,vmatch,verbose=TRUE)
@@ -27,7 +28,9 @@ srmi.fupdate.default <- function(Data,kutab,kstab,con,vupdate,vmatch,vgrab=names
 #' The sequential regression multiple imputation method.
 #' The function takes one argument, a list.  The following are
 #' the elements expected in the list.
+#DON'T DO THIS, SEND IN A CONNECTION!! 
 #' @param kdb = string giving the path to a database
+#' @param con = a database connection
 #' @param Data = data for modeling
 #' @param kstab = string giving the table from which to select records
 #' @param kutab = string giving the table to update with new records
@@ -39,11 +42,10 @@ srmi.fupdate.default <- function(Data,kutab,kstab,con,vupdate,vmatch,vgrab=names
 #' @return an environment, containing the model fits and all results
 
 srmi.est <- function(esrmi){
-	#esrmi <- as.environment(lsrmi)
+	#browser()
 	DFo <- esrmi$Data #keep original copy
 	if(is.null(esrmi$kloop)) esrmi$kloop <- 10
-		if(is.null(esrmi$kdb)) warning("No database interface; recode updates will not occur")
-	if(!is.null(esrmi$kdb)) con <- dbConnect(dbDriver("SQLite"),esrmi$kdb)
+		if(is.null(esrmi$con)) warning("No database interface; recode updates will not occur")
 		if(is.null(esrmi$lform)) stop("I need a list of formulas (lform)")
 	vvars <- unique(c(esrmi$vmatch,unlist(lapply(esrmi$lform,all.vars))))
 	#setup models
@@ -56,15 +58,22 @@ srmi.est <- function(esrmi){
 	#synthesis goes along
 	#get IDs from Data
 	#will use these to re-extract and return new data
-	if(!is.null(esrmi$kdb)){
+	if(!is.null(esrmi$con)){
 		DFid <- esrmi$Data[,esrmi$vmatch]
+		vtypes <- unlist(lapply(DFid,typeof))
+		vtypes[vtypes=="character"] <- "text"
+		vtypes[vtypes=="double"] <- "real"
+		Mtypes <- cbind(names(DFid),vtypes)
+		#TODO dbWriteTable starts a transaction!!!!
+		#put this automatic stuff in WriteTable
 		#write to a temp table
-		dbWriteTable(con,"srmi_temp",DFid,row.names=FALSE,overwrite=TRUE)
+		#dbWriteTable(esrmi$con,"srmi_temp",DFid,row.names=FALSE,overwrite=TRUE)
+		WriteTable(DFid,"srmi_temp",esrmi$con,Mtypes,names(DFid),overwrite=TRUE)
 	}
 
 	#if using database, start a savepoint
-	if(!is.null(esrmi$kdb) & is.null(esrmi$ksave)) esrmi$ksave <- "srmi_save"
-	if(!is.null(esrmi$kdb))	dbGetQuery(con,paste("savepoint",esrmi$ksave))
+	if(!is.null(esrmi$con) & is.null(esrmi$ksave)) esrmi$ksave <- "srmi_save"
+	if(!is.null(esrmi$con))	dbGetQuery(esrmi$con,paste("savepoint",esrmi$ksave))
 	#list to keep track of missing values
 	lna <- vector("list",length(esrmi$lform))
 	#first run
@@ -86,10 +95,10 @@ srmi.est <- function(esrmi){
 		if(sum(vna)>0) esrmi$Data[vna,lhs] <- RapopModelDraw(fit)[,lhs]
 		esrmi$kcol <- lhs
 		#if using a database, regrab data to get recodes corrected
-		if(!is.null(esrmi$kdb))
+		if(!is.null(esrmi$con))
 		#need all records new, due to group level recodes
 		esrmi$Data <- srmi.fupdate.default(esrmi$Data,
-				esrmi$kutab,esrmi$kstab,con,
+				esrmi$kutab,esrmi$kstab,esrmi$con,
 				lhs,esrmi$vmatch,vvars)
 	}
 
@@ -122,9 +131,9 @@ srmi.est <- function(esrmi){
 			#draw completion values and sub into Data for missing records
 			esrmi$Data[vna,lhs] <- RapopModelDraw(fit)[,lhs]
 			esrmi$kcol <- lhs
-			if(!is.null(esrmi$kdb))
+			if(!is.null(esrmi$con))
 			esrmi$Data[vna,] <- srmi.fupdate.default(esrmi$Data,
-					esrmi$kutab,esrmi$kstab,con,
+					esrmi$kutab,esrmi$kstab,esrmi$con,
 					lhs,esrmi$vmatch,vvars)[vna,]
 		}
 		loopdx <- loopdx+1
@@ -147,9 +156,9 @@ srmi.est <- function(esrmi){
 
 	esrmi$Newdata <- DFo
 	#if using database, end savepoint and restore data
-	if(!is.null(esrmi$kdb))	dbGetQuery(con,paste("rollback to",esrmi$ksave))
-	if(!is.null(esrmi$kdb))	dbGetQuery(con,paste("release",esrmi$ksave))
-	if(!is.null(esrmi$kdb)) dbGetQuery(con,"drop table srmi_temp")
+	if(!is.null(esrmi$con))	dbGetQuery(esrmi$con,paste("rollback to",esrmi$ksave))
+	if(!is.null(esrmi$con))	dbGetQuery(esrmi$con,paste("release",esrmi$ksave))
+	if(!is.null(esrmi$con)) dbGetQuery(esrmi$con,"drop table srmi_temp")
 	return(esrmi)
 }
 
@@ -174,7 +183,7 @@ teasrmi <- new("apop_model", name="srmi",
 
 
 #need
-#kdb the database to connect to
+#con a database connection
 #ktab table to select from
 #kupdate table to update
 #vsyn variables to synthesize
@@ -185,14 +194,21 @@ teasrmi <- new("apop_model", name="srmi",
 #kmaxloop number of consistency loops to run
 
 consistency_draw <- function(envc){
-	con <- dbConnect(dbDriver("SQLite"),envc$kdb) #database connection
+	dbGetQuery(envc$con,"savepoint consist_save")
+#	dbWriteTable(envc$con,"syntemp",envc$DFsyn[,unique(c(envc$vid,envc$vgroup))],row.names=FALSE,overwrite=TRUE)
+#	dbGetQuery(envc$con,"drop index if exists syndx")
+#	dbGetQuery(envc$con,
+#		paste("create index syndx on syntemp(",paste(envc$vid,collapse=","),")"))
+	DFid <- envc$DFsyn[,unique(c(envc$vid,envc$vgroup))]
 	#write IDs to a table, make indices
-	dbWriteTable(con,"syntemp",envc$DFsyn[,unique(c(envc$vid,envc$vgroup))],row.names=FALSE,overwrite=TRUE)
-	dbGetQuery(con,"drop index if exists syndx")
-	dbGetQuery(con,
-		paste("create index syndx on syntemp(",paste(envc$vid,collapse=","),")"))
+	vtypes <- unlist(lapply(DFid,typeof))
+	vtypes[vtypes=="character"] <- "text"
+	vtypes[vtypes=="double"] <- "real"
+	Mtypes <- cbind(names(DFid),vtypes)
+	WriteTable(DFid,"syntemp",envc$con,Mtypes,envc$vid,overwrite=TRUE)
+		
 	#records left to synthesize
-	kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
+	kleft <- dbGetQuery(envc$con,"select count(*) as ct from syntemp")$ct
 	kloop <- 0
 	vfail <- NULL
 	vbound <- NULL
@@ -206,7 +222,7 @@ consistency_draw <- function(envc){
 			paste(paste("a",envc$vid,sep="."),
 				paste("b",envc$vid,sep="."),
 				sep="=",collapse=" and "))
-		envc$DFsyn <- dbGetQuery(con,query)
+		envc$DFsyn <- dbGetQuery(envc$con,query)
 		#synthesize the data
 		#set newdata in Fit to DFsyn
 		#envc$Fit$env$Newdata <- envc$DFsyn
@@ -216,7 +232,7 @@ consistency_draw <- function(envc){
 			envc$DFsyn <- RapopModelDraw(fit)
 		}
 		print("Updating")
-		UpdateTablefromDF(envc$DFsyn,envc$kupdate,con,envc$vsyn,envc$vid,verbose=TRUE)
+		UpdateTablefromDF(envc$DFsyn,envc$kupdate,envc$con,envc$vsyn,envc$vid,verbose=TRUE)
 		#now that we've updated,
 		#check records of all households with someone who was synthesized
 		query <- paste("select * from",envc$ktab,
@@ -224,31 +240,32 @@ consistency_draw <- function(envc){
 			paste(sprintf("%s in (select distinct %s from syntemp)",envc$vgroup,envc$vgroup),
 				collapse=" or "))
 		print(query)
-		DFcheck <- dbGetQuery(con,query)
+		DFcheck <- dbGetQuery(envc$con,query)
 
 		print("Checking Bounds")
 		#find bounds errors in age, and reupdate
 			#get all edit variables
-		vedvar <- dbGetQuery(con,"select * from variables")$name
+		vedvar <- dbGetQuery(envc$con,"select * from variables")$name
 #		Mbnd <- sapply(vedvar, function(x) return(CheckBounds(DFcheck[,x],x)))
-		Mbnd <- sapply(vedvar,function(x) return(CheckBounds(DFcheck[,x],x,con)))
+		Mbnd <- sapply(vedvar,function(x) return(CheckBounds(DFcheck[,x],x,envc$con)))
 		Mbnd <- Mbnd==1
 		Mbnd[is.na(Mbnd)] <- FALSE
 		vbound <- as.logical(rowSums(Mbnd))
 		print("Checking Consistency")
-		vfail <- CheckDF(DFcheck[!vbound,],con)
+		vfail <- CheckDF(DFcheck[!vbound,],envc$con)
 		vbad <- vbound
 		vbad[!vbad] <- vfail
 		#any SERIALNO with any bound or consistency failures must be run through again
-		DFtmp <- dbGetPreparedQuery(con,"select * from syntemp where SERIALNO=$SERIALNO",
+		DFtmp <- dbGetPreparedQuery(envc$con,"select * from syntemp where SERIALNO=$SERIALNO",
 			bind.data=unique(DFcheck[vbad==1,envc$vgroup,drop=FALSE]))
 
 		#overwrite syntemp
-		dbWriteTable(con,"syntemp",DFtmp,row.names=FALSE,overwrite=TRUE)
-		dbGetQuery(con,"drop index if exists syndx")
-		dbGetQuery(con,paste("create index syndx on syntemp(",envc$vid,")"))
+		#dbWriteTable(envc$con,"syntemp",DFtmp,row.names=FALSE,overwrite=TRUE)
+#		dbGetQuery(envc$con,"drop index if exists syndx")
+#		dbGetQuery(envc$con,paste("create index syndx on syntemp(",envc$vid,")"))
 
-		kleft <- dbGetQuery(con,"select count(*) as ct from syntemp")$ct
+		WriteTable(DFtmp,"syntemp",envc$con,Mtypes,envc$vid,overwrite=TRUE)
+		kleft <- dbGetQuery(envc$con,"select count(*) as ct from syntemp")$ct
 		kloop <- kloop+1
 	}
 
@@ -263,15 +280,29 @@ consistency_draw <- function(envc){
 	#for now am selecting everything that wasn't still bad
 	vv <- c(envc$vid,envc$vsyn)
 	query <- paste("select",paste("a",vv,sep=".",collapse=","),
-#	query <- paste("select",paste("a","*",sep=".",collapse=","),
 		"from",paste("ORIG",envc$kupdate,sep=""),"as a, syntemp as b",
 		"where",
 		paste(paste("a",envc$vid,sep="."),
 			paste("b",envc$vid,sep="."),
 			sep="=",collapse=" and "))
-	DFup <- dbGetQuery(con,query)
-	UpdateTablefromDF(DFup,envc$kupdate,con,envc$vsyn,envc$vid)
-	DFsyn <- dbGetQuery(con,paste("select * from", envc$ktab))
-	return(DFsyn)
+	DFup <- dbGetQuery(envc$con,query)
+	UpdateTablefromDF(DFup,envc$kupdate,envc$con,envc$vsyn,envc$vid)
+	#regrab updated final data
+	#rewrite syntemp to hold original IDs
+	WriteTable(DFid,"syntemp",envc$con,Mtypes,envc$vid,overwrite=TRUE)
+	query <- paste("select",
+		paste(paste("a",vv,sep="."),vv,sep=" as ",collapse=","),
+		"from",envc$ktab,"as a, syntemp as b",
+		"where",
+		paste(paste("a",envc$vid,sep="."),
+			paste("b",envc$vid,sep="."),
+			sep="=",collapse=" and "))
+	print(query)
+	envc$DFsyn <- dbGetQuery(envc$con,query)
+	#TODO
+	#decide if we want to restore original data completely b4 we leave
+	dbGetQuery(envc$con,"rollback to consist_save")
+	dbGetQuery(envc$con,"release consist_save")
+	return(envc$DFsyn)
 }
 	
