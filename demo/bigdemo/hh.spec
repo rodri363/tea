@@ -2,8 +2,8 @@ database: demo.db
 id: ANC
 
 input {
-    input file: /home/rrod/work/tea/data/ss10pdc.csv
-#    input file: /cenhome/rodri363/tea/data/ss10pdc.csv
+#    input file: /home/rrod/work/tea/data/ss10pdc.csv
+    input file: /cenhome/rodri363/tea/data/ss10pdc.csv
 #    input file: ../../data/ss10pdc.csv
     overwrite: yes
     output table: pdc
@@ -38,9 +38,10 @@ recodes{
 	EARN: case when WAGP<=0 then 'none' when WAGP>0 then 'black' else NULL end
 	MOVE: case MIG when 1 then 'moved' else 'stayed' end
 	DEG: case when SCHL in ('24','23','22','21','20') then 'degree' else 'non-degreed' end
-	MF: case SEX when '1' then 'M' when '2' then 'F' else NULL end
-	REL: case RELP when '00' then 'HH' when '01' then 'SP' when '02' then 'CH' \
-			when '06' then 'PR' else NULL end
+	MF: case SEX when '1' then 'Male' when '2' then 'Female' else NULL end
+	REL: case RELP when '00' then 'Householder' when '01' then 'Spouse' \
+			when '02' then 'Child' \
+			when '06' then 'Parent' else NULL end
 }
 
 group recodes {

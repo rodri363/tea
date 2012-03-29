@@ -31,16 +31,22 @@ DF <- dbGetQuery(con,"select * from viewpdc where WAGP is not null")
 #fit SRMI model on all of DF
 #TODO need to check in SRMI for missing X (covariates)
 lsrmi <- list(vmatch=c("SERIALNO","SPORDER"),Data=DF,kloop=1,
-			lform=list(AGEP ~ DEG + MOVE + WAGP,
-#			lform=list(AGEP ~ DEG + MOVE + s(WAGP),
-				RELP ~ AGEP + DEG + MOVE + EARN,
-				SEX ~ RELP + AGEP + DEG + MOVE + EARN),
+			lform=list(AGEP ~ s(WAGP),
+				RELP ~ AGEP + EARN,
+				SEX ~ RELP + AGEP + EARN),
 			con=con,kstab="viewpdc",kutab="pdc",vmatch=c("SERIALNO","SPORDER"),
 			ksave="srmi_save",
-			lmodel=list(mcmc.reg,mcmc.mnl,mcmc.mnl))
-#			lmodel=list(teagam,mcmc.mnl,mcmc.mnl))
+			lmodel=list(teagam,mcmc.mnl,mcmc.mnl))
 modsrmi <- setupRapopModel(teasrmi)
 fitsrmi <- estimateRapopModel(lsrmi,modsrmi)
+
+#now redo model with differen model
+lsrmi$lform <- list(AGEP ~ WAGP,
+				RELP ~ AGEP + EARN,
+				SEX ~ RELP + AGEP + EARN)
+lsrmi$lmodel <- list(mcmc.reg,mcmc.mnl,mcmc.mnl)
+modsrmi <- setupRapopModel(teasrmi)
+fitsrmi2 <- estimateRapopModel(lsrmi,modsrmi)
 
 vsyn <- c("AGEP","SEX","RELP") #vars we are synthesizing
 #fill in only records with missing
@@ -50,13 +56,24 @@ DFsyn <- dbGetQuery(con,paste("select * from viewpdc",
 #TODO
 Lconsist <- list(con=con,ktab="viewpdc",kupdate="pdc",vsyn=vsyn,
 	DFsyn=DFsyn,vid=c("SERIALNO","SPORDER"),vgroup="SERIALNO",Lfit=list(fitsrmi),kmaxloop=10)
-DFsyn <- consistency_draw(as.environment(Lconsist))
-#Final update to get all vars for DFsyn
-UpdateTablefromDF(DFsyn,"pdc",con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
-#DFsyn <- dbGetPreparedQuery(con,
-#	"select * from viewpdc where SERIALNO=$SERIALNO and SPORDER=$SPORDER",
-#	bind.data=DFsyn)
-DFsyn <- dbGetQuery(con,"select * from viewpdc")
+
+#make one syn data set for both models
+DFsyn_a1 <- consistency_draw(as.environment(Lconsist))
+DFsyn_a2 <- consistency_draw(as.environment(Lconsist))
+Lconsist$Lfit <- list(fitsrmi2)
+DFsyn_b1 <- consistency_draw(as.environment(Lconsist))
+DFsyn_b2 <- consistency_draw(as.environment(Lconsist))
+
+#Final update to get all vars for DFsyns
+UpdateTablefromDF(DFsyn_a1,"pdc",con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
+DFsyn_a1 <- dbGetQuery(con,"select * from viewpdc")
+UpdateTablefromDF(DFsyn_a2,"pdc",con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
+DFsyn_a2 <- dbGetQuery(con,"select * from viewpdc")
+UpdateTablefromDF(DFsyn_b1,"pdc",con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
+DFsyn_b1 <- dbGetQuery(con,"select * from viewpdc")
+UpdateTablefromDF(DFsyn_b2,"pdc",con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
+DFsyn_b2 <- dbGetQuery(con,"select * from viewpdc")
+
 #rollback to very beginning
 dbGetQuery(con,"rollback to tea_save")
 dbGetQuery(con,"release tea_save")
@@ -68,21 +85,22 @@ dbGetQuery(con,"release tea_save")
 DFo <- dbGetQuery(con,"select * from viewpdc")
 #weighted graphs
 DFo$DAT <- "Original"
-DFsyn$DAT <- "Synthetic"
-DFg <- rbind(DFo,DFsyn)
-p <- ggplot(DFg,aes(x=AGEP,weight=PWGTP,fill=DAT))
-p <- p + scale_fill_brewer(pal="Dark2")
+DFsyn_a1$DAT <- "Synthetic A1"
+DFsyn_a2$DAT <- "Synthetic A2"
+DFsyn_b1$DAT <- "Synthetic B1"
+DFsyn_b2$DAT <- "Synthetic B2"
+DFg <- rbind(DFo,DFsyn_a1,DFsyn_a2,DFsyn_b1,DFsyn_b2)
+p <- ggplot(DFg,aes(x=AGEP,weight=PWGTP,color=DAT))
+p <- p + scale_color_brewer(pal="Dark2")
 p <- p + facet_grid(MF ~ REL)
+p <- p + opts(axis.text.x=theme_text(angle=45,hjust=1))
 p1 <- p + geom_density(alph=1/2,adjust=1,trim=FALSE)
-p2<- p + stat_bin(binwidth=1,position="identity",alpha=1/2)
-png(file="dageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=300)
+png(file="dageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
 print(p1)
-dev.off()
-png(file="ageXsexXrel.png",width=11*(10/11),height=8.5*(10/11),units="in",res=300)
-print(p2)
 dev.off()
 p3 <- ggplot(DFg,aes(x=DAT,y=AGEP,fill=DAT)) + geom_boxplot()
 p3 <- p3 + scale_fill_brewer(pal="Dark2") + facet_grid(MF ~ REL)
+p3 <- p3 + opts(axis.text.x=theme_text(angle=45,hjust=1,vjust=1))
 png(file="box.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
 print(p3)
 dev.off()
