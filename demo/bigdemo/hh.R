@@ -14,9 +14,9 @@ DF <- dbGetQuery(con,"select * from viewpdc where WAGP is not null")
 
 DFo <- DF
 ##randomly blank out RELP,AGEP,SEX
-is.na(DF$AGEP) <- as.logical(runif(nrow(DF),0,1)<0.10)
-is.na(DF$RELP) <- as.logical(runif(nrow(DF),0,1)<0.10)
-is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)<0.10)
+is.na(DF$AGEP) <- as.logical(runif(nrow(DF),0,1)<0.20)
+is.na(DF$RELP) <- as.logical(runif(nrow(DF),0,1)<0.20)
+is.na(DF$SEX) <- as.logical(runif(nrow(DF),0,1)<0.20)
 ##blank based on flags
 #is.na(DF$AGEP) <- as.logical(DF$FAGEP=="1")
 #is.na(DF$RELP) <- as.logical(DF$FRELP=="1")
@@ -26,6 +26,16 @@ dbCommit(con)
 dbGetQuery(con,"savepoint tea_save")
 UpdateTablefromDF(DF,"pdc",con,c("AGEP","RELP","SEX"),c("SERIALNO","SPORDER"),verbose=TRUE)
 DF <- dbGetQuery(con,"select * from viewpdc where WAGP is not null")
+
+##get tree working
+#Ltree <- list(Data=subset(DF,!is.na(AGEP)),Formula=AGEP ~ WAGP)
+#Ltree <- list(Data=subset(DF,!is.na(RELP) & !is.na(AGEP)),Formula=RELP ~ AGEP+WAGP)
+#etree <- as.environment(Ltree)
+#debug(TEA.tree.est)
+#u <- TEA.tree.est(etree)
+#etree$Newdata <- subset(DF,is.na(RELP) & !is.na(AGEP))
+#debug(TEA.tree.draw)
+#v <- TEA.tree.draw(etree)
 
 #first fill in data where WAG is available as a predictor
 #fit SRMI model on all of DF
@@ -41,12 +51,14 @@ modsrmi <- setupRapopModel(teasrmi)
 fitsrmi <- estimateRapopModel(lsrmi,modsrmi)
 
 #now redo model with differen model
-lsrmi$lform <- list(AGEP ~ WAGP,
-				RELP ~ AGEP + EARN,
-				SEX ~ RELP + AGEP + EARN)
-lsrmi$lmodel <- list(mcmc.reg,mcmc.mnl,mcmc.mnl)
+lsrmi$lform <- list(RELP ~ SPORDER + RACWHT + DIS,
+				AGEP ~ RELP + SPORDER + RACWHT + DIS,
+				SEX ~ AGEP + RELP + SPORDER + RACWHT + DIS)
+lsrmi$lmodel <- list(mcmc.mnl,mcmc.reg,mcmc.mnl)
+#lsrmi$lmodel <- list(teatree,teatree,teatree)
 modsrmi <- setupRapopModel(teasrmi)
 fitsrmi2 <- estimateRapopModel(lsrmi,modsrmi)
+
 
 vsyn <- c("AGEP","SEX","RELP") #vars we are synthesizing
 #fill in only records with missing
@@ -78,6 +90,15 @@ DFsyn_b2 <- dbGetQuery(con,"select * from viewpdc")
 dbGetQuery(con,"rollback to tea_save")
 dbGetQuery(con,"release tea_save")
 
+fptrng <- function(y){
+	km <- mean(y)
+	ks <- sd(y)
+	kl <- km-2*ks
+	ku <- km+2*ks
+	vret <- c(kl,km,ku)
+	names(vret) <- c("ymin","y","ymax")
+	return(vret)
+}
 #yank original data before blanking for these
 #DFo <- dbGetPreparedQuery(con,
 #	"select * from viewpdc where SERIALNO=$SERIALNO and SPORDER=$SPORDER",
@@ -103,6 +124,13 @@ p3 <- p3 + scale_fill_brewer(pal="Dark2") + facet_grid(MF ~ REL)
 p3 <- p3 + opts(axis.text.x=theme_text(angle=45,hjust=1,vjust=1))
 png(file="box.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
 print(p3)
+dev.off()
+p4 <- ggplot(DFg,aes(x=DAT,y=AGEP,color=DAT))
+p4 <- p4 + stat_summary(fun.data="fptrng",geom="pointrange")
+p4 <- p4 + scale_color_brewer(pal="Dark2") + facet_grid(MF ~ REL)
+p4 <- p4 + opts(axis.text.x=theme_text(angle=45,hjust=1,vjust=1))
+png(file="pt.png",width=11*(10/11),height=8.5*(10/11),units="in",res=600)
+print(p4)
 dev.off()
 
 if(FALSE){

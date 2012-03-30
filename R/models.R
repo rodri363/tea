@@ -197,6 +197,7 @@ TEA.tree.est <- function(env){
 	env$Data <- as.data.frame(lapply(env$Data,ffact)) #factorize characters
 	env$fit <- try(tree(env$Formula,data=env$Data,y=TRUE))
 	if(inherits(env$fit,"try-error")) stop(paste("Tree fit did not work on"))
+	env$Newdata <- env$Data
 }
 
 #' Draw synthetic values from a CART fit, usin Reiter's Bayesian bootstrap method
@@ -208,26 +209,38 @@ TEA.tree.est <- function(env){
 #' @return a vector containing the synthetic values
 
 TEA.tree.draw <- function(env){
-	#TODO
-	#with newdata, first step is to assign leaves to each record
-	#then proceed as below
 	ffact <- function(x){
 		if(is.character(x)) return(factor(x))
 		else return(x)
 	}
-	env$Data <- as.data.frame(lapply(env$Data,ffact)) #factorize characters
-	vwhere <- predict.tree(env$fit,env$Data,type="where")
+	env$Newdata <- as.data.frame(lapply(env$Newdata,ffact)) #factorize characters
+	#leaves for donor data
+	vDwhere <- predict.tree(env$fit,env$Data,type="where")
+	#leaves for newdata
+	vNwhere <- predict.tree(env$fit,env$Newdata,type="where")
 
 	#do some prediction via Bayes Bootstrap
 	#find all observations in a given leaf
 	#get all leaves
-	vret <- env$fit$y
+	#TODO
+	#can use y from fit to get values for donors, but then
+	#have to make sure length is right!
+	#donors values from fit
+	vdon <- env$fit$y
+	if(is.factor(vdon)) vdon <- as.character(vdon)
+	#values to put into Newdata
+	vret <- rep(NA,nrow(env$Newdata))
+	#all the leaves
 	vleaf <- row.names(subset(env$fit$frame,var=="<leaf>"))
 	for(kleaf in vleaf){
 		#vwch <- which(rownames(env$fit$frame)[env$fit$where]==kleaf)
-		vwch <- which(rownames(env$fit$frame)[vwhere]==kleaf)
-		vvals <- vret[vwch]
+		#donor values to pick from
+		vDwch <- which(rownames(env$fit$frame)[vDwhere]==kleaf)
+		#new values to replace
+		vNwch <- which(rownames(env$fit$frame)[vNwhere]==kleaf)
+		vvals <- vdon[vDwch]
 		vsyn <- NULL
+		#do Bayes bootstrap of donor values in node
 		#not sure if draw of sampling probs occurs just once per leaf...
 		vunif <- c(0,runif(length(vvals)-1,0,1),1)
 		vunif <- vunif[order(vunif)]
@@ -241,10 +254,11 @@ TEA.tree.draw <- function(env){
 			vsyn <- c(vsyn,vvals[vimp])
 			idx <- idx + sum(vimp)
 		}
-		vsyn <- vsyn[1:length(vvals)] #chop off excess imputes
-		vret[vwch] <- vsyn
+#		vsyn <- vsyn[1:length(vvals)] #chop off excess imputes
+		vsyn <- vsyn[1:length(vNwch)] #chop off excess imputes
+		vret[vNwch] <- vsyn
 	}
-	ret <- env$Data
+	ret <- env$Newdata
 	lhs <- all.vars(env$Formula)[1]
 	ret[,lhs] <- vret
 	return(ret)
