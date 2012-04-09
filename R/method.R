@@ -186,7 +186,9 @@ teasrmi <- new("apop_model", name="srmi",
 #con a database connection
 #ktab table to select from
 #kupdate table to update
+#korig table used to restore original values
 #vsyn variables to synthesize
+#vorig original variables to restore
 #DFsyn the data to synthesize (must include all matching vars)
 #vid id variables
 #vgroup vector of grouping variables for consistency checking
@@ -256,16 +258,16 @@ consistency_draw <- function(envc){
 		vbad <- vbound
 		vbad[!vbad] <- vfail
 		#any SERIALNO with any bound or consistency failures must be run through again
-		DFtmp <- dbGetPreparedQuery(envc$con,"select * from syntemp where SERIALNO=$SERIALNO",
-			bind.data=unique(DFcheck[vbad==1,envc$vgroup,drop=FALSE]))
+		if(sum(vbad)>0){
+			query <-paste("select * from syntemp where",
+					paste(envc$vgroup,paste("$",envc$vgroup,sep=""),sep="=",collapse=" and "))
+			print(query)
+			DFtmp <- dbGetPreparedQuery(envc$con,query,
+				bind.data=unique(DFcheck[vbad==1,envc$vgroup,drop=FALSE]))
+			WriteTable(DFtmp,"syntemp",envc$con,Mtypes,envc$vid,overwrite=TRUE)
+			kleft <- dbGetQuery(envc$con,"select count(*) as ct from syntemp")$ct
+		}else kleft <- 0
 
-		#overwrite syntemp
-		#dbWriteTable(envc$con,"syntemp",DFtmp,row.names=FALSE,overwrite=TRUE)
-#		dbGetQuery(envc$con,"drop index if exists syndx")
-#		dbGetQuery(envc$con,paste("create index syndx on syntemp(",envc$vid,")"))
-
-		WriteTable(DFtmp,"syntemp",envc$con,Mtypes,envc$vid,overwrite=TRUE)
-		kleft <- dbGetQuery(envc$con,"select count(*) as ct from syntemp")$ct
 		kloop <- kloop+1
 	}
 
@@ -278,18 +280,20 @@ consistency_draw <- function(envc){
 	#so insert from ORIGpdc back into pdc for anything
 	#stil in syntemp
 	#for now am selecting everything that wasn't still bad
-	vv <- c(envc$vid,envc$vsyn)
+	vv <- c(envc$vid,envc$vorig)
 	query <- paste("select",paste("a",vv,sep=".",collapse=","),
-		"from",paste("ORIG",envc$kupdate,sep=""),"as a, syntemp as b",
+		"from",envc$korig,"as a, syntemp as b",
 		"where",
 		paste(paste("a",envc$vid,sep="."),
 			paste("b",envc$vid,sep="."),
 			sep="=",collapse=" and "))
 	DFup <- dbGetQuery(envc$con,query)
-	UpdateTablefromDF(DFup,envc$kupdate,envc$con,envc$vsyn,envc$vid)
+	UpdateTablefromDF(DFup,envc$korig,envc$con,envc$vorig,envc$vid)
 	#regrab updated final data
 	#rewrite syntemp to hold original IDs
 	WriteTable(DFid,"syntemp",envc$con,Mtypes,envc$vid,overwrite=TRUE)
+	#now regrab synthetic variables
+	vv <- c(envc$vid,envc$vsyn)
 	query <- paste("select",
 		paste(paste("a",vv,sep="."),vv,sep=" as ",collapse=","),
 		"from",envc$ktab,"as a, syntemp as b",
