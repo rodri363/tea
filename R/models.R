@@ -209,10 +209,15 @@ TEA.tree.est <- function(env){
 #' @return a vector containing the synthetic values
 
 TEA.tree.draw <- function(env){
+#TODO
+#When donor values do not have a leaf that
+#newdata values have, you will get NA
 	ffact <- function(x){
 		if(is.character(x)) return(factor(x))
 		else return(x)
 	}
+	if(is.null(env$debug)) env$debug <- FALSE
+	if(env$debug) browser()
 	env$Newdata <- as.data.frame(lapply(env$Newdata,ffact)) #factorize characters
 	#leaves for donor data
 	vDwhere <- predict.tree(env$fit,env$Data,type="where")

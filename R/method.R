@@ -196,6 +196,7 @@ teasrmi <- new("apop_model", name="srmi",
 #kmaxloop number of consistency loops to run
 
 consistency_draw <- function(envc){
+	if(envc$debug) browser()
 	dbGetQuery(envc$con,"savepoint consist_save")
 #	dbWriteTable(envc$con,"syntemp",envc$DFsyn[,unique(c(envc$vid,envc$vgroup))],row.names=FALSE,overwrite=TRUE)
 #	dbGetQuery(envc$con,"drop index if exists syndx")
@@ -230,8 +231,12 @@ consistency_draw <- function(envc){
 		#envc$Fit$env$Newdata <- envc$DFsyn
 		print("Synthesizing")
 		for(fit in envc$Lfit){
+			if(envc$debug) fit$env$debug <- TRUE
 			fit$env$Newdata <- envc$DFsyn
-			envc$DFsyn <- RapopModelDraw(fit)
+			DFtmp <- try(RapopModelDraw(fit))
+			if(!inherits(DFtmp,"try-error")) envc$DFsyn <- DFtmp
+			else print(paste(fit$env$Formula, "did not work"))
+			print(lapply(envc$DFsyn[,envc$vsyn],function(x) sum(is.na(x))))
 		}
 		print("Updating")
 		UpdateTablefromDF(envc$DFsyn,envc$kupdate,envc$con,envc$vsyn,envc$vid,verbose=TRUE)
@@ -288,7 +293,7 @@ consistency_draw <- function(envc){
 			paste("b",envc$vid,sep="."),
 			sep="=",collapse=" and "))
 	DFup <- dbGetQuery(envc$con,query)
-	UpdateTablefromDF(DFup,envc$korig,envc$con,envc$vorig,envc$vid)
+	UpdateTablefromDF(DFup,envc$kupdate,envc$con,envc$vorig,envc$vid)
 	#regrab updated final data
 	#rewrite syntemp to hold original IDs
 	WriteTable(DFid,"syntemp",envc$con,Mtypes,envc$vid,overwrite=TRUE)
