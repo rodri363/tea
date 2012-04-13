@@ -68,6 +68,11 @@ TEA.MCMCmnl.est <- function(env){
 	#all variables
 	Vvar <- all.vars(env$Formula)
 	env$Data <- env$Data[,Vvar]
+	ffact <- function(x){
+		if(is.character(x)) return(factor(x))
+		else return(x)
+	}
+	env$Data <- as.data.frame(lapply(env$Data,ffact)) #factorize characters
 #	#make character lhs a factor; this helps MCMCmnl get the names right!
 #	env$Data <- as.data.frame(lapply(env$Data[,Vvar],
 #		function(x) if(is.character(x)) return(factor(x)) else return(x)))
@@ -131,10 +136,15 @@ TEA.MCMCmnl.draw <- function(env){
         else return(Lret)
     }
 	#browser()
-	Vvar <- all.vars(env$Formula)
+	ffact <- function(x){
+		if(is.character(x)) return(factor(x))
+		else return(x)
+	}
+	env$Newdata <- as.data.frame(lapply(env$Newdata,ffact)) #factorize characters
 #	env$Newdata <- as.data.frame(lapply(env$Newdata[,Vvar],
 #		function(x) if(is.character(x)) return(factor(x)) else return(x)))
 	#trim off response from formula so model.matrix works
+	Vvar <- all.vars(env$Formula)
 	newform <- as.formula(paste("~",paste(all.vars(env$Formula)[-1],collapse="+")))
 	#do level check on each character/factor variable
 	checkdata <- as.data.frame(lapply(all.vars(newform),flev))

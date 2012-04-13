@@ -236,7 +236,7 @@ consistency_draw <- function(envc){
 			DFtmp <- try(RapopModelDraw(fit))
 			if(!inherits(DFtmp,"try-error")) envc$DFsyn <- DFtmp
 			else print(paste(fit$env$Formula, "did not work"))
-			print(lapply(envc$DFsyn[,envc$vsyn],function(x) sum(is.na(x))))
+			print(unlist(lapply(envc$DFsyn[,envc$vsyn],function(x) sum(is.na(x)))))
 		}
 		print("Updating")
 		UpdateTablefromDF(envc$DFsyn,envc$kupdate,envc$con,envc$vsyn,envc$vid,verbose=TRUE)
