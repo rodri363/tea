@@ -111,7 +111,12 @@ TEA.MCMCmnl.est <- function(env){
 
 #TEA.predict.MCMCmnl <- function(Fit,Formula,Mmod,Llev,DFsub,kzero=TRUE){
 TEA.MCMCmnl.draw <- function(env){
+	if(is.null(env$verbose)) env$verbose <- FALSE
+	if(is.null(env$debug)) env$debug <- FALSE
+	if(env$debug) browser()
+
 	if(nrow(env$Newdata)==0) stop("Newdata has 0 rows")
+	#if no option for negative probilities set, set it
 	if(is.null(env$kzero)) env$kzero <- TRUE
     flev <- function(var){
         Vret <- env$Newdata[,var]
@@ -184,6 +189,7 @@ TEA.MCMCmnl.draw <- function(env){
 	lhs <- all.vars(env$Formula)[1]
 	DFret <- env$Newdata
 	DFret[,lhs] <- Vdraw
+	if(env$verbose) print(table(DFret[,lhs]))
 	return(DFret)
 }
 
@@ -327,6 +333,11 @@ TEA.MCMCregress.est <- function(env){
 #' @param fround = a function with which to round the draws; defaults to floor
 #' @return a vector containing the posterior predictive draws
 TEA.MCMCregress.draw <- function(env){
+	if(is.null(env$verbose)) env$verbose <- FALSE
+	if(is.null(env$debug)) env$debug <- FALSE
+	if(env$debug) browser()
+	if(is.null(env$transform)) env$transform <- function(x) return(x)
+
 	if(nrow(env$Newdata)==0) stop("Newdata has 0 rows")
 	if(is.null(env$fround)) fround <- floor
     flev <- function(var){
@@ -352,7 +363,12 @@ TEA.MCMCregress.draw <- function(env){
         else return(Lret)
     }
 	#trim off response from formula so model.matrix works
-	newform <- as.formula(paste("~",paste(all.vars(env$Formula)[-1],collapse="+")))
+	vtermlab <- attr(terms(env$Formula),"term.labels")
+	#can't use all.vars if we want predictors like "log(A)" to work
+	#using "term.labels" attribute instead"
+	#newform <- as.formula(paste("~",paste(all.vars(env$Formula)[-1],collapse="+")))
+	newform <- as.formula(paste("~",paste(vtermlab,collapse="+")))
+
 	#do level check on each character/factor variable
 #	env$Newdata <- as.data.frame(lapply(all.vars(newform),flev))
 	checkdata <- as.data.frame(lapply(all.vars(newform),flev))
@@ -370,7 +386,8 @@ TEA.MCMCregress.draw <- function(env){
 
 	lhs <- all.vars(env$Formula)[1]
 	DFret <- env$Newdata
-	DFret[,lhs] <- fround(Vdraw)
+	#return reverse-transformed data (in case of "log" type fits)
+	DFret[,lhs] <- env$transform(fround(Vdraw))
 	return(DFret)
 }
 

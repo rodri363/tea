@@ -231,7 +231,6 @@ consistency_draw <- function(envc){
 		#envc$Fit$env$Newdata <- envc$DFsyn
 		print("Synthesizing")
 		for(fit in envc$Lfit){
-			if(envc$debug) fit$env$debug <- TRUE
 			fit$env$Newdata <- envc$DFsyn
 			DFtmp <- try(RapopModelDraw(fit))
 			if(!inherits(DFtmp,"try-error")) envc$DFsyn <- DFtmp
