@@ -45,7 +45,6 @@ char *one_recode_to_string(apop_data const *recode_list, int *is_formula, int *h
     return clauses;
 }
 
-
 void recodes(char **key, char** tag, char **outstring, char **intab){
 // All this function does is produce a query string. text_in/recodes then runs the query.
 // **key may be "recodes" or "group recodes".
@@ -102,7 +101,6 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
     if (verbose) printf("recode string: %s\n", *outstring);
     apop_data_free(editcheck);
 }
-
 
 void get_in_out_tabs(char const *first_or_last, char **intab, char **out_name){
     //Names are a pain: the first input should be the intab,
@@ -166,7 +164,7 @@ the read-in now.
 \key {group recodes/recodes} A set of recodes like the main set, but each calculation of the recode will be grouped by the group id, so you can use things like {\tt max(age)} or {\tt sum(income)}.
 
 Returns 0 on OK, 1 on error.
- */
+*/
 int make_recode_view(char **tag, char **first_or_last){
     //first_or_last may be "first", "last", "both", or "middle"
     char *q = strdup("select distinct key from keys where "
@@ -212,8 +210,5 @@ int make_recode_view(char **tag, char **first_or_last){
     }
     else 
         Qcheck(apop_query("create view %s as select * %s from %s", out_name, XN(recodestr), intab));
-
-    //OK! Now let's set up triggers so that users can update the view without thinking
-    //about it.
     return set_up_triggers(intab);
 }
