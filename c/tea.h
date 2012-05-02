@@ -171,7 +171,7 @@ int get_key_float_list_tagged(char *part1, char * part2, char *tag, double **out
 void impute(char **tag, char **active_tab);
 void text_in();
 
-void recodes(char **key, char** tag, char **outstring, char **intable); //just the recode string
+//void recodes(char **key, char** tag, char **outstring, char **intable); //just the recode string
 int make_recode_view(char **tag, char **first_or_last);//query to generate the view
 
 void do_preedits(char **datatab);
@@ -184,3 +184,8 @@ void check_in_impute(char *origin, int serialno, int imputation_number);
 
 //convert a name like "normal" to a model, like apop_normal.
 apop_model tea_get_model_by_name(char *name);
+
+//peptalk.y, public mostly for the recodes.
+char * strip(const char *in); //Remove leading/trailing white space
+void add_to_num_list(char *v);
+void add_var(char *var, int, char);

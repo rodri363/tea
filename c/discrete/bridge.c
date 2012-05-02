@@ -435,7 +435,7 @@ void read_spec(char **infile, char **dbname_out){
     yyparse();  //fill keys table
 
     apop_data *recode_tags = apop_query_to_text("select distinct tag from keys "
-            " where key like 'recode%%' order by count");
+            " where key like 'recode%%' or key like 'group recodes%%' order by count");
     if (recode_tags){
         if (recode_tags->textsize[0]==1) make_recode_view(NULL, (char*[]){"both"});
         else for (int i=0; i< *recode_tags->textsize; i++){

@@ -25,30 +25,35 @@ void test_consistency(){
     }
 }
 
+//Generates a two-column list of elements, write to 'onetwo.data'.
+void write_one_two_dataset(){
+    write_a_file("onetwo.data", 
+    "\"one\" |two   \n"
+    "1\t1           \n"
+    "1|2            \n"
+    "1| 3           \n"
+    "2 | 1          \n"
+    "2| 2           \n"
+    "3|2            \n"
+    "2|	2           \n"
+    "3|1            \n"
+    "1 | 1          \n"
+    "3|2            \n"
+    "2 |2           \n"
+    "3|3            \n"
+    );
+}
+
 void snowman_test(){
     char *specname = "snowman.spec";
-    write_a_file("snowman.data", 
-    "\"one\" |two\n"
-    "1\t1\n"
-    "1|2\n"
-    "1| 3\n"
-    "2 | 1 \n"
-    "2| 2\n"
-    "3|2 \n"
-    "2|	3 \n"
-    "3|1 \n"
-    "1 | 1 \n"
-    "3|2 \n"
-    "2 |2 \n"
-    "3|3 \n"
-    );
+    write_one_two_dataset();
 
     write_a_file(specname,
     "\n"
     "database: d.db\n"
     "\n"
     "input {\n"
-    "    input file: snowman.data\n"
+    "    input file: onetwo.data\n"
     "    output table: d \n "
     "    overwrite: y \n "
     "} \n "
@@ -79,29 +84,14 @@ void snowman_test(){
         remove(*f);
 }
 
-
 void recode_test(){
     char *specname = "recodes.spec";
-    write_a_file("recode.test.data", 
-    "\"one\" |two   \n"
-    "1\t1        \n"
-    "1|2         \n"
-    "1| 3        \n"
-    "2 | 1       \n"
-"    2| 2        \n"
-    "3|2         \n"
-    "2|	3       \n"
-    "3|1         \n"
-    "1 | 1       \n"
-    "3|2         \n"
-    "2 |2        \n"
-    "3|3 \n"
-    );
+    write_one_two_dataset();
 
     write_a_file(specname,
 "           database: test.db                     \n"
 "           input {\n"
-"               input file: recode.test.data\n"
+"               input file: onetwo.data\n"
 "               output table: d \n "
 "               overwrite: y \n "
 "}     \n "
@@ -136,6 +126,30 @@ void recode_test(){
     assert(apop_query_to_float("select count(*) from viewd where L21=='L1'")==2);
 }
 
+void group_recode_test(){
+    char *specname = "recodes.spec";
+    write_one_two_dataset();
+
+    write_a_file(specname,
+"           database: test.db                       \n"
+"           input {                                 \n"
+"               input file: onetwo.data             \n"
+"               output table: d                     \n "
+"               overwrite: y                        \n "
+"}                                                  \n "
+"                                               \n"
+"            group recodes [first] {               \n"
+"             group id: one                  \n"
+"             twomax: max(two)                       \n"
+"             twomin: min(two)                       \n"
+"            }                               \n"
+            );
+
+    read_spec(&specname, &db_dummy);
+    text_in();
+    assert(apop_query_to_float("select count(*) from viewd where twomax+0.0==2")==4);
+    assert(apop_query_to_float("select count(*) from viewd where twomin+0.0==1")==12);
+}
 
 ////////////////////////////////
 
@@ -180,6 +194,7 @@ void just_like_the_R_test(){
 
 
 void tea_c_tests(){
+    group_recode_test();
     recode_test();
     just_like_the_R_test();
     snowman_test();

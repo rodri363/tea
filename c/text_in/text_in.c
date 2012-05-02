@@ -2,6 +2,8 @@
 #include "tea.h"
 
 int file_read = 0;
+
+
     
 void generate_indices(char const *tablename){
     apop_data *indices = get_key_text("input", "indices");
@@ -81,3 +83,79 @@ void text_in(){
 	generate_indices(table_out);
     file_read ++;
 }
+
+
+
+
+/* \key database The database to use for all of this. It must be the first thing on your line.
+ 
+I need it to know where to write all the keys to come.
+
+\key id Provides a column in the data set that provides a unique identifier for each
+observation.
+Some procedure need such a column; e.g., multiple imputation will store imputations in a
+table separate from the main dataset, and will require a means of putting imputations in
+their proper place. Other elements of TEA, like flagging for disclosure avoidance, use the
+same identifier.
+
+
+\key recodes New variables that are deterministic functions of the existing data sets.
+There are two forms, one aimed at recodes that indicate a list of categories, and one
+aimed at recodes that are a direct calculation from the existing fields.
+For example (using a popular rule that you shouldn't date anybody who is younger than
+(your age)/2 +7),
+
+\begin{lstlisting}[language=]
+recodes { 
+    pants {
+        yes | leg_count = 2
+        no  |                   #Always include one blank default category at the end.
+    }
+
+    youngest_date {
+        age/2 + 7
+    }
+}
+\end{lstlisting}
+
+You may chain recode groups, meaning that recodes may be based on previous recodes. Tagged
+recode groups are done in the sequence in which they appear in the file. [Because the
+order of the file determines order of execution, the tags you assign are irrelevant, but
+I still need distinct tags to keep the groups distinct in my bookkeeping.]
+
+\begin{lstlisting}
+recodes [first] {
+    youngest_date: (age/7) +7        #for one-line expressions, you can use a colon.
+    oldest_date: (age -7) *2
+}
+
+recodes [second] {
+    age_gap {
+        yes | spouse_age > youngest_date && spouse_age < oldest_date
+        no  | 
+    }
+
+}
+\end{lstlisting}
+
+If you have edits based on a formula, then I'm not smart enough to set up the edit table
+from just the recode formula. Please add the new field and its valid values in the \c
+fields section, as with the usual variables.
+
+If you have edits based on category-style recodes, I auto-declare those, because the
+recode can only take on the values that you wrote down here.
+
+\key {group recodes} Much like recodes (qv), but for variables set within a group, like
+eldest in household.
+For example,
+\begin{lstlisting}[language=]
+group recodes { 
+    group id column: hh_id
+    eldest: max(age)
+    youngest: min(age)
+    household_size: count(*)
+    total_income: sum(income)
+    mean_income: avg(income)
+}
+\end{lstlisting}
+*/
