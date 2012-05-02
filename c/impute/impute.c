@@ -406,6 +406,13 @@ Return: 1=input wasn't in the list, was modified to nearest value
 int check_bounds(double *val, char const *var, char type){
 //Hey, B: Check the SQL that is about only this variable. This will need to be modified for multi-variable models.
 //After checking the SQL, check the declarations.
+
+    char *val_as_text;
+    asprintf(&val_as_text, "%g", *val);
+    int rowid = ri_from_ext(var, val_as_text);
+    free(val_as_text); 
+    if (rowid >=0) return 0;
+    //else, try to round it.
     if (type=='r' || type=='c') return 0;
 /*    if (type =='c')
 		return !!apop_query_to_float("select count(*) from %s where %s = '%s'",
@@ -430,6 +437,7 @@ if (verbose) printf("rounding %g -> %s\n", *val , closest->text[0][0]);
             return 1;
         }
         apop_data_free(closest);
+apop_opts.verbose++;
     }
     return 0;
 }

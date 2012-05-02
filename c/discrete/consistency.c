@@ -268,6 +268,10 @@ void fill_a_record(int record[], int const record_width, char * const restrict *
         for(int  kk = find_b[user_to_em[i]]-1; kk< find_e[user_to_em[i]]; kk++)
           record[kk] = 0;
         int ri_position = ri_from_ext(record_name_in[i], ud_values[i]);
+        Apop_assert(ri_position != -1 , "I couldn't find the value %s in your "
+                "declarations for the variable %s. Please remove the error from the data or "
+                "add that value to the declaration, then restart the program so I can rebuild "
+                "some internal data structures.", record_name_in[i], ud_values[i]);
         if (ri_position != -100){ //-100 = undeclared = no need to check.
             int bit = find_b[user_to_em[i]]-1 + ri_position-1;
             Apop_assert(bit < record_width && bit >= 0, 

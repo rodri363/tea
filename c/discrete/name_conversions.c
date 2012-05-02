@@ -41,7 +41,8 @@ static apop_data *get_named_tab(char const *varname){
 }
 
 /* ri stands for rowid, ext for external, user-defined value. This translates.
-   -100 means that the variable is undeclared.
+   returned -100 means that the variable is undeclared.
+   returned -1 means variable found, but value wasn't.
  */
 int ri_from_ext(char const *varname, char const * ext_val){
     if (apop_strcmp(ext_val, "NULL")) ext_val = apop_opts.db_nan;
@@ -49,11 +50,7 @@ int ri_from_ext(char const *varname, char const * ext_val){
     if (!this) return -100;
     for (int i=0; i< *this->textsize; i++)
         if (apop_strcmp(ext_val, *this->text[i])) return i+1;
-	Apop_assert(0, "I couldn't find the value %s in your "
-"declarations for the variable %s. Please remove the error from the data or "
-"add that value to the declaration, then restart the program so I can rebuild "
-"some internal data structures.",
-		ext_val, varname);
+    return -1;
 }
 
 char * ext_from_ri(char const *varname, int const ri_val){

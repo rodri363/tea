@@ -36,9 +36,9 @@ There are about four types of operation:
 
 The big magic trick to the setup is that each declaration produces one table
 for one variable. Let the declarations say 
-|x 1-2
-|y 1-5; 
-then we'll produce two new tables: one named x, whose sole column will be named x, and which will have two rows; one table named y, with a column named y, with values 1 to five.
+x: 1-2
+y: 1-5 
+Then we'll produce two new tables: one named x, whose sole column will be named x, and which will have two rows; one table named y, with a column named y, with values 1 to five.
 
 A query over a set of variables will output the cross product of all combinations---that's just how SQL works, and we can use that to produce a comprehensive list of variables that pass/fail an edit.
 
