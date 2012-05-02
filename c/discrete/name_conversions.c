@@ -15,8 +15,7 @@ Search is simple and naïve: it's all string-matching.
 apop_data **ri_ext;
 
 void reset_ri_ext_table(){
-    for (int i=0; i< total_var_ct; i++)
-        apop_data_free(ri_ext[i]);
+    for (int i=0; i< total_var_ct; i++) apop_data_free(ri_ext[i]);
     free(ri_ext);
     ri_ext=NULL;
 }
@@ -39,7 +38,6 @@ static apop_data *get_named_tab(char const *varname){
         if (apop_strcmp(varname, ri_ext[i]->names->title))
             {this=ri_ext[i]; break;}
     return this;
-
 }
 
 /* ri stands for rowid, ext for external, user-defined value. This translates.

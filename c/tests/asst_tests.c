@@ -79,6 +79,64 @@ void snowman_test(){
         remove(*f);
 }
 
+
+void recode_test(){
+    char *specname = "recodes.spec";
+    write_a_file("recode.test.data", 
+    "\"one\" |two   \n"
+    "1\t1        \n"
+    "1|2         \n"
+    "1| 3        \n"
+    "2 | 1       \n"
+"    2| 2        \n"
+    "3|2         \n"
+    "2|	3       \n"
+    "3|1         \n"
+    "1 | 1       \n"
+    "3|2         \n"
+    "2 |2        \n"
+    "3|3 \n"
+    );
+
+    write_a_file(specname,
+"           database: test.db                     \n"
+"           input {\n"
+"               input file: recode.test.data\n"
+"               output table: d \n "
+"               overwrite: y \n "
+"}     \n "
+"\n"
+"            recodes [first] {               \n"
+"                abc {                       \n"
+"                    A | one =1 and two=1    \n"
+"                    B | one = 1 and two=2   \n"
+"                    C |                     \n"
+"                }                           \n"
+"                                           \n"
+"                def {                       \n"
+"                    D | one=2 and two=1     \n"
+"                    E | one=2 and two=2     \n"
+"                    F | one=2 and two=3     \n"
+"                    G |                     \n"
+"                }                           \n"
+"            }                               \n"
+"\n"
+"            recodes [second] {              \n"
+"                L21 {                       \n"
+"                    L1 | abc = 'A'          \n"
+"                    L2 | abc = 'B'          \n"
+"                    L3 |                    \n"
+"                }                           \n"
+"            }                               \n"
+            );
+
+    read_spec(&specname, &db_dummy);
+    text_in();
+    assert(apop_query_to_float("select count(*) from viewd where abc=='A'")==2);
+    assert(apop_query_to_float("select count(*) from viewd where L21=='L1'")==2);
+}
+
+
 ////////////////////////////////
 
 void just_like_the_R_test(){
@@ -122,6 +180,7 @@ void just_like_the_R_test(){
 
 
 void tea_c_tests(){
+    recode_test();
     just_like_the_R_test();
     snowman_test();
 }

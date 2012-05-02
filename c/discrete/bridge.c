@@ -438,11 +438,14 @@ void read_spec(char **infile, char **dbname_out){
             " where key like 'recode%%' order by count");
     if (recode_tags){
         if (recode_tags->textsize[0]==1) make_recode_view(NULL, (char*[]){"both"});
-        else for (int i=0; i< recode_tags->textsize[0]; i++)
-            make_recode_view(recode_tags->text[i], //pointer to list of char*s.
+        else for (int i=0; i< *recode_tags->textsize; i++){
+            Apop_assert(
+                    !make_recode_view(recode_tags->text[i], //pointer to list of char*s.
                         ( (i==0) ? (char*[]){"first"}
-                        : (i==recode_tags->textsize[0]-1) ? (char*[]){"last"}
-                        : (char*[]){"middle"}));
+                        : (i==*recode_tags->textsize-1) ? (char*[]){"last"}
+                        : (char*[]){"middle"})),
+                    "Error in recode production.");
+        }
         apop_data_free(recode_tags);
     }
 

@@ -478,6 +478,30 @@ void reduce_key(char *in){
     }   
 }
 
+
+void one_recode_to_string(char const *thisrc, char **clauses, int *is_formula, int *has_else, int doedits){
+    apop_data *one_rc = NULL;
+    apop_regex(thisrc, "[ \t]*(([^|]|\\|\\|)+)[ \t]*(\\||$)", &one_rc);//break into delimited parts
+    if (!one_rc){ //Then it's not of the form "something | [...]", so treat as a formula.
+        (*is_formula)++;
+        *clauses = strdup(thisrc);
+        return;
+    } //else:
+    if (*one_rc->textsize==2){
+        //the "category | condition" version
+        xprintf(clauses, "%s when %s then '%s'\n", XN(*clauses), one_rc->text[1][0], strip(one_rc->text[0][0]));
+    } else if (*one_rc->textsize==1){ 
+        //the default category.
+        apop_assert(!*has_else, "You have a recode with two default categories.");
+        xprintf(clauses, "%s else '%s'\n", 
+            *clauses ? *clauses : "when 0 then 0", strip(one_rc->text[0][0]) );
+        (*has_else)++;
+    } else
+        Apop_assert(0, "This line doesn't parse right as a recode: %s", thisrc);
+    if (doedits) add_to_num_list(strip(one_rc->text[0][0]));
+    apop_data_free(one_rc);
+}
+
 /* \key database The database to use for all of this. It must be the first thing on your line.
  
 I need it to know where to write all the keys to come.
@@ -491,15 +515,50 @@ same identifier.
 
 
 \key recodes New variables that are deterministic functions of the existing data sets.
-For example,
+There are two forms, one aimed at recodes that indicate a list of categories, and one
+aimed at recodes that are a direct calculation from the existing fields.
+For example (using a popular rule that you shouldn't date anybody who is younger than
+(your age)/2 +7),
+
 \begin{lstlisting}[language=]
 recodes { 
     pants {
         yes | leg_count = 2
-        no  | 
+        no  |                   #Always include one blank default category at the end.
+    }
+
+    youngest_date {
+        age/2 + 7
     }
 }
 \end{lstlisting}
+
+You may chain recode groups, meaning that recodes may be based on previous recodes. Tagged
+recode groups are done in the sequence in which they appear in the file. [Because the
+order of the file determines order of execution, the tags you assign are irrelevant, but
+I still need distinct tags to keep the groups distinct in my bookkeeping.]
+
+\begin{lstlisting}
+recodes [first] {
+    youngest_date: (age/7) +7        #for one-line expressions, you can use a colon.
+    oldest_date: (age -7) *2
+}
+
+recodes [second] {
+    age_gap {
+        yes | spouse_age > youngest_date && spouse_age < oldest_date
+        no  | 
+    }
+
+}
+\end{lstlisting}
+
+If you have edits based on a formula, then I'm not smart enough to set up the edit table
+from just the recode formula. Please add the new field and its valid values in the \c
+fields section, as with the usual variables.
+
+If you have edits based on category-style recodes, I auto-declare those, because the
+recode can only take on the values that you wrote down here.
 
 \key {group recodes} Much like recodes (qv), but for variables set within a group, like
 eldest in household.
@@ -507,18 +566,18 @@ For example,
 \begin{lstlisting}[language=]
 group recodes { 
     group id column: hh_id
-    recodes {
-        eldest max(age)
-        youngest min(age)
-        household_size count(*)
-        total_income sum(income)
-        mean_income avg(income)
-    }
+    eldest: max(age)
+    youngest: min(age)
+    household_size: count(*)
+    total_income: sum(income)
+    mean_income: avg(income)
 }
 \end{lstlisting}
 */
 
 void recodes(char **key, char** tag, char **outstring, char **intab){
+// All this function does is produce a query string. text_in/recodes then runs the query.
+// **key may be "recodes" or "group recodes".
     apop_data *all_recodes;
     *outstring=NULL;
     if(tag && strlen(*tag)>0)
@@ -530,7 +589,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
                 "(key like '%s%%' and key not like '%s%%no checks')"
                 " order by tag", *key, *key);
     if (!all_recodes || !all_recodes->textsize[0]) return;
-    for(int i=0; i < all_recodes->textsize[0]; i++)
+    for(int i=0; i < all_recodes->textsize[0]; i++) // "recodes/var1" ==> "var1"
         all_recodes->text[i][0] += strlen(*key)+1;
     if (verbose) apop_data_show(all_recodes);
 
@@ -541,79 +600,37 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
                 "key like '%s%%no checks' %s%s%s"
                 , *key, tag ? "and tag='":"", tag ? *tag:"", tag ? "'": " ");
 
-    if (!new_vars) return;
+    if (!new_vars) return; //No recodes for the given **key.
     for (int i=0; i < new_vars; i++){
         char *varname = all_recodes->text[i][0]; //just an alias
         char comma = ' ';
         apop_data *recode_list = get_key_text(*key, varname);
-        if (!recode_list || !recode_list->textsize[0]) return;
+        Apop_assert(recode_list && recode_list->textsize[0],
+                        "%s looks like a recode field, but I can't parse "
+                        "its recodes. Please check on this.", varname);
         
         int doedits = 0;
         if (editcheck)
             for (int e=0; doedits && e<editcheck->textsize[0]; e++)
                 if (apop_regex(editcheck->text[e][0], varname))
-                    doedits= 0;
+                    doedits= 1;
 
-        //apop_assert(recode_list, "The variable %s appears in the recode list, but has no recodes", varname);
         char *clauses= NULL;
-        int has_else = 0;
+        int has_else = 0, is_formula=0;
         if (doedits) add_var(varname, 1, 'n');
         if (verbose)
             printf("%s recode list size: %i\n",varname,recode_list->textsize[0]);
-          for (int j=0; j < recode_list->textsize[0]; j++){
-            char *thisrc = recode_list->text[j][0];
-            apop_data *one_rc = NULL;
-            apop_regex(thisrc, "[ \t]*(([^|]|\\|\\|)+)[ \t]*(\\||$)", &one_rc);//break into delimited parts
-            if (one_rc->textsize[0]==2){
-                //the item | queryclause version
-                xprintf(&clauses, "%s when %s then '%s'\n", XN(clauses), one_rc->text[1][0], strip(one_rc->text[0][0]));
-            } else if (one_rc->textsize[0]==3){
-                //the item | var | values version
-                xprintf(&clauses, "%s when %s then %s\n", clauses?clauses:one_rc->text[1][0], make_case_list(one_rc->text[2][0]), one_rc->text[0][0] );
-            } else if (one_rc->textsize[0]==1){ 
-                //the default category.
-                apop_assert(!has_else, "You have a recode with two default categories.");
-                if(strchr(one_rc->text[0][2], '|'))//the third paren above has a |, not just a $.
-                    xprintf(&clauses, "%s else '%s'\n", 
-                        clauses?clauses:"when 0 then 0", strip(one_rc->text[0][0]) );
-                else
-                    xprintf(&clauses, "%s else %s\n", 
-                        clauses?clauses:"when 0 then 0", strip(one_rc->text[0][0]) );
-                has_else ++;
-            } else
-                Apop_assert(0, "This line doesn't parse right as a recode: %s", thisrc);
-            if (doedits && recode_list->textsize[0] > 1)
-                add_to_num_list(strip(one_rc->text[0][0]));
-            else {
-                if (!file_read && get_key_word("input", "input file")) text_in();
-                if (!intab || !*intab)
-                    *intab= get_key_word("input", "output table");
-                apop_assert(intab, "I need the name of the data table so I can set up the recodes."
-                                     "Put an 'output table' key in the input segment of the spec.");
+        for (int j=0; j < recode_list->textsize[0]; j++)
+            one_recode_to_string(*recode_list->text[j], &clauses, 
+                                   &is_formula, &has_else, doedits);
 
-                char *group_id= get_key_word("group recodes", "group id column");
-                apop_data *vals = apop_regex(*key, ".*group.*")
-                        ?  apop_query_to_text("select distinct(%s) from %s group by %s"
-                                            , strip(one_rc->text[0][0]), *intab, group_id)
-                        :  apop_query_to_text("select distinct(%s) from %s"
-                                            , strip(one_rc->text[0][0]), *intab);
-                if (doedits){
-                    parsed_type='c';
-                    for (int k=0; k < vals->textsize[0]; k++){
-                        apop_data *ed = apop_query_to_text("select tag from keys where "
-                                    "key='recodes/%s'", *vals->text[k]);
-                        if (!ed || !apop_strcmp(*ed->text[0], "noedits"))
-                            add_to_num_list(strip(*vals->text[k]));
-                        apop_data_free(ed);
-                    }
-                }
-                apop_data_free(vals);
-            }
-            apop_data_free(one_rc);
-          }
-        if (!has_else) asprintf(&clauses, "%s else null\n", clauses);
+        //clauses is now the core of a variable definition. Wrap it and add it to the list.
+        if (!is_formula && !has_else) asprintf(&clauses, "%s else null\n", clauses);
         comma = ',';		
-        xprintf(outstring, "%s %c case %s end as %s\n", XN(*outstring), comma, strip(clauses), varname);
+        if (is_formula)
+            xprintf(outstring, "%s%c %s as %s\n", XN(*outstring), comma, strip(clauses), varname);
+        else
+            xprintf(outstring, "%s%c case %s end as %s\n", XN(*outstring), comma, strip(clauses), varname);
     }
     if (verbose) printf("recode string: %s\n", *outstring);
     apop_data_free(editcheck);

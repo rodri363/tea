@@ -4,6 +4,7 @@
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
+
 /*
 #undef Apop_assert
 #undef Apop_assert_c
@@ -171,7 +172,7 @@ void impute(char **tag, char **active_tab);
 void text_in();
 
 void recodes(char **key, char** tag, char **outstring, char **intable); //just the recode string
-void make_recode_view(char **tag, char **first_or_last);//query to generate the view
+int make_recode_view(char **tag, char **first_or_last);//query to generate the view
 
 void do_preedits(char **datatab);
 
