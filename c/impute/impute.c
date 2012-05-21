@@ -681,9 +681,10 @@ apop_model tea_get_model_by_name(char *name){
 				: (apop_model) {.name="Null model"};
         if (using_r && apop_strcmp(out.name, "Null model")) //probably an R model.
             out= *rapop_model_from_registry(name);
-        Apop_assert(!apop_strcmp(out.name, "Null model"), 
+/*        Apop_assert(!apop_strcmp(out.name, "Null model"), 
                 "I couldn't find the model named '%s' in my list of supported "
                 "models (or among models you added using setupRapopModel.", name);
+*/
         return out;
 }
 

@@ -150,7 +150,7 @@ eldest in household.
 For example,
 \begin{lstlisting}[language=]
 group recodes { 
-    group id column: hh_id
+    group id : hh_id
     eldest: max(age)
     youngest: min(age)
     household_size: count(*)

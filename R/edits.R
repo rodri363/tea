@@ -96,7 +96,8 @@ CheckDF <- function(DF,con,vars=NULL){
 #		return(Vfail)
 #
 	if(is.null(nrow(Mdf[,vars])))
-		vret <- sapply(Mdf[,vars],CheckConsistency,vars,"passfail",con)
+		vret <- CheckConsistency(Mdf[,vars],vars,"passfail",con)
+		#vret <- sapply(Mdf[,vars],CheckConsistency,vars,"passfail",con)
 	else if(nrow(Mdf[,vars])>1)
 		vret <- apply(Mdf[,vars],1,CheckConsistency,vars,"passfail",con)
 	else vret <- NULL

@@ -4,7 +4,7 @@
 void generate_indices(char const *tablename); //in text_in.c
 extern int file_read;
 
-#define Qcheck(...) if (__VA_ARGS__) return 1;
+#define Qcheck(...) if (__VA_ARGS__) abort();
 
 /* recode_list is the recode spec for one variable. Could be 
    A | age >3

@@ -83,7 +83,7 @@ TEA.MCMCmnl.est <- function(env){
 		else if(is.factor(env$Data[,var])) return(levels(env$Data[,var]))
 		return(NA)
 	}
-    env$Llev <- sapply(Vvar,flev)
+    env$Llev <- sapply(Vvar,flev,simplify=FALSE)
 
 	env$Fit <- try(MCMCmnl(env$Formula,data=env$Data))
 	if(inherits(env$Fit,"try-error")){
@@ -149,8 +149,11 @@ TEA.MCMCmnl.draw <- function(env){
 #	env$Newdata <- as.data.frame(lapply(env$Newdata[,Vvar],
 #		function(x) if(is.character(x)) return(factor(x)) else return(x)))
 	#trim off response from formula so model.matrix works
-	Vvar <- all.vars(env$Formula)
-	newform <- as.formula(paste("~",paste(all.vars(env$Formula)[-1],collapse="+")))
+	#Vvar <- all.vars(env$Formula)
+	#all.vars breaks when using transform variables e.g. log(x1)
+	Vvar <- attr(terms(env$Formula),"term.labels")
+	#newform <- as.formula(paste("~",paste(all.vars(env$Formula)[-1],collapse="+")))
+	newform <- as.formula(paste("~",paste(Vvar,collapse="+")))
 	#do level check on each character/factor variable
 	checkdata <- as.data.frame(lapply(all.vars(newform),flev))
 	Msub <- TEAConformMatrix(model.matrix(newform,checkdata),env$Mmod)
@@ -339,7 +342,7 @@ TEA.MCMCregress.draw <- function(env){
 	if(is.null(env$transform)) env$transform <- function(x) return(x)
 
 	if(nrow(env$Newdata)==0) stop("Newdata has 0 rows")
-	if(is.null(env$fround)) fround <- floor
+	if(is.null(env$fround)) env$fround <- floor
     flev <- function(var){
         Vret <- env$Newdata[,var]
         Lret <- list(Vret)
@@ -387,7 +390,7 @@ TEA.MCMCregress.draw <- function(env){
 	lhs <- all.vars(env$Formula)[1]
 	DFret <- env$Newdata
 	#return reverse-transformed data (in case of "log" type fits)
-	DFret[,lhs] <- env$transform(fround(Vdraw))
+	DFret[,lhs] <- env$fround(env$transform(Vdraw))
 	return(DFret)
 }
 

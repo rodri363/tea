@@ -216,7 +216,9 @@ consistency_draw <- function(envc){
 	vfail <- NULL
 	vbound <- NULL
 	#browser()
-	while(kleft>0 & kloop<envc$kmaxloop){
+	#TODO
+	#get this not broken when there is 1 record left (kleft==1)
+	while(kleft>1 & kloop<envc$kmaxloop){
 		print(kleft)
 		print(kloop)
 		#get data from syntemp ids
@@ -256,9 +258,10 @@ consistency_draw <- function(envc){
 		Mbnd <- sapply(vedvar,function(x) return(CheckBounds(DFcheck[,x],x,envc$con)))
 		Mbnd <- Mbnd==1
 		Mbnd[is.na(Mbnd)] <- FALSE
-		vbound <- as.logical(rowSums(Mbnd))
+		if(!is.null(nrow(Mbnd))) vbound <- as.logical(rowSums(Mbnd))
+		else vbound <- Mbnd
 		print("Checking Consistency")
-		vfail <- CheckDF(DFcheck[!vbound,],envc$con)
+		if(nrow(DFcheck[!vbound,])>0) vfail <- CheckDF(DFcheck[!vbound,],envc$con)
 		vbad <- vbound
 		vbad[!vbad] <- vfail
 		#any SERIALNO with any bound or consistency failures must be run through again
