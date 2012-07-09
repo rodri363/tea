@@ -267,9 +267,35 @@ TEAConformMatrix <- function(M2,M1){
 
 #' Convert a character to a factor
 #' param x a vector
+#' param levels a vector giving optional factor levels to apply
 #' return a vector.  If x was character or a factor vector, returns factor(x); otherwise returns x
-ffactor <- function(x){
+ffactor <- function(x,levels=NULL){
+	if(!is.null(levels)){
+		if(is.character(x)) return(factor(x,levels=levels))
+		if(is.factor(x)) return(factor(x,levels=levels))
+	}
 	if(is.character(x)) return(factor(x))
 	if(is.factor(x)) return(factor(x))
 	else return(x)
+}
+
+#' Conform the factor levels of one data frame
+#' to those of a given frame.  Also converts
+#' character variables to factor in the output data frame.
+#' @param DF the data frame to modify
+#' @param DFbase the data frame with the desired factor/character levels.
+#' return a data frame, having the new factor levels and characters converted.
+TEAConformDF <- function(DF, DFbase){
+	ffac <- function(x){
+		if(is.factor(x) | is.character(x)) return(TRUE)
+		else return(FALSE)
+	}
+	#extract only character and factors from data frames
+	DF0 <- DFbase[,unlist(lapply(DFbase,ffac))]
+	DF1 <- DF[,unlist(lapply(DF,ffac))]
+	lfac <- mapLevels(DF0)
+	mapLevels(DF1) <- lfac
+	#replace character/factors in DF with factors from DF1
+	DF[names(DF1)] <- DF1
+	return(DF)	
 }

@@ -95,11 +95,11 @@ CheckDF <- function(DF,con,vars=NULL){
 #		dbGetQuery(con,"commit")
 #		return(Vfail)
 #
-	if(is.null(nrow(Mdf[,vars])))
-		vret <- CheckConsistency(Mdf[,vars],vars,"passfail",con)
+	if(is.null(nrow(Mdf[,vars,drop=FALSE])))
+		vret <- CheckConsistency(Mdf[,vars,drop=FALSE],vars,"passfail",con)
 		#vret <- sapply(Mdf[,vars],CheckConsistency,vars,"passfail",con)
-	else if(nrow(Mdf[,vars])>1)
-		vret <- apply(Mdf[,vars],1,CheckConsistency,vars,"passfail",con)
+	else if(nrow(Mdf[,vars,drop=FALSE])>1)
+		vret <- apply(Mdf[,vars,drop=FALSE],1,CheckConsistency,vars,"passfail",con)
 	else vret <- NULL
 	names(vret) <- NULL
 	return(vret)
