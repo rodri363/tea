@@ -72,7 +72,8 @@ TEA.MCMCmnl.est <- function(env){
 		if(is.character(x)) return(factor(x))
 		else return(x)
 	}
-	env$Data <- as.data.frame(lapply(env$Data,ffact)) #factorize characters
+	env$Data <- TEAConformDF(env$Data,env$Data)
+	#env$Data <- as.data.frame(lapply(env$Data,ffact)) #factorize characters
 #	#make character lhs a factor; this helps MCMCmnl get the names right!
 #	env$Data <- as.data.frame(lapply(env$Data[,Vvar],
 #		function(x) if(is.character(x)) return(factor(x)) else return(x)))
@@ -145,18 +146,17 @@ TEA.MCMCmnl.draw <- function(env){
 		if(is.character(x)) return(factor(x))
 		else return(x)
 	}
-	env$Newdata <- as.data.frame(lapply(env$Newdata,ffact)) #factorize characters
-#	env$Newdata <- as.data.frame(lapply(env$Newdata[,Vvar],
-#		function(x) if(is.character(x)) return(factor(x)) else return(x)))
-	#trim off response from formula so model.matrix works
-	#Vvar <- all.vars(env$Formula)
+#	env$Newdata <- as.data.frame(lapply(env$Newdata,ffact)) #factorize characters
+	env$Newdata <- TEAConformDF(env$Newdata,env$Data)
+
 	#all.vars breaks when using transform variables e.g. log(x1)
 	Vvar <- attr(terms(env$Formula),"term.labels")
 	#newform <- as.formula(paste("~",paste(all.vars(env$Formula)[-1],collapse="+")))
 	newform <- as.formula(paste("~",paste(Vvar,collapse="+")))
-	#do level check on each character/factor variable
-	checkdata <- as.data.frame(lapply(all.vars(newform),flev))
-	Msub <- TEAConformMatrix(model.matrix(newform,checkdata),env$Mmod)
+#	#do level check on each character/factor variable
+#	checkdata <- as.data.frame(lapply(all.vars(newform),flev))
+#	Msub <- TEAConformMatrix(model.matrix(newform,checkdata),env$Mmod)
+	Msub <- model.matrix(newform,env$Newdata)
 
 	#get parameter rows; these are constant across response levels
 	#Vrow <- sample(1:nrow(Fit),nrow(Msub),replace=TRUE)
@@ -170,23 +170,26 @@ TEA.MCMCmnl.draw <- function(env){
 	for(ldx in 2:length(Vlev)){
 		klev <- Vlev[ldx]
 		#don't grep, use dimensions
-#		Vcol <- grep(paste("[.]",klev,sep=""),colnames(env$Fit))
 		Vcol <- ((1:ncol(env$Fit))-(ldx-1))%%(length(Vlev)-1)==0
 		#params for each row
 		Mlev <- env$Fit[Vrow,Vcol]
 		if(nrow(Msub)==1) Mlev <- t(matrix(Mlev)) #handle vector beta for a single row
 		Vlogits <- diag(Msub %*% t(Mlev)) #logits
-		#OVERFLOW MUCH!?
-#		Vp <- exp(Vlogits)/(1+exp(Vlogits)) #probs for this outcome
-		Vp <- (exp(-Vlogits)+1)^(-1)
-		Mp <- cbind(Mp,Vp) #append to prob matrix
+#		Vp <- (exp(-Vlogits)+1)^(-1)
+#		Mp <- cbind(Mp,Vp) #append to prob matrix
+		Mp <- cbind(Mp,Vlogits) #append to prob matrix
 	}
-	Mp <- cbind(1-rowSums(Mp),Mp) #complete prob matrix
+#	Mp <- cbind(1-rowSums(Mp),Mp) #complete prob matrix
+	#at this point, Mp is a matrix of logits
+	#probability of reference category
+	Vpk <- 1/(1+rowSums(exp(Mp)))
+	Mp <- Vpk*exp(Mp)
+	Mp <- cbind(Vpk,Mp)
+
     if(sum(ls(env)=="kzero")!=0 && env$kzero){
 		Mp[Mp<0] <- 0
 		Mp <- Mp/rowSums(Mp)
 	}
-	#browser()
 	Vdraw <- apply(Mp,1,function(Vp) return(sample(Vlev,1,prob=Vp)))
 
 	lhs <- all.vars(env$Formula)[1]

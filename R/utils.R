@@ -285,14 +285,18 @@ ffactor <- function(x,levels=NULL){
 #' @param DF the data frame to modify
 #' @param DFbase the data frame with the desired factor/character levels.
 #' return a data frame, having the new factor levels and characters converted.
+#' Note the side effect of using the same data frame for both arguments,
+#' which is a conversion of all of the character variables to factors.
 TEAConformDF <- function(DF, DFbase){
 	ffac <- function(x){
 		if(is.factor(x) | is.character(x)) return(TRUE)
 		else return(FALSE)
 	}
 	#extract only character and factors from data frames
-	DF0 <- DFbase[,unlist(lapply(DFbase,ffac))]
-	DF1 <- DF[,unlist(lapply(DF,ffac))]
+	#need drop=FALSE to prevent the case of a single character/factor
+	#column becoming a simple vector
+	DF0 <- DFbase[,unlist(lapply(DFbase,ffac)),drop=FALSE]
+	DF1 <- DF[,unlist(lapply(DF,ffac)),drop=FALSE]
 	lfac <- mapLevels(DF0)
 	mapLevels(DF1) <- lfac
 	#replace character/factors in DF with factors from DF1
