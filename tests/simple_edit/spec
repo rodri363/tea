@@ -7,8 +7,10 @@ input{
 }
 fields{
 	age int 1-2
+	sex 1-2
 }
 checks{
 	age = 2
 	age is null
+	sex is null
 }

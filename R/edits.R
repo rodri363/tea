@@ -47,14 +47,14 @@ CheckConsistency <- function(vals,vars,what_you_want,con,run_id=1,na.char="NULL"
 		editmat <- as.data.frame(editmat)
 		editmat$Vector <- NULL
 		if((nrow(editmat)>0)){
-			editmat <- as.matrix(unique(editmat,MARGIN=1))
+			#changed editmat+1 to editmat with new C code
+			editmat <- as.matrix(unique(editmat,MARGIN=1)) + 1
 			vars <- colnames(editmat)
 			query <- paste("select", paste(vars,vars,sep=".",collapse=","),
 							"from", paste(vars,collapse=","), "where",
 							paste(paste(vars,"rowid",sep="."),paste(":",vars,sep=""),
 							sep="=",collapse=" and "));
 			dbGetQuery(con,"begin")
-			#changed editmat+1 to editmat with new C code
 			valframe <- dbGetPreparedQuery(con, query,
 				 bind.data=as.data.frame(editmat,stringsAsFactors=FALSE)) ;
 			dbGetQuery(con,"commit")

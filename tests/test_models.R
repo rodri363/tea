@@ -80,7 +80,7 @@ fit$env$debug <- FALSE
 Mtab <- NULL
 Ctab <- NULL
 Vsig <- NULL
-for(idx in 1:100){
+for(idx in 1:1000){
 	#synthetic data
 	DFnew <- RapopModelDraw(fit)
 	#basic summaries of va
