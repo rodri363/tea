@@ -6,12 +6,13 @@ input{
 	overwrite: no
 }
 fields{
-	age int 1-2
+	age int 1-7
 	sex cat 1-2
 	schl cat a,b,c,d
 }
 checks{
 	age is null
 	sex is null
-	age = 2 and not schl='c'
+	age between 3 and 6 and schl in ('b','c')
+	sex = '1' and schl='b'
 }
