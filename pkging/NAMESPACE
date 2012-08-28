@@ -1,6 +1,6 @@
 useDynLib(tea)
 #import(methods, graphics, stats, survey, Rapophenia, RSQLite, MASS, nnet, gam, multicore)
-import(Rapophenia, RSQLite, MASS, nnet, gam, multicore, MCMCpack, tree)
+import(Rapophenia, RSQLite, MASS, nnet, gam, multicore, MCMCpack)
 exportPattern("^[^\\.]")
-export(mcmc.mnl,mcmc.reg,teatree,teasrmi)
+export(mcmc.mnl,mcmc.reg,teasrmi)
 S3method(summary, tea)

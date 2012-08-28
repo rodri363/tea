@@ -280,13 +280,14 @@ ffactor <- function(x,levels=NULL){
 }
 
 #' Conform the factor levels of one data frame
-#' to those of a given frame.  Also converts
+#' to those of another frame.  Also converts
 #' character variables to factor in the output data frame.
 #' @param DF the data frame to modify
 #' @param DFbase the data frame with the desired factor/character levels.
-#' return a data frame, having the new factor levels and characters converted.
-#' Note the side effect of using the same data frame for both arguments,
-#' which is a conversion of all of the character variables to factors.
+#' Can be the same as DF.
+#' @return a data frame, having the new factor levels and characters converted.
+#' Note the side effect of using the same data frame for both arguments
+#' is to convert of all of character variables into factors.
 TEAConformDF <- function(DF, DFbase){
 	ffac <- function(x){
 		if(is.factor(x) | is.character(x)) return(TRUE)
