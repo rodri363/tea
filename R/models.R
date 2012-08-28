@@ -113,7 +113,7 @@ TEA.MCMCmnl.draw <- function(env){
 	#get parameter rows; these are constant across response levels
 	#different row for each record?
 	#Vrow <- sample(1:nrow(Fit),nrow(Msub),replace=TRUE)
-	#same row for all!
+	#same row for all
 	#Vrow <- rep(RapopModelDraw(env$parameterModel),nrow(Msub))
 	Vrow <- rep(sample(1:nrow(env$Fit),1),nrow(Msub))
 	#since we are matching up factor levels, can just use levels() here
@@ -155,101 +155,6 @@ TEA.MCMCmnl.draw <- function(env){
 mcmc.mnl <- new("apop_model", name="MCMC multinomial",  
                                 estimate_function=TEA.MCMCmnl.est, 
                                 draw_function=TEA.MCMCmnl.draw)
-
-#' Estimate a CART model on the given data
-#' The function takes one argument, an environment.  The following are
-#' the elements expected in the environment
-#' @param data = a data frame containing the variables promised in the formula
-#' @param formula = the formula used to generate fit
-#' @return nothing, but update the environment with a new item:
-#' fit = an object of class 'tree', giving the fit.
-
-TEA.tree.est <- function(env){
-	ffact <- function(x){
-		if(is.character(x)) return(factor(x))
-		else return(x)
-	}
-	env$Data <- as.data.frame(lapply(env$Data,ffact)) #factorize characters
-	env$fit <- try(tree(env$Formula,data=env$Data,y=TRUE))
-	if(inherits(env$fit,"try-error")) stop(paste("Tree fit did not work on"))
-	env$Newdata <- env$Data
-}
-
-#' Draw synthetic values from a CART fit, usin Reiter's Bayesian bootstrap method
-#' The function takes one argument, an environment.  The following are
-#' the elements expected in the environment
-#' @param data = a data frame containing the variables promised in the formula
-#' @param formula = the formula used to generate fit
-#' @param fit = an object of class 'tree' giving the fit
-#' @return a vector containing the synthetic values
-
-TEA.tree.draw <- function(env){
-#TODO
-#When donor values do not have a leaf that
-#newdata values have, you will get NA
-	ffact <- function(x){
-		if(is.character(x)) return(factor(x))
-		else return(x)
-	}
-	if(is.null(env$debug)) env$debug <- FALSE
-	if(env$debug) browser()
-	env$Newdata <- as.data.frame(lapply(env$Newdata,ffact)) #factorize characters
-	#leaves for donor data
-	vDwhere <- predict.tree(env$fit,env$Data,type="where")
-	#leaves for newdata
-	vNwhere <- predict.tree(env$fit,env$Newdata,type="where")
-
-	#do some prediction via Bayes Bootstrap
-	#find all observations in a given leaf
-	#get all leaves
-	#TODO
-	#can use y from fit to get values for donors, but then
-	#have to make sure length is right!
-	#donors values from fit
-	vdon <- env$fit$y
-	if(is.factor(vdon)) vdon <- as.character(vdon)
-	#values to put into Newdata
-	vret <- rep(NA,nrow(env$Newdata))
-	#all the leaves
-	vleaf <- row.names(subset(env$fit$frame,var=="<leaf>"))
-	for(kleaf in vleaf){
-		#vwch <- which(rownames(env$fit$frame)[env$fit$where]==kleaf)
-		#donor values to pick from
-		vDwch <- which(rownames(env$fit$frame)[vDwhere]==kleaf)
-		#new values to replace
-		vNwch <- which(rownames(env$fit$frame)[vNwhere]==kleaf)
-		vvals <- vdon[vDwch]
-		vsyn <- NULL
-		#do Bayes bootstrap of donor values in node
-		#not sure if draw of sampling probs occurs just once per leaf...
-		vunif <- c(0,runif(length(vvals)-1,0,1),1)
-		vunif <- vunif[order(vunif)]
-		#repeat this until you get all the values you need
-		idx <- 0
-		while(idx < length(vvals)){
-			vuimp <- runif(length(vvals),0,1)
-			vlow <- vuimp > vunif[-length(vunif)]
-			vhi <- vuimp <= vunif[-1]
-			vimp <- vlow & vhi
-			vsyn <- c(vsyn,vvals[vimp])
-			idx <- idx + sum(vimp)
-		}
-#		vsyn <- vsyn[1:length(vvals)] #chop off excess imputes
-		vsyn <- vsyn[1:length(vNwch)] #chop off excess imputes
-		vret[vNwch] <- vsyn
-	}
-	ret <- env$Newdata
-	lhs <- all.vars(env$Formula)[1]
-	ret[,lhs] <- vret
-	return(ret)
-}
-
-teatree <- new("apop_model", name="teatree",  
-                                estimate_function=TEA.tree.est,
-                                draw_function=TEA.tree.draw)
-
-
-
 #' Given a model formula and a data frame, fit a linear regression model
 #' via the MCMCregress() function and return a list of items to be used
 #' by TEA.predict.MCMCregress
