@@ -2,8 +2,12 @@ database: db
 id: id
 
 input{
-	output table: edit
-	overwrite: no
+	input file: data
+	output table: data
+	overwrite: yes
+	types{
+		age: integer
+	}
 }
 fields{
 	age int 1-7
