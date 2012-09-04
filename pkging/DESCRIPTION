@@ -12,3 +12,4 @@ Description: As the name states, tea does everything. Fully-implemented (>=1.0) 
 	to weighting and beyond.
 License: GPL (>= 2)
 Packaged: 2010-01-25 19:17:09 UTC; rodri363
+LazyData: TRUE
