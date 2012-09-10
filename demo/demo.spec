@@ -59,7 +59,6 @@ checks {
 #    sex is not null
 
 	AGEP+0.0 > 90 => agep = 90
-#AGEP  glob '[0-9]'
 }
 
 fingerprint{
@@ -86,6 +85,7 @@ impute{
 
     categories {
         agep <= 18
+        agep > 18 and agep < 65
         agep >= 65
         sex = 0
         sex = 1

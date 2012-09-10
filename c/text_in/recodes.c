@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include "discrete.h"
 #include "tea.h"
 
@@ -82,12 +83,11 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         int doedits = 0;
         if (editcheck)
             for (int e=0; doedits && e<editcheck->textsize[0]; e++)
-                if (apop_regex(editcheck->text[e][0], varname))
-                    doedits= 1;
+                if (apop_regex(editcheck->text[e][0], varname)) doedits= 1;
 
         int has_else = 0, is_formula=0;
         if (doedits) add_var(varname, 1, 'n');
-        if (verbose) printf("%s recode list size: %i\n",varname,recode_list->textsize[0]);
+        if (verbose) printf("%s recode list size: %zu\n",varname,recode_list->textsize[0]);
         char *clauses = one_recode_to_string(recode_list, &is_formula, &has_else, doedits);
 
         //clauses is now the core of a variable definition. Wrap it and add it to the list.
@@ -149,6 +149,18 @@ int set_up_triggers(char const * intab){
 //	generate_indices(out_name); //exactly the same indices as the main tab.
 }
 
+//Are there any recode keys for us to run?
+bool test_for_recodes(char const *tag){
+    char *q = strdup("select distinct key from keys where "
+            " (key like 'recodes%' or key like 'group recodes%')");
+    if (*tag) asprintf(&q, "%s and tag like '%%%s%%'", q, tag);
+	apop_data *test_for_recodes = apop_query_to_text("%s", q);
+    free(q);
+	if (!test_for_recodes) return false;
+	apop_data_free(test_for_recodes);
+    return true;
+}
+
 /* Generate the recode view using the recodes segment.
 
     Called from \c read_spec (in peptalk.y).
@@ -167,13 +179,7 @@ Returns 0 on OK, 1 on error.
 */
 int make_recode_view(char **tag, char **first_or_last){
     //first_or_last may be "first", "last", "both", or "middle"
-    char *q = strdup("select distinct key from keys where "
-            " (key like 'recodes%' or key like 'group recodes%')");
-    if (tag && *tag) asprintf(&q, "%s and tag like '%%%s%%'", q, *tag);
-	apop_data *test_for_recodes = apop_query_to_text("%s", q);
-    free(q);
-	if (!test_for_recodes) return 0;
-	apop_data_free(test_for_recodes);
+    if (!tag || !test_for_recodes(*tag)) return 0;
 
     if (!file_read && get_key_word("input", "input file")) text_in();
 

@@ -13,28 +13,34 @@ Search is simple and naïve: it's all string-matching.
 */
 
 apop_data **ri_ext;
+size_t ri_ext_len;
 
 void reset_ri_ext_table(){
-    for (int i=0; i< total_var_ct; i++) apop_data_free(ri_ext[i]);
+    for (int i=0; i< ri_ext_len; i++) apop_data_free(ri_ext[i]);
     free(ri_ext);
     ri_ext=NULL;
 }
 
 static void ri_ext_init(){
     ri_ext=malloc(sizeof(apop_data*)*(total_var_ct));
-    for (int i=0; i< total_var_ct; i++){
+    ri_ext_len=0;
+    for (int v=0; v< total_var_ct; v++){
         char *q; 
-        asprintf(&q, "select * from %s order by rowid", used_vars[i].name);
-        ri_ext[i] = apop_query_to_text("%s", q);
-        sprintf(ri_ext[i]->names->title, "%s", used_vars[i].name);
+        if (!apop_table_exists(used_vars[v].name)){
+            v++; continue;
+        }
+        asprintf(&q, "select * from %s order by rowid", used_vars[v].name);
+        ri_ext[ri_ext_len] = apop_query_to_text("%s", q);
+        sprintf(ri_ext[ri_ext_len]->names->title, "%s", used_vars[v].name);
         free(q);
+        ri_ext_len++;
     }
 }
 
 static apop_data *get_named_tab(char const *varname){
     if (!ri_ext) ri_ext_init();
     apop_data *this = NULL;
-    for (int i=0; i< total_var_ct; i++)
+    for (int i=0; i< ri_ext_len; i++)
         if (apop_strcmp(varname, ri_ext[i]->names->title))
             {this=ri_ext[i]; break;}
     return this;

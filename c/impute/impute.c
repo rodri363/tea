@@ -2,6 +2,7 @@
 #define __USE_POSIX //for strtok_r
 #include "tea.h"
 #include <rapophenia.h>
+#include <stdbool.h>
 #include "discrete.h"
 extern char *datatab;
 void qxprintf(char **q, char *format, ...); //bridge.c
@@ -121,6 +122,7 @@ typedef struct {
 	int depvar_count, position;
 	char * selectclause;
 	apop_data *isnan, *notnan;
+    bool is_bounds_checkable;
 } impustruct;
 	
 static void lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
@@ -307,9 +309,11 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
         is->notnan = q2? apop_query_to_mixed_data(is->vartypes, "%s %s is not null except %s", q, is->depvar, q2)
                     : apop_query_to_mixed_data(is->vartypes, "%s %s is not null", q, is->depvar);
         apop_data_listwise_delete(is->notnan, .inplace='y');
-    printf("--------------");
-    apop_data_show(is->notnan);
-    printf("--------------");
+        if (verbose){
+            printf("-------------- Not NaN:");
+            apop_data_show(is->notnan);
+            printf("--------------");
+        }
 
         if (!already_ran++) //we don't winnow down the isnan query.
             is->isnan = q2 && is->depvar_count == 1 ? 
@@ -325,7 +329,7 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
         if (is->notnan && GSL_MAX((is->notnan)->textsize[0], (is->notnan)->matrix ? (is->notnan)->matrix->size1: 0) > min_group_size)
             done++;
         if (verbose && !done){
-            if (is->notnan) printf("I just have %i items in the notnan list. "
+            if (is->notnan) printf("I just have %zu items in the notnan list. "
                           "Trying w/smaller category list\n" ,(is->notnan)->textsize[0]);
             else printf("I have a big fat zero items in the notnan list. "
                         "Trying w/smaller category list\n");
@@ -344,11 +348,11 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
     }
 	apop_opts.verbose=v;
     Apop_assert_c(is->isnan, , 1, "%s had no missing values.", is->depvar);
-printf("This set had %i nans.\n", is->isnan->textsize[0]);
+printf("This set had %zu nans.\n", is->isnan->textsize[0]);
 }
 
 //Primarily just call apop_estimate, but also make some minor tweaks.
-static void model_est(apop_data *notnan, impustruct *is, int *model_id, int is_hotdeck){
+static void model_est(apop_data *notnan, impustruct *is, int *model_id, bool is_hotdeck){
     assert(notnan);
     //maybe check here for constant columns in regression estimations.
     if(notnan->text && !apop_data_get_page(notnan,"<categories"))
@@ -401,6 +405,7 @@ static void prep_for_draw(apop_data *notnan, impustruct *is){
 
 Return: 1=input wasn't in the list, was modified to nearest value
         0=input was on the list, wasn't modified
+        0=input variable has no associated checks.
   If function returns a 1, you get to decide whether to use the rounded value or re-draw.
 
   If text or real, there's no rounding to be done: it's valid or it ain't. If numeric, then we can do rounding as above.
@@ -446,6 +451,10 @@ apop_opts.verbose++;
 }
 
 void R_check_bounds(double *val, char **var, int *fails){
+    if (ri_from_ext(*var, "0") == -100) {//-100=var not found.
+        *fails=0; 
+        return;
+    }
 	*fails = check_bounds(val, *var, 'i');
 }
 
@@ -526,7 +535,7 @@ then sending it to consistency_check for an up-down vote.
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
 */
 static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
-        int is_hotdeck, char type, int id_number, int fail_id, 
+        bool is_hotdeck, char type, int id_number, int fail_id, 
         int model_id, apop_data *full_record, int col_of_interest){
     a_draw_struct out = { };
 	static char *const whattodo="passfail";
@@ -541,7 +550,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
     if (type == '\0'){ // '\0' means not in the index of variables to check.
         asprintf(&out.textx, "%g", x);
     } else {
-        if (!is_hotdeck) //inputs all valid ==> outputs all valid
+        if (!is_hotdeck && is->is_bounds_checkable) //inputs all valid ==> outputs all valid
             check_bounds(&x, is->depvar, type); // just use the rounded value.
         apop_data *f;
         char *cats; asprintf(&cats, "<categories for %s>", is->depvar);
@@ -565,7 +574,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 }
 
 //a shell for do onedraw() while (!done).
-static void make_a_draw(impustruct *is, gsl_rng *r, int is_hotdeck, int fail_id,
+static void make_a_draw(impustruct *is, gsl_rng *r, bool is_hotdeck, int fail_id,
          int model_id, int draw, apop_data const *nanvals){
     int done_ctr = 0; //for marking what's done.
     char type = get_coltype(total_var_ct, is->depvar);
@@ -613,12 +622,15 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
     apop_data *nanvals = get_all_nanvals(is, id_col, datatab);
     if (!nanvals) return;
     begin_transaction();
+
+    is->is_bounds_checkable = (ri_from_ext(is->depvar, "0") != -100); //-100=var not found.
+
     for (int i=0; i < nanvals->names->rowct; i++){ //see notes above.
         if (apop_strcmp(nanvals->names->row[i], ".")) continue; //already got this person.
         get_nans_and_notnans(is, atoi(nanvals->names->row[i]) /*ego_id*/, 
                 datatab, underlying, min_group_size, category_matrix, fingerprint_vars, id_col);
 		if (!is->isnan) continue; //nothing missing.
-		int is_hotdeck = (is->base_model.estimate == apop_multinomial.estimate 
+		bool is_hotdeck = (is->base_model.estimate == apop_multinomial.estimate 
 								||is->base_model.estimate ==apop_pmf.estimate);
         model_est(is->notnan, is, &model_id, is_hotdeck); //notnan may be pmf_compressed here.
         prep_for_draw(is->notnan, is);
