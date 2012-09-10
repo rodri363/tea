@@ -38,7 +38,13 @@ adrec [label = "AdRec" shape = "box" style = "dashed"]
 	postimp [label = "{Multiply-\nImputed data|{||||}}" shape = "record"]
 
 	raw -> prep -> dataprep
-	dataprep -> "datatype":missing:n[lhead=cluster_impute minlen=2]
-	adrec -> "datatype":missing:n[lhead=cluster_impute minlen=2 style = "dashed"]
+
+
+infctl [label = "Inference\ncontrol" shape = "Mrecord"]
+
+	infctl -> "datatype":missing:n[lhead=cluster_impute minlen=2]
+
+	dataprep -> infctl
+	adrec -> infctl
 	impbottom -> postimp[ltail=cluster_impute minlen=2]
 }

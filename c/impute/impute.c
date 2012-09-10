@@ -233,13 +233,13 @@ void install_data_to_R(apop_data *d, apop_model *m){
 }
 
 apop_data * get_data_from_R(apop_model *m){
+    R_model_settings *settings = Apop_settings_get_group(m, R_model);
+    if (!settings) return NULL; //not an R model.
+
     static int is_inited;
     static apop_data_from_frame_type *rapop_ad_from_df;
     if (!is_inited)
         rapop_ad_from_df =  (void*) R_GetCCallable("Rapophenia", "apop_data_from_frame");
-
-    R_model_settings *settings = Apop_settings_get_group(m, R_model);
-    if (!settings) return NULL; //not an R model.
 
     SEXP env;
     PROTECT(env = settings->env);
@@ -307,6 +307,9 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
         is->notnan = q2? apop_query_to_mixed_data(is->vartypes, "%s %s is not null except %s", q, is->depvar, q2)
                     : apop_query_to_mixed_data(is->vartypes, "%s %s is not null", q, is->depvar);
         apop_data_listwise_delete(is->notnan, .inplace='y');
+    printf("--------------");
+    apop_data_show(is->notnan);
+    printf("--------------");
 
         if (!already_ran++) //we don't winnow down the isnan query.
             is->isnan = q2 && is->depvar_count == 1 ? 
@@ -669,6 +672,8 @@ apop_model tea_get_model_by_name(char *name){
 				? apop_multinomial :
 			apop_strcmp(name, "poisson")
 				? apop_poisson :
+			apop_strcmp(name, "pmf")
+				? apop_pmf :
 			apop_strcmp(name, "ols")
 				? apop_ols :
 			apop_strcmp(name, "logit")

@@ -1,4 +1,5 @@
 #include <apop.h>
+#include "imputation_variance.h"
 
 
 #include <R.h>
