@@ -317,3 +317,69 @@ consistency_draw <- function(envc){
 	return(envc$DFsyn)
 }
 	
+#' Fit a "tree grove", a sequential fits of CART models
+#' @param env an environment, containing at minimum the following objects
+#' env$Formula a list of formulas, one for each response variable to model
+#' env$Data data on which to fit the grove
+#' env$Method a character vector, giving the drawing method to be used
+#' for each model ("bb" or "kde")
+#' returns NULL, but adds the following elements to env
+#' env$lfit a list of tree fits
+#' env$Newdata a copy of env$Data to be used for making draws by default
+#'
+#' The order used to for the fits is determined by the number of missing
+#' values of each response variable; largest number goes first.  Ties
+#' in the number of missing values are broken using the method of Reiter
+#' (needs implementation!)
+teagrove.est <- function(env){
+	if(is.null(env$Formula)) stop("Groves need trees which need formulas")
+	if(is.null(env$Data)) stop("Groves need data")
+	if(is.null(env$Method)) env$Method <- rep("bb",length(env$Formula))
+	#get lhs
+	vlhs <- unlist(lapply(env$Formula,function(x) return(all.vars(x)[1])))
+	#fit initial models
+	env$lfit <- list()
+	for(kform in env$Formula){
+		klhs <- all.vars(kform)[1]
+		env$lfit[[klhs]] <- as.environment(list(Formula=kform,Data=env$Data))
+		teatree.est(env$lfit[[klhs]])
+	}
+	#determine modeling order based on # of missing items
+	vmiss <- unlist(lapply(env$Data[,vlhs],function(x) sum(is.na(x))))
+	vord <- rev(order(vmiss))
+	#insert tie-breaker code here based on model fits
+	#order everything
+	vlhs <- vlhs[vord]
+	env$Formula <- env$Formula[vord]
+	env$Method <- env$Method[vord]
+	env$lfit <- env$lfit[vord]
+	env$Newdata <- env$Data
+	#synthesize values, using new values for prediction down the road
+	return(NULL)
+}
+
+#' Draw from a "tree grove"
+#' @param env an environment, containing at minimum the following objects
+#' env$Formula a list of formulas, one for each response variable to model
+#' env$Method a character vector, giving the drawing method to be used
+#' env$lfit a list of tree fits
+#' env$Newdata data for which draws are desired
+#' returns NULL but adds the following objects to env
+#' env$Drawdata the drawn data
+teagrove.draw <- function(env){
+	if(is.null(env$Formula)) stop("Groves need formulas")
+	if(is.null(env$Newdata)) stop("Need Newdata to do a draw")
+	if(is.null(env$lfit)) stop("Need a list of tree fits to do a draw")
+	env$lfit[[1]]$Newdata <- env$Newdata #set initial new data
+	for(ldx in 1:length(env$lfit)){
+		print(env$lfit[[ldx]]$Formula)
+		teatree.draw(env$lfit[[ldx]])
+		if(ldx<length(env$lfit)) env$lfit[[ldx+1]]$Newdata <- env$lfit[[ldx]]$Drawdata
+	}
+	env$Drawdata <- env$lfit[[ldx]]$Drawdata
+	return(NULL)
+}
+
+tea.grove <- new("apop_model", name="grove",  
+                                estimate_function=teagrove.est,
+                                draw_function=teagrove.draw)

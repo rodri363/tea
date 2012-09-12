@@ -233,3 +233,55 @@ TEA.MCMCregress.draw <- function(env){
 mcmc.reg <- new("apop_model", name="MCMC regression",  
                                 estimate_function=TEA.MCMCregress.est, 
                                 draw_function=TEA.MCMCregress.draw)
+
+#' Fit a classification or regression tree in TEA
+#' @param env an environment, containing at minimum the following objects
+#' env$Formula a formula describing the tree fit
+#' env$Data a data set on which to fit the tree
+#' returns NULL, but adds the following elements to env
+#' env$Fit the tree fit
+#' env$Newdata a copy of env$Data, to be used to make draws by default
+teatree.est <- function(env){
+	if(is.null(env$Formula)) stop("Trees need formulas")
+	if(is.null(env$Data)) stop("Trees need data")
+	env$Fit <- tree(env$Formula,env$Data)
+	env$Newdata <- env$Data
+}
+
+#' Make a draw from a tree, given new data
+#' @param env an environment, containing at minimum the following objects
+#' env$Formula a formula describing the tree fit
+#' env$Fit the tree fit
+#' env$Newdata data for which draws are desired
+#' Can take the following additional objects:
+#' env$Method the method of drawing.  One of either "bb" (for Bayesian Bootstrap)
+#' or "kde" (for a kernel density estimate on top of the bootstrap).  "kde" is
+#' only valid for regression trees.
+#' kde still needs implementation
+#' returns NULL but adds the following objects to env
+#' env$Drawdata the drawn data
+teatree.draw <- function(env){
+	if(is.null(env$Formula)) stop("Trees need formulas")
+	if(is.null(env$Newdata)) stop("Need Newdata to do a draw")
+	if(is.null(env$Fit)) stop("Need a tree fit to do a draw")
+	if(is.null(env$Method)) env$Method <- "bb" #default to bayes bootstrap
+	if(is.null(env$na.rm)) env$na.rm <- TRUE #default to remove NAs from fit
+	env$Drawdata <- env$Newdata #initialize drawn data
+	klhs <- all.vars(env$Formula)[1] #variable to draw
+	#nodes assigned to each record in Newdata
+	vwhere <- predict.tree(env$Fit,newdata=env$Newdata,"where")
+	#for each node/leaf with values, do a bootstrap or bootstrap+kde
+	for(kval in unique(vwhere)){
+		vvals <- env$Newdata[vwhere==kval,klhs] #values from leaf (includes NAs)
+		if(env$na.rm) vbbvals <- vvals[!is.na(vvals)] #remove NAs before BB
+		if(length(vbbvals)>1)
+			env$Drawdata[vwhere==kval,klhs] <- TEAbb(vbbvals,klength=length(vvals))
+		else
+			env$Drawdata[vwhere==kval,klhs] <- vbbvals
+	}
+	return(NULL)
+}
+
+tea.tree <- new("apop_model", name="tree",  
+                                estimate_function=teatree.est,
+                                draw_function=teatree.draw)

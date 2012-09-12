@@ -279,6 +279,14 @@ ffactor <- function(x,levels=NULL){
 	else return(x)
 }
 
+#' Bayes bootstrap function
+#' @param vx values from which to make the bootstrap sample
+#' @param klength size of sample desired
+TEAbb <- function(vx,klength=length(vx)){
+	vp <- diff(c(0,sort(runif(length(vx)-1,0,1)),1))
+	return(sample(vx,klength,replace=TRUE,prob=vp))
+}
+
 #' Conform the factor levels of one data frame
 #' to those of another frame.  Also converts
 #' character variables to factor in the output data frame.
