@@ -87,7 +87,7 @@ currently trying to fill in. Here is the detailed procedure.
 
 --Draw
 	--As above, this step is one line for a straight draw.
-	--Run check_consistency, and throw out if the draw doesn't pass
+	--Run consistency_check, and throw out if the draw doesn't pass
 	--We want to multiply impute, which means just repeating the draw step as often as needed.
 	--the output is a multi-impute table, with a row/col coordinate for what's
 		being filled in, plus a column per imputation.
@@ -399,7 +399,7 @@ static void prep_for_draw(apop_data *notnan, impustruct *is){
 
 
 /*Here, we check that the variable is within declared bounds. We have to do this
-  because the edit system in check_consistency will assume that all variables are 
+  because the edit system in consistency_check will assume that all variables are 
   within their declared range. By doing the checking here, we may even save some trips
   to the consistency checker.
 
@@ -747,7 +747,8 @@ apop_data * get_variables_to_impute(char *tag){ //This function is so very awkwa
 void impute(char **tag, char **idatatab){ 
     char *configbase = "impute";
     Apop_assert(*idatatab, "I need an input table, "
-                        "via a '%s/input table' key.", configbase);
+                        "via a '%s/input table' key. Or, search the documentation "
+                        "for the active table (which is currently not set).", configbase);
     Apop_assert(apop_table_exists(*idatatab), "'%s/input table' is %s, but I can't "
                      "find that table in the db.", configbase, *idatatab);
     char *underlying = get_key_word(configbase, "underlying table");

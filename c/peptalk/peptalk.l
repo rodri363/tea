@@ -60,6 +60,7 @@ int include_stack_ptr = 0;
 <declarations>[ \t]real[ \t\n] { parsed_type = 'r'; return TYPE; }
 <declarations>[ \t]cat[ \t\n] { parsed_type = 'c'; return TYPE; }
 <declarations>({space}|{notnewline})+    { ; }
+<declarations>#.*\n                      { return DECLARATION; }
 <declarations>\n                         { return DECLARATION; }
 				
 include[ \t]*\:      BEGIN(incl);//stuff about including files that I cut/pasted it from the flex documentation.

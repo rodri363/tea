@@ -16,9 +16,9 @@ As of 4 May 2010, the main() function has been removed---it works only via PEP's
 
 int edit_ct, nflds, errorcount, verbose, run_number, explicit_ct;
 int *find_b, *find_e;
-extern FILE *yyin;
-extern int total_option_ct, total_var_ct, *optionct;
-extern char *database;
+FILE *yyin;
+int total_option_ct, total_var_ct, *optionct;
+char *database;
 apop_data *settings_table, *ud_queries;
 
 void implicit_edits();

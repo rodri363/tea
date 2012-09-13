@@ -83,6 +83,7 @@ The functions here are all run by the yyparse() function. To see the context in 
 //int yydebug=1;
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <apop.h>
 //#include "../tea.h"
 #include "tea.h"
@@ -91,7 +92,7 @@ The functions here are all run by the yyparse() function. To see the context in 
 #define YYSTYPE char*
 #define YYMAXDEPTH 100000
     YYSTYPE last_value = 0;
-extern int yylex(void);
+int yylex(void);
 int yyerror(const char *s) ;
 void add_keyval(char *, char*);
 void add_to_num_list_seq(char *min, char*max);
@@ -106,8 +107,8 @@ edit_t *edit_list;
 char *var_list, *current_key, parsed_type;
 int val_count, preed2;
 apop_data *pre_edits;
-extern int pass, has_edits, file_read;
-extern char  *nan_marker;
+int pass, has_edits, file_read;
+char  *nan_marker;
 
 %}
 //tokens delivered from lex
@@ -201,14 +202,13 @@ double *costs;
 //then just read in values as given.
 
 char * strip(const char *in){
-  static char    stripregex[1000] = "";
-  char    w[]     = "[:space:]\n";
-  apop_data *d;
+    static char stripregex[1000] = "";
+    char w[] = "[:space:]\n";
+    apop_data *d;
   	if (!strlen(stripregex)){
       sprintf(stripregex, "[%s\"]*([^%s]|[^%s]+.*[^%s]+)[%s\"]*", w,w,w,w,w);
     }
-	if (!apop_regex(in, stripregex, &d))
-        return NULL;
+	if (!apop_regex(in, stripregex, &d)) return NULL;
 	char* out= strdup(d->text[0][0]);
     apop_data_free(d);
     return out;
@@ -226,8 +226,7 @@ static void set_database(char *dbname){  //only on pass 0.
 }
 
 void add_keyval(char *key, char *val){ 
-    if (pass != 0)
-        return;
+    if (pass != 0) return;
 	char *skey = strip(key);
 	char *sval = strip(val);
     if (!sval) return;
@@ -239,8 +238,7 @@ void add_keyval(char *key, char *val){
 }
 
 void add_var(char *var, int is_recode, char type){
-    if (pass !=0 && !is_recode)
-        return;
+    if (pass !=0 && !is_recode) return;
 	/* set current_var
 		create the table in the db
 		set default cost
@@ -311,10 +309,11 @@ char *make_case_list(char *in){
 
 void add_to_num_list(char *v){
     if (pass !=0) return;
-    Apop_assert_c(!(parsed_type=='r' && (v && strlen(strip(v))>0)), , 1,
+    char *vs = strip(v);
+    Apop_assert_c(!(parsed_type=='r' && (v && strlen(vs)>0)), , 1,
          "I ignore ranges for real variables. Please add limits in the check{} section.");
-    if (parsed_type=='r') return; //no warning--just go.
-	if (apop_strcmp(v, "*")){
+    if (parsed_type=='r') return; 
+	if (apop_strcmp(vs, "*")){
 		text_in();
 		apop_data *invalues = apop_query_to_text("select distinct %s from %s", current_var, datatab);
 		for (int i=0; i< invalues->textsize[0]; i++)
@@ -322,32 +321,33 @@ void add_to_num_list(char *v){
 		apop_data_free(invalues);
 	}
 	int already_have = 
-			(v && apop_query_to_float("select count(*) from %s where %s='%s'", 
-												current_var, current_var, v))
+			(vs && apop_query_to_float("select count(*) from %s where %s='%s'", 
+												current_var, current_var, vs))
 			||
-			(!v && apop_query_to_float("select count(*) from %s where %s is null", 
+			(!vs && apop_query_to_float("select count(*) from %s where %s is null", 
 													current_var, current_var));
     //if not already an option, add it in:
     if(!already_have){
-		if (!v) apop_query("insert into %s values (NULL);", current_var);
+		if (!vs) apop_query("insert into %s values (NULL);", current_var);
 		else {
 			char *tail;
 			if (parsed_type == 'i') {
-                int val = strtod(v, &tail);
+                int val = strtod(vs, &tail); val=0||val; //I don't use val. just check that it parses OK.
             }
 			if (parsed_type != 'i' || *tail != '\0'){ //then this can't be parsed cleanly as a number
-				apop_query("insert into %s values ('%s');", current_var, v);
+				apop_query("insert into %s values ('%s');", current_var, vs);
                 if (parsed_type == 'i' && *tail != '\0')
                     Apop_notify(0, "The variable %s is set to integer type, but I can't "
                                 "cleanly parse %s as a number. Please fix the value or add"
-                                "a type specifier of 'cat'.", current_var, v);
+                                "a type specifier of 'cat'.", current_var, vs);
             } else
-				apop_query("insert into %s values (%s);", current_var, v);
+				apop_query("insert into %s values (%s);", current_var, vs);
 		}
         optionct[total_var_ct-1]++;
         total_option_ct ++;
     }
 	free(v);
+	free(vs);
 }
 
 void add_to_num_list_seq(char *min, char*max){
@@ -371,6 +371,7 @@ void moreblob(char **out, char* so_far, char *more){
 		asprintf(out, "%s%s", XN(so_far), more);
         return;
     }
+    //more = strip(more);  //leak?
     if(pass==1 && apop_strcmp(current_key, "checks")){
         /*If you're here, you're in query mode and extending a query.
         Queries are mostly just read in verbatim, but if we find a
@@ -422,19 +423,23 @@ void moreblob(char **out, char* so_far, char *more){
         }
         /* \key{input/output table} The table that the raw data is written to. Also used 
             as a reference for some later keys, like the recodes. */
+        bool isreal = false;
+        for (int i=0, isfound=0; i< total_var_ct && !isfound && !isreal; i++) 
+            if((isfound=!strcmp(more, used_vars[i].name)))
+                isreal= (used_vars[i].type=='r');
         if (!is_used){ //it's a var, but I haven't added it to the list for this q.
-            if (!var_list)
-                var_list = strdup(more);
-            else
-                asprintf(&var_list, "%s, %s", more, var_list);
-            if (!datatab)
-                datatab = get_key_word("input","output table");
-            apop_assert(datatab, "I need the name of the data table so I can set up the recodes."
-                                 "Put an 'output table' key in the input segment of the spec.");
-            if (!apop_table_exists(more))
-                apop_query( "create table %s as "
-                            "select distinct %s.rowid as %s from %s;"
-                            , more, more, more, datatab);
+            if (!var_list) var_list = strdup(more);
+            else           asprintf(&var_list, "%s, %s", more, var_list);
+            if (!isreal){
+                if (!datatab)
+                    datatab = get_key_word("input","output table");
+                apop_assert(datatab, "I need the name of the data table so I can set up the recodes."
+                                     "Put an 'output table' key in the input segment of the spec.");
+                if (!apop_table_exists(more))
+                    apop_query( "create table %s as "
+                                "select distinct %s.rowid as %s from %s;"
+                                , more, more, more, datatab);
+            }
         }
         asprintf(out, " %s %s.%s ", XN(so_far), more, more);
     }

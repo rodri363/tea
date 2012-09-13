@@ -66,11 +66,11 @@ char *process_string(char *inquery, char **typestring){//in which we lament C's 
             xprintf(typestring, "%sm", XN(*typestring));
             xprintf(&string_so_far, "%s%s ", XN(string_so_far),clauses[i][0]);
         } else {
-            apop_data *capture=NULL; int ct;
+            apop_data *capture=NULL; int ct=0;
             // ||==interaction terms. Really just forming a nice name and fixing things for mySQL.
             if (apop_regex(clauses[i][0], "([^|]+)(\\|\\||$)", &capture)){
                 ct=capture->textsize[1];capture->textsize[1]=1;//just first col. for paste
-                char *pipes="||'|'||", *space=" "; //constants
+                char *pipes="||'|'||"; //constants
                 if (!apop_opts.db_engine || apop_opts.db_engine=='s')
                     cat = apop_text_paste(capture, .between=pipes);
                 else if (apop_opts.db_engine=='m'){
