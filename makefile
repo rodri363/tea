@@ -53,3 +53,7 @@ push:
 	git svn fetch
 	git svn rebase
 	git svn dcommit
+
+get:
+	git svn fetch
+	git svn rebase
