@@ -362,6 +362,7 @@ teagrove.est <- function(env){
 #' @param env an environment, containing at minimum the following objects
 #' env$Formula a list of formulas, one for each response variable to model
 #' env$Method a character vector, giving the drawing method to be used
+#' for each model ("bb" or "kde")
 #' env$lfit a list of tree fits
 #' env$Newdata data for which draws are desired
 #' returns NULL but adds the following objects to env
