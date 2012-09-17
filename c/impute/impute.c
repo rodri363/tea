@@ -588,7 +588,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
     int done_ctr = 0; //for marking what's done.
     char type = get_coltype(total_var_ct, is->depvar);
     int col_of_interest=apop_name_find(is->isnan->names, is->depvar, 't');
-    for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){//more==rowids.
+    for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         int tryctr=0;
         double pre_round;
         int id_number = atoi(is->isnan->names->row[rowindex]);
