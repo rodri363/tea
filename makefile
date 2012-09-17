@@ -12,7 +12,7 @@ all:  pkg
 
 nodoc:  pkg
 	#R_LIBS=$(R_LIBS) R CMD check tea
-	cd $(Pkg_dir)/..; R_LIBS=$(R_LIBS) R CMD build tea
+	cd $(Pkg_dir)/..; R_LIBS=$(R_LIBS) R CMD build tea | sed '/-fpic/d'
 	cd $(Pkg_dir)/..; R CMD INSTALL -l ~/.Rlibs tea*.tar.gz
 
 docs:	#also set up the demo data.

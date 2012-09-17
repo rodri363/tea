@@ -1,5 +1,5 @@
 #include <stdbool.h>
-#include "discrete.h"
+#include "internal.h"
 #include "tea.h"
 
 void generate_indices(char const *tablename); //in text_in.c

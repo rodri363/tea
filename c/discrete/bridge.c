@@ -12,7 +12,7 @@ As of 4 May 2010, the main() function has been removed---it works only via PEP's
 
 #include <apop.h>
 #include "tea.h"
-#include "discrete.h"
+#include "internal.h"
 
 int edit_ct, nflds, errorcount, verbose, run_number, explicit_ct;
 int *find_b, *find_e;

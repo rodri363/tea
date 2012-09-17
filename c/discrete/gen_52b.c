@@ -2,7 +2,7 @@
     Following C custom, the main routine---implicit_edits---is last in the file.  */
 
 #include <apop.h>
-#include "discrete.h"
+#include "internal.h"
 #define FALSE_ 0
 #define TRUE_ 1
 

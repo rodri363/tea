@@ -15,8 +15,9 @@ void test_consistency(){
     int seven=7, fails_edits;
     char *passfail="passfail";
     apop_data *d = apop_query_to_text("select * from d");
+    int size_as_int = d->textsize[1];
     for (int i=0; i< d->textsize[0]; i++){
-        consistency_check(d->names->text, d->text[i], &d->textsize[1],
+        consistency_check(d->names->text, d->text[i], &size_as_int,
                 &passfail, &seven, &fails_edits, NULL
                 );
         assert(((d->text[i][0][0]=='2' || (d->text[i][0][0]=='1' && d->text[i][1][0]=='2')) 

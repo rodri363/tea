@@ -1,4 +1,4 @@
-#include "discrete.h"
+#include "internal.h"
 #include "tea.h"
 #include <apop.h>
 #include <setjmp.h>
@@ -146,7 +146,7 @@ int check_a_record(int const * restrict row,  int * const failures, int const ro
    */
 void do_a_combo(int *record, char *const restrict  *record_name_in, int const *user_to_em, int const record_in_size, 
          int const *failed_edits_in, int const this_field, int const field_count, apop_data *fillme,
-		jmp_buf jmpbuf, time_t const timeout){
+		 jmp_buf jmpbuf, time_t const timeout){
 
     int option_ct, skipme=0;
 	int this_field_index = em_to_user[this_field];
@@ -154,8 +154,7 @@ void do_a_combo(int *record, char *const restrict  *record_name_in, int const *u
 		skipme=1;
 		option_ct=1;
 	}
-	else
-		option_ct = find_e[this_field_index] - find_b[this_field_index] +1;
+	else option_ct = find_e[this_field_index] - find_b[this_field_index] +1;
     if (!skipme)
         memset(record+find_b[this_field_index]-1, 0, sizeof(int)* option_ct);
 	//else leave this field exactly as it was originally
@@ -197,7 +196,6 @@ void do_a_combo(int *record, char *const restrict  *record_name_in, int const *u
             }
         }
     }
-	return;
 }
 
 /* This function just gets the maximal dimensions of the alternatives table, allocates,
@@ -310,7 +308,7 @@ void do_fields_and_fails_agree(int *failed_fields, int fails_edits, int nflds){
 
 /* see tea.h for documentation.  */
 apop_data * consistency_check(char * const *record_name_in, char * const *ud_values, 
-			int const *record_in_size, char *const *what_you_want, 
+			int const *record_in_size, char const *const *what_you_want, 
 			int const *id, int *fails_edits, int *failed_fields){
 	assert(*record_in_size > 0);
 	//apop_opts.verbose = 2;

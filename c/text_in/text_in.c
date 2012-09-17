@@ -1,4 +1,4 @@
-#include "discrete.h"
+#include "internal.h"
 #include "tea.h"
 
 int file_read = 0;

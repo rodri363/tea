@@ -87,7 +87,7 @@ The functions here are all run by the yyparse() function. To see the context in 
 #include <apop.h>
 //#include "../tea.h"
 #include "tea.h"
-#include "discrete.h"
+#include "internal.h"
 #include <string.h>
 #define YYSTYPE char*
 #define YYMAXDEPTH 100000
@@ -492,7 +492,7 @@ void do_preedits(char **datatab){
 			apop_query("update %s %s", *datatab, pre_edits->text[i][0]);
 }
 
-/* I store a list of pre-edits in preedits, visible anywhere discrete.h is present.
+/* I store a list of pre-edits in preedits, visible anywhere internal.h is present.
    They're read here, and then executed using do_preedits.  */
 void store_right(char *fix){ 
     if (pass !=1) return;

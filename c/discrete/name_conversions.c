@@ -1,5 +1,5 @@
 #include "tea.h"
-#include "discrete.h"
+#include "internal.h"
 
 /** This file translates between ri=rowid and ext=external name. 
 

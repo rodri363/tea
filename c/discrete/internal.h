@@ -1,7 +1,7 @@
-/** \file discrete.h */
+/** \file */
 #include <apop.h>
 
-typedef struct{ //redundant with the .y file
+typedef struct{
     char *name;
     double weight;
     int last_query;
@@ -19,7 +19,7 @@ extern int query_ct;
 
 void write_edit_candidate(int id, int col, int val);
 
-extern apop_data *edit_grid;
+apop_data *edit_grid;
 extern int *find_b, *find_e, *optionct, verbose, nflds, edit_ct, total_var_ct, total_option_ct;
 
 int pull_index(char const *in_name);
@@ -30,7 +30,7 @@ void xprintf(char **q, char *format, ...); //impute/parse_sql.c
 void begin_transaction();
 void commit_transaction();
 
-extern int using_r; //r_init handles this. If zero, then it's a standalone C library.
+int using_r; //r_init handles this. If zero, then it's a standalone C library.
 
 apop_data * get_variables_to_impute(char *tag); //impute/impute.c
 

@@ -3,7 +3,7 @@
 #include "tea.h"
 #include <rapophenia.h>
 #include <stdbool.h>
-#include "discrete.h"
+#include "internal.h"
 extern char *datatab;
 void qxprintf(char **q, char *format, ...); //bridge.c
 char *process_string(char *inquery, char **typestring); //parse_sql.c
@@ -122,7 +122,7 @@ typedef struct {
 	int depvar_count, position;
 	char * selectclause;
 	apop_data *isnan, *notnan;
-    bool is_bounds_checkable;
+    bool is_bounds_checkable, is_hotdeck;
 } impustruct;
 	
 static void lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
@@ -305,9 +305,10 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
 											is->selectclause, category_matrix, id_col);
         q2 = construct_a_query_II(id_col, is, fingerprint_vars);
         //(varposn) This used to be apop_query_to_mixed_data(var_coltypes, ...) but for now it's all in the matrix.
-        
+apop_opts.verbose=3;
         is->notnan = q2? apop_query_to_mixed_data(is->vartypes, "%s %s is not null except %s", q, is->depvar, q2)
                     : apop_query_to_mixed_data(is->vartypes, "%s %s is not null", q, is->depvar);
+apop_opts.verbose=1;
         apop_data_listwise_delete(is->notnan, .inplace='y');
         if (verbose){
             printf("-------------- Not NaN:");
@@ -352,24 +353,31 @@ printf("This set had %zu nans.\n", is->isnan->textsize[0]);
 }
 
 //Primarily just call apop_estimate, but also make some minor tweaks.
-static void model_est(apop_data *notnan, impustruct *is, int *model_id, bool is_hotdeck){
+static void model_est(impustruct *is, int *model_id){
+    apop_data *notnan = is->notnan; //just an alias.
     assert(notnan);
+    for(int i=0; i< notnan->textsize[1]; i++){
+        notnan->matrix=apop_matrix_realloc(notnan->matrix, 
+                            notnan->matrix ? notnan->matrix->size1   : *notnan->textsize, 
+                            notnan->matrix ? notnan->matrix->size2+1 : 1);
+        apop_data_to_factors(notnan, .incol=i, .outcol=notnan->matrix->size2-1);
+    }
     //maybe check here for constant columns in regression estimations.
     if(notnan->text && !apop_data_get_page(notnan,"<categories"))
         for(int i=0; i< notnan->textsize[1]; i++)
-            apop_data_to_dummies(notnan, i, .append='y');
+            apop_data_to_dummies(notnan, i, .keep_first='y', .append='y');
     Apop_assert (!notnan->vector || !isnan(apop_vector_sum(notnan->vector)), 
             "NaNs in the not-NaN vector that I was going to use to estimate "
             "the imputation model. This shouldn't happen")
     Apop_assert (!notnan->matrix || !isnan(apop_matrix_sum(notnan->matrix)), 
             "NaNs in the not-NaN matrix that I was going to use to estimate "
             "the imputation model. This shouldn't happen")
-    if (is_hotdeck) apop_data_pmf_compress(notnan);
+    if (is->is_hotdeck) apop_data_pmf_compress(notnan);
 	//Apop_model_add_group(&(is->base_model), apop_parts_wanted); //no extras like cov or log like.
 
     install_data_to_R(notnan, &is->base_model); //no-op if not an R model.
 	is->fitted_model = apop_estimate(notnan, is->base_model);
-    if (apop_strcmp(is->base_model.name, "Multinomial distribution"))
+    if (apop_strcmp(is->base_model.name, "multinomial"))
         apop_data_set(is->fitted_model->parameters, .row=0, .col=-1, .val=1);
     if (apop_strcmp(is->base_model.name, "Ordinary Least Squares"))
         is->fitted_model->draw=lil_ols_draw;
@@ -535,10 +543,10 @@ then sending it to consistency_check for an up-down vote.
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
 */
 static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
-        bool is_hotdeck, char type, int id_number, int fail_id, 
+        char type, int id_number, int fail_id, 
         int model_id, apop_data *full_record, int col_of_interest){
     a_draw_struct out = { };
-	static char *const whattodo="passfail";
+	static char const *const whattodo="passfail";
     double x;
     apop_draw(&x, r, is->fitted_model);
     apop_data *rd = get_data_from_R(is->fitted_model);
@@ -550,11 +558,11 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
     if (type == '\0'){ // '\0' means not in the index of variables to check.
         asprintf(&out.textx, "%g", x);
     } else {
-        if (!is_hotdeck && is->is_bounds_checkable) //inputs all valid ==> outputs all valid
+        if (!is->is_hotdeck && is->is_bounds_checkable) //inputs all valid ==> outputs all valid
             check_bounds(&x, is->depvar, type); // just use the rounded value.
         apop_data *f;
         char *cats; asprintf(&cats, "<categories for %s>", is->depvar);
-        if (f = apop_data_get_page(is->fitted_model->data, cats))
+        if ((f = apop_data_get_page(is->fitted_model->data, cats)))
              out.textx = strdup(*f->text[(int)x]);
         else asprintf(&out.textx, "%g", x);
         free (cats);
@@ -562,9 +570,10 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
                                 id_number, fail_id, model_id, out.pre_round, out.textx);
         //copy the new impute to full_record, for re-testing
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
+        int size_as_int =*full_record->textsize+1;
         consistency_check((char *const *)full_record->names->text,
                           (char *const *)full_record->text[0],
-                          full_record->textsize+1,
+                          &size_as_int,
                           &whattodo,
                           &id_number,
                           &out.is_fail,
@@ -574,8 +583,8 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 }
 
 //a shell for do onedraw() while (!done).
-static void make_a_draw(impustruct *is, gsl_rng *r, bool is_hotdeck, int fail_id,
-         int model_id, int draw, apop_data const *nanvals){
+static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
+                        int model_id, int draw, apop_data const *nanvals){
     int done_ctr = 0; //for marking what's done.
     char type = get_coltype(total_var_ct, is->depvar);
     int col_of_interest=apop_name_find(is->isnan->names, is->depvar, 't');
@@ -585,8 +594,8 @@ static void make_a_draw(impustruct *is, gsl_rng *r, bool is_hotdeck, int fail_id
         int id_number = atoi(is->isnan->names->row[rowindex]);
         a_draw_struct drew;
         Apop_data_row(is->isnan, rowindex, full_record);
-        do drew = onedraw(r, is, is_hotdeck, type,
-               id_number, fail_id, model_id, full_record, col_of_interest);
+        do drew = onedraw(r, is, type, id_number, fail_id, 
+                          model_id, full_record, col_of_interest);
         while (drew.is_fail && tryctr++ < 1000);
         Apop_assert(!drew.is_fail, "I just made a thousand attempts to find an "
             "imputed value that passes checks, and couldn't. "
@@ -630,12 +639,12 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         get_nans_and_notnans(is, atoi(nanvals->names->row[i]) /*ego_id*/, 
                 datatab, underlying, min_group_size, category_matrix, fingerprint_vars, id_col);
 		if (!is->isnan) continue; //nothing missing.
-		bool is_hotdeck = (is->base_model.estimate == apop_multinomial.estimate 
+		is->is_hotdeck = (is->base_model.estimate == apop_multinomial.estimate 
 								||is->base_model.estimate ==apop_pmf.estimate);
-        model_est(is->notnan, is, &model_id, is_hotdeck); //notnan may be pmf_compressed here.
+        model_est(is, &model_id); //notnan may be pmf_compressed here.
         prep_for_draw(is->notnan, is);
         for (int draw=0; draw< draw_count; draw++)
-            make_a_draw(is, r, is_hotdeck, ++fail_id, model_id, draw, nanvals);
+            make_a_draw(is, r, ++fail_id, model_id, draw, nanvals);
         apop_model_free(is->fitted_model); //if (is_hotdeck) apop_data_free(is->fitted_model->data);
         apop_data_free(is->notnan);
         apop_data_free(is->isnan);
@@ -666,12 +675,12 @@ void process_category_matrix(apop_data *category_matrix, char *idatatab){
 }
 
 apop_model tea_get_model_by_name(char *name){
-    get_am_from_registry_type *rapop_model_from_registry;
+    static get_am_from_registry_type *rapop_model_from_registry;
     static int is_inited=0;
     if (!is_inited && using_r)
-        rapop_model_from_registry =  (void*) R_GetCCallable("Rapophenia", "get_am_from_registry");
+        rapop_model_from_registry = (void*) R_GetCCallable("Rapophenia", "get_am_from_registry");
 
-    apop_model out=		apop_strcmp(name, "normal")
+    apop_model out= apop_strcmp(name, "normal")
           ||apop_strcmp(name, "gaussian")
 				? apop_normal :
 			apop_strcmp(name, "multivariate normal")
@@ -681,11 +690,10 @@ apop_model tea_get_model_by_name(char *name){
 			apop_strcmp(name, "hotdeck")
 		  ||apop_strcmp(name, "hot deck")
 	      ||apop_strcmp(name, "multinomial")
-				? apop_multinomial :
+		  ||apop_strcmp(name, "pmf")
+				? apop_pmf :
 			apop_strcmp(name, "poisson")
 				? apop_poisson :
-			apop_strcmp(name, "pmf")
-				? apop_pmf :
 			apop_strcmp(name, "ols")
 				? apop_ols :
 			apop_strcmp(name, "logit")
@@ -778,7 +786,7 @@ void impute(char **tag, char **idatatab){
 	impustruct models[vars_to_impute+1];
 	for (int i=0; i < vars_to_impute; i++){
         //I don't use vartypes; it's there if I need it. Search for (varposn).
-        models[i] = (impustruct) {.position=-2, .vartypes=strdup("nm")}; //zero out everything; posn to be filled in later.
+        models[i] = (impustruct) {.position=-2, .vartypes=strdup("n")}; //zero out everything; posn to be filled in later.
 		models[i].depvar = strdup(vars->text[i][0]);
 		models[i].depvar_count = 1; //TO DO: implement more than one.
 
@@ -789,9 +797,9 @@ void impute(char **tag, char **idatatab){
 		char *d = get_key_word(configbase, varkey);
             for (int j=0; j < total_var_ct; j++)
                 if (apop_strcmp(used_vars[j].name, models[i].depvar)){
-                        if (used_vars[j].type=='c')
-                            asprintf(&models[i].vartypes, "nt");
-                        break;
+                    if (used_vars[j].type=='c') asprintf(&models[i].vartypes, "%st", models[i].vartypes);
+                    else                        asprintf(&models[i].vartypes, "%sm", models[i].vartypes);
+                    break;
                 }
 		if (!d) asprintf(&models[i].selectclause, "%s", models[i].depvar);	
         else    asprintf(&models[i].selectclause, "%s, %s", models[i].depvar, 

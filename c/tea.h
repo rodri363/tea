@@ -1,19 +1,18 @@
 #include <apop.h>
 #include "imputation_variance.h"
 
-
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
 
-/*
+///*
 #undef Apop_assert
 #undef Apop_assert_c
 #define Apop_assert(test, ...) if (!(test)) error(__VA_ARGS__);
 
 #define Apop_assert_c(test, returnval, level, ...) if (!(test)) \
 			{if (apop_opts.verbose >= level) warning(__VA_ARGS__); return returnval;}
-*/
+//*/
 
 
 /*
@@ -87,7 +86,7 @@ I save the result as <tt>alternatives[id]</tt>, where \c id is the unique id you
 Any existing table at that point in the alternatives list gets freed when I write the new table.
   */
 apop_data * consistency_check(char * const *record_name_in, char * const *ud_values, 
-			int const *record_in_size, char *const *what_you_want, 
+			int const *record_in_size, char const *const *what_you_want, 
 			int const *id, int *fails_edits, int *failed_fields);
 
 #include <apop.h>

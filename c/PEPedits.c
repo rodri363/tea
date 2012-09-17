@@ -28,7 +28,7 @@ SEXP RCheckConsistency(SEXP Rrecord_name_in, SEXP Rud_values, SEXP Rrecord_in_si
 	char **record_name_in = TEA_R_STRSXP_TO_C(Rrecord_name_in);
 	char **ud_values = TEA_R_STRSXP_TO_C(Rud_values);
 	int *record_in_size = INTEGER(Rrecord_in_size);
-	char *const *what_you_want = TEA_R_STRSXP_TO_C(Rwhat_you_want);
+	char const *const *what_you_want = TEA_R_STRSXP_TO_C(Rwhat_you_want);
 	int *id = INTEGER(Rid);
 	int *fails_edits = INTEGER(Rfails_edits);
 	int *record_fails = INTEGER(Rrecord_fails);
