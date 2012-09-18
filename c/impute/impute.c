@@ -305,10 +305,8 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
 											is->selectclause, category_matrix, id_col);
         q2 = construct_a_query_II(id_col, is, fingerprint_vars);
         //(varposn) This used to be apop_query_to_mixed_data(var_coltypes, ...) but for now it's all in the matrix.
-apop_opts.verbose=3;
         is->notnan = q2? apop_query_to_mixed_data(is->vartypes, "%s %s is not null except %s", q, is->depvar, q2)
                     : apop_query_to_mixed_data(is->vartypes, "%s %s is not null", q, is->depvar);
-apop_opts.verbose=1;
         apop_data_listwise_delete(is->notnan, .inplace='y');
         if (verbose){
             printf("-------------- Not NaN:");
@@ -381,8 +379,7 @@ static void model_est(impustruct *is, int *model_id){
         apop_data_set(is->fitted_model->parameters, .row=0, .col=-1, .val=1);
     if (apop_strcmp(is->base_model.name, "Ordinary Least Squares"))
         is->fitted_model->draw=lil_ols_draw;
-    if (verbose)
-        apop_model_print(is->fitted_model);
+    if (verbose) apop_model_print(is->fitted_model);
     (*model_id)++;
     apop_query("insert into model_log values(%i, 'type', '%s');", *model_id, is->fitted_model->name);
     /*if (is->fitted_model->parameters->vector) //others are hot-deck or kde-type
@@ -571,6 +568,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         //copy the new impute to full_record, for re-testing
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
         int size_as_int =*full_record->textsize+1;
+printf("Gut says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round, out.is_fail);
         consistency_check((char *const *)full_record->names->text,
                           (char *const *)full_record->text[0],
                           &size_as_int,
@@ -579,6 +577,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
                           &out.is_fail,
                           NULL);//record_fails);
     }
+printf("Out says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round, out.is_fail);
     return out;
 }
 
@@ -601,8 +600,8 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
             "imputed value that passes checks, and couldn't. "
             "Something's wrong that a computer can't fix.\n "
             "I'm at id %i.", id_number);
-        apop_query("insert into filled values( %s, '%s', %i, '%s');\n"
-                   "insert into impute_log values(%s, %i, %i, %g, '%s', '? ?')",
+        apop_query("insert into filled values( '%s', '%s', %i, '%s');\n"
+                   "insert into impute_log values('%s', %i, %i, %g, '%s', '? ?')",
                        is->isnan->names->row[rowindex], is->depvar, draw, drew.textx,
                        is->isnan->names->row[rowindex], fail_id, model_id, drew.pre_round, drew.textx);
         free(drew.textx);
@@ -728,7 +727,7 @@ void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
         apop_query("create table model_log ('model_id', 'parameter', 'value')");
 }
 
-int impute_is_prepped = 0; //restarts with new read_specs.
+int impute_is_prepped; //restarts with new read_specs.
 
 apop_data * get_variables_to_impute(char *tag){ //This function is so very awkward.
     char *configbase = "impute";

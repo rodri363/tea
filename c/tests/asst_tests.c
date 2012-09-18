@@ -13,7 +13,7 @@ char *db_dummy;
 
 void test_consistency(){
     int seven=7, fails_edits;
-    char *passfail="passfail";
+    char const *passfail="passfail";
     apop_data *d = apop_query_to_text("select * from d");
     int size_as_int = d->textsize[1];
     for (int i=0; i< d->textsize[0]; i++){

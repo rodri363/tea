@@ -50,9 +50,8 @@ int prune_edits(apop_data *d, int row, int col, void *ignore){ //quick callback 
   There is one slot per field (i.e., it is unrelated to any subset of records 
   requested by the user).
   */
-int check_a_record(int const * restrict row,  int * const failures, int const rownumber,
-                         char *const *data_as_query){
-//verbose=1;
+int check_a_record(int const * restrict row,  int * const failures, 
+                   int const rownumber, char *const *data_as_query){
     int rowfailures[nflds];
     int out = 0, has_c_edits=0;
     if (failures)
@@ -66,9 +65,15 @@ int check_a_record(int const * restrict row,  int * const failures, int const ro
         memset(rowfailures, 0, sizeof(int)*nflds);
         int rec = 0;
         for (int j =0; j < edit_grid->matrix->size2; j++){
-            if (j == find_b[rec]-1 && row[j] == -1)
-                j = find_e[rec]-1;//this is a dummy record, so fast-forward to end of record.
-            else if (row[j]){
+            if (row[j] == -1){
+                if (gsl_matrix_get(edit_grid->matrix, i, j)==-1)
+                    j = find_e[rec]-1;  //this is a dummy record, so fast-forward to end of record.
+                else { //then we can't test this edit: a needed field is missing from row[].
+                    rowfailed = 0;
+                    break;
+                }
+                //else, row[j]==-1 && edit grid has a -1
+            } else if (row[j]){
                 if (gsl_matrix_get(edit_grid->matrix, i, j)) {
                     if (entering(i, rec)){
                         rowfailures[rec]= j-find_b[rec]+2;//use the record value as a marker.
@@ -254,13 +259,12 @@ void setup_conversion_tables(char * const restrict* record_name_in, int record_i
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
 void fill_a_record(int record[], int const record_width, char * const restrict *record_name_in, 
-                                char * const restrict* ud_values, int record_in_size, 
+                        char * const restrict* ud_values, int record_in_size, 
                                 int id, char **qstring){
     for (int i=0; i < record_width; i++)
         record[i]=-1;   //-1 == ignore-this-field marker
     for (int i=0; i < record_in_size; i++){
-        if (user_to_em[i] < 0)
-            continue;  //This variable wasn't declared ==> can't be in an edit.
+        if (user_to_em[i] < 0) continue;  //This variable wasn't declared ==> can't be in an edit.
 	    //	printf("Using %s at var %d with value %s\n",
     	//		record_name_in[i],user_to_em[i],ud_values[i]);
         for(int  kk = find_b[user_to_em[i]]-1; kk< find_e[user_to_em[i]]; kk++)
@@ -321,8 +325,7 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
     assert(width);
     int record[width];
     char *qstring;
-    if (record_name_in)
-    setup_conversion_tables(record_name_in, *record_in_size);
+    if (record_name_in) setup_conversion_tables(record_name_in, *record_in_size);
 	fill_a_record(record, width, record_name_in, ud_values, *record_in_size, *id, &qstring);
     if (apop_strcmp(what_you_want[0], "passfail")){
         *fails_edits = check_a_record(record, NULL, 0, &qstring);
