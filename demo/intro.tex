@@ -143,8 +143,8 @@ an R data frame. You probably don't want to see the whole table, so there are
 various options to limit what you get. Some examples:
 \begin{rcode} 
 \begin{verbatim}
-show_db_table("dc", cols="AGEP, PUMA", where="PUMA=104")
-show_db_table("dc", cols="AGEP, PUMA", limit=30, offset=100)
+teaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
+teaTable("dc", cols="AGEP, PUMA", limit=30, offset=100)
 \end{verbatim}
 \end{rcode} 
 The first example pulls two columns, but only where {\tt PUMA=104}. The second
@@ -157,7 +157,7 @@ In fact, there are still more options. Rather than listing them all here, you ca
 via R's help system:
 \begin{rcode} 
 \begin{verbatim}
-?show_db_table
+?teaTable
 \end{verbatim}
 \end{rcode} 
 This {\tt ?name} form should give you a help page for any function, including PEP
@@ -172,7 +172,7 @@ save the frame and give it a name. R does assignment via {\tt $<$-}, so name the
 with:
 \begin{rcode} 
 \begin{verbatim}
-p104 <- show_db_table("dc", cols="AGEP, PUMA", where="PUMA=104")
+p104 <- teaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
 \end{verbatim}
 \end{rcode} 
 To display the data frame as is, just give its name at the command line.

@@ -38,7 +38,7 @@ RankSwapConstrained <- function(x=NULL, table=NULL, column=NULL, swap_range=0.5,
 		if(is.null(table)) table <- pepenv$active_tab
 		if(is.null(column)) stop("I need to know from which colum of the table I should draw")
 		if(is.null(table)) stop("I need to know from which table I should draw")
-		x <- show_db_table(table, cols=column)
+		x <- teaTable(table, cols=column)
 	}
 
 	ox <- order(x)

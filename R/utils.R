@@ -138,7 +138,7 @@ UpdateTablefromDF <- function(data,tbl,con,cols,match.key,ncommit=10000,verbose=
 #' this option, the table you request must have the column of row IDs.
 
 #' @return The data is returned as an R table.
-show_db_table <- function(table=NULL, cols=NULL, limit=NULL, offset=NULL, where=NULL, show = TRUE, html=NULL){
+teaTable <- function(table=NULL, cols=NULL, limit=NULL, offset=NULL, where=NULL, show = TRUE, html=NULL){
 	if (is.null(table))  stop("You need to specify a table for me to show") 
 
 	q <- paste("select ",

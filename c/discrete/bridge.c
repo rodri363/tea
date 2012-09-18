@@ -420,7 +420,7 @@ void verbosity(){ verbose = 1-verbose;}
 
 //Um, I (BK) couldn't work out how to just have R do this. It has to know the con, which
 //is not global.
-void show_db_table(char **tab){
+void teaTable(char **tab){
     apop_data *d = apop_query_to_text("select * from %s", tab[0]);
     apop_data_show(d);
     apop_data_free(d);

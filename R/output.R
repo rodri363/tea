@@ -86,7 +86,7 @@ pums <- function (x, var.name.truncate = 20, type.truncate = 14)
 
 get.table <- function(table) {
 #    print (dbGetQuery(con, c("select * from ", table)))
-    .C("show_db_table", as.character(table));
+    .C("teaTable", as.character(table));
 }
 
 get.means <- function(table) {
