@@ -304,7 +304,6 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
             q = construct_a_query(datatab, underlying, constraints_left, active_cats,
 											is->selectclause, category_matrix, id_col);
         q2 = construct_a_query_II(id_col, is, fingerprint_vars);
-        //(varposn) This used to be apop_query_to_mixed_data(var_coltypes, ...) but for now it's all in the matrix.
         is->notnan = q2? apop_query_to_mixed_data(is->vartypes, "%s %s is not null except %s", q, is->depvar, q2)
                     : apop_query_to_mixed_data(is->vartypes, "%s %s is not null", q, is->depvar);
         apop_data_listwise_delete(is->notnan, .inplace='y');
@@ -346,7 +345,7 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
         apop_opts.verbose=v;
     }
 	apop_opts.verbose=v;
-    Apop_assert_c(is->isnan, , 1, "%s had no missing values.", is->depvar);
+    Apop_assert_c(is->isnan, , 2, "%s had no missing values.", is->depvar);
 printf("This set had %zu nans.\n", is->isnan->textsize[0]);
 }
 
@@ -587,10 +586,10 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
     int done_ctr = 0; //for marking what's done.
     char type = get_coltype(total_var_ct, is->depvar);
     int col_of_interest=apop_name_find(is->isnan->names, is->depvar, 't');
-    for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
+    for (int rowindex=0; rowindex< is->isnan->names->textct; rowindex++){
         int tryctr=0;
         double pre_round;
-        int id_number = atoi(is->isnan->names->row[rowindex]);
+        int id_number = atoi(is->isnan->names->text[rowindex]);
         a_draw_struct drew;
         Apop_data_row(is->isnan, rowindex, full_record);
         do drew = onedraw(r, is, type, id_number, fail_id, 
@@ -602,10 +601,10 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
             "I'm at id %i.", id_number);
         apop_query("insert into filled values( '%s', '%s', %i, '%s');\n"
                    "insert into impute_log values('%s', %i, %i, %g, '%s', '? ?')",
-                       is->isnan->names->row[rowindex], is->depvar, draw, drew.textx,
-                       is->isnan->names->row[rowindex], fail_id, model_id, drew.pre_round, drew.textx);
+                       is->isnan->names->text[rowindex], is->depvar, draw, drew.textx,
+                       is->isnan->names->text[rowindex], fail_id, model_id, drew.pre_round, drew.textx);
         free(drew.textx);
-        mark_an_id(&done_ctr,is->isnan->names->row[rowindex], nanvals->names->row, nanvals->names->rowct);
+        mark_an_id(&done_ctr,is->isnan->names->text[rowindex], nanvals->names->row, nanvals->names->rowct);
     }
 }
 
@@ -784,7 +783,6 @@ void impute(char **tag, char **idatatab){
 	Apop_assert(vars_to_impute, "I couldn't find a models section (or its contents).");
 	impustruct models[vars_to_impute+1];
 	for (int i=0; i < vars_to_impute; i++){
-        //I don't use vartypes; it's there if I need it. Search for (varposn).
         models[i] = (impustruct) {.position=-2, .vartypes=strdup("n")}; //zero out everything; posn to be filled in later.
 		models[i].depvar = strdup(vars->text[i][0]);
 		models[i].depvar_count = 1; //TO DO: implement more than one.
@@ -795,7 +793,7 @@ void impute(char **tag, char **idatatab){
 		asprintf(&varkey, "models/%s/vars", models[i].depvar);
 		char *d = get_key_word(configbase, varkey);
             for (int j=0; j < total_var_ct; j++)
-                if (apop_strcmp(used_vars[j].name, models[i].depvar)){
+                if (!strcasecmp(used_vars[j].name, models[i].depvar)){
                     if (used_vars[j].type=='c') asprintf(&models[i].vartypes, "%st", models[i].vartypes);
                     else                        asprintf(&models[i].vartypes, "%sm", models[i].vartypes);
                     break;

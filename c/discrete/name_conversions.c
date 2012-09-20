@@ -41,7 +41,7 @@ static apop_data *get_named_tab(char const *varname){
     if (!ri_ext) ri_ext_init();
     apop_data *this = NULL;
     for (int i=0; i< ri_ext_len; i++)
-        if (apop_strcmp(varname, ri_ext[i]->names->title))
+        if (!strcasecmp(varname, ri_ext[i]->names->title))
             {this=ri_ext[i]; break;}
     return this;
 }
