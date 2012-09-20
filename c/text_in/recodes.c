@@ -59,9 +59,9 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         all_recodes = apop_query_to_text("select distinct key from keys where "
                 "(key like '%s%%' and key not like '%s%%no checks' and key not like 'group recodes/group id')"
                 " order by tag", *key, *key);
-    if (!all_recodes || !all_recodes->textsize[0]) return;
-    for(int i=0; i < all_recodes->textsize[0]; i++) // "recodes/var1" ==> "var1"
-        all_recodes->text[i][0] += strlen(*key)+1;
+    if (!all_recodes || !*all_recodes->textsize) return;
+    for(int i=0; i < *all_recodes->textsize; i++) // "recodes/var1" ==> "var1"
+        *all_recodes->text[i] = strrchr(*all_recodes->text[i], '/')+1;
     if (verbose) apop_data_show(all_recodes);
 
     int new_vars = apop_query_to_float("select count(*) from (select distinct key from keys where "
@@ -179,7 +179,7 @@ Returns 0 on OK, 1 on error.
 */
 int make_recode_view(char **tag, char **first_or_last){
     //first_or_last may be "first", "last", "both", or "middle"
-    if (!tag || !test_for_recodes(*tag)) return 0;
+    if (tag && !test_for_recodes(*tag)) return 0;
 
     if (!file_read && get_key_word("input", "input file")) text_in();
 

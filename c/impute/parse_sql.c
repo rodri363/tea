@@ -94,8 +94,6 @@ char *process_string(char *inquery, char **typestring){//in which we lament C's 
         xprintf(&string_so_far, "%s%s ", string_so_far, clauses[i][1]); //the comma, if any
         free(name); name=NULL;
     }
-    printf("Q=%s\n",string_so_far);
-    printf("typestring=%s\n", *typestring);
     return string_so_far;
 }
 

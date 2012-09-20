@@ -27,16 +27,15 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
         apop_table_exists(dest, 'd');
         apop_query("create table %s as select %s * from %s", dest, use_rowids ? "rowid as id_col, " : " ", *origin);
         apop_query("create index icwwww on %s(%s)", dest, id_column);
-    } else
-        dest = *origin;
+    } else dest = *origin;
     apop_assert_c(apop_table_exists("filled"), , 0, "No table named 'filled'; did you already doMImpute()?");
-    apop_data *fills = apop_query_to_text("select %s, field, value from filled where draw=%i and %s"
+    apop_data *fills = apop_query_to_text("select %s, field, value from filled where draw+0.0=%i and %s"
                                                      , id_column, *imputation_number, (subset && *subset) ? *subset : "1");
     begin_transaction();
     if (fills)
         for(int i=0; i< *fills->textsize; i++)
             apop_query("update %s set %s = '%s' "
-                       "where %s = '%s'", 
+                       "where %s = %s", 
                           dest, fills->text[i][1], fills->text[i][2], 
                           id_column, fills->text[i][0]);
     commit_transaction();

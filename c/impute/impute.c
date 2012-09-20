@@ -475,11 +475,10 @@ void R_check_bounds(double *val, char **var, int *fails){
           --randomly pick a failed var with a spec., impute.
      } while(1); //because the internal breaks are what will halt this.
 
-      If we fill a record and find that it doesn't work, randomly select one variabel to re-impute, 
+      If we fill a record and find that it doesn't work, randomly select one variable to re-impute, 
       then try again. Max likelihood methods that would use the alternatives table that 
       consistency_check can produe are reserved for future work.
       */
-
 
 static apop_data *get_all_nanvals(impustruct *is, const char *id_col, const char *datatab){
     //db_name_column may be rowid, which would srsly screw us up.
@@ -499,7 +498,7 @@ static apop_data *get_all_nanvals(impustruct *is, const char *id_col, const char
 
 //we're guaranteed to find it, so this will run fast---and we're gonzo and don't
 //do checks. We start the ctr at the last found value and allow it to loop around.
-static void mark_an_id(int *ctr, char const *target, char * const *list, int len){
+static void mark_an_id(int *ctr, const char *target, char * const *list, int len){
     int tries=0;
     for (int tries=0; tries < len && !apop_strcmp(target, list[*ctr]); tries++)
         (*ctr)= (*ctr+1) % len;
@@ -562,12 +561,13 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
              out.textx = strdup(*f->text[(int)x]);
         else asprintf(&out.textx, "%g", x);
         free (cats);
-        apop_query("insert into impute_log values(%i, %i, %i, %g, '%s', 'cc')",
+/*        apop_query("insert into impute_log values(%i, %i, %i, %g, '%s', 'cc')",
                                 id_number, fail_id, model_id, out.pre_round, out.textx);
+*/
         //copy the new impute to full_record, for re-testing
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
         int size_as_int =*full_record->textsize+1;
-printf("Gut says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round, out.is_fail);
+//printf("Gut says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round, out.is_fail);
         consistency_check((char *const *)full_record->names->text,
                           (char *const *)full_record->text[0],
                           &size_as_int,
@@ -576,20 +576,19 @@ printf("Gut says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round
                           &out.is_fail,
                           NULL);//record_fails);
     }
-printf("Out says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round, out.is_fail);
+//printf("Out says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round, out.is_fail);
     return out;
 }
 
 //a shell for do onedraw() while (!done).
 static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
-                        int model_id, int draw, apop_data const *nanvals){
+                        int model_id, int draw, apop_data *nanvals){
     int done_ctr = 0; //for marking what's done.
     char type = get_coltype(total_var_ct, is->depvar);
     int col_of_interest=apop_name_find(is->isnan->names, is->depvar, 't');
-    for (int rowindex=0; rowindex< is->isnan->names->textct; rowindex++){
+    for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         int tryctr=0;
-        double pre_round;
-        int id_number = atoi(is->isnan->names->text[rowindex]);
+        int id_number = atoi(is->isnan->names->row[rowindex]);
         a_draw_struct drew;
         Apop_data_row(is->isnan, rowindex, full_record);
         do drew = onedraw(r, is, type, id_number, fail_id, 
@@ -599,12 +598,15 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
             "imputed value that passes checks, and couldn't. "
             "Something's wrong that a computer can't fix.\n "
             "I'm at id %i.", id_number);
-        apop_query("insert into filled values( '%s', '%s', %i, '%s');\n"
+/*        apop_query("insert into filled values('%s', '%s', %i, '%s');\n"
                    "insert into impute_log values('%s', %i, %i, %g, '%s', '? ?')",
-                       is->isnan->names->text[rowindex], is->depvar, draw, drew.textx,
-                       is->isnan->names->text[rowindex], fail_id, model_id, drew.pre_round, drew.textx);
+                       is->isnan->names->row[rowindex], is->depvar, draw, drew.textx,
+                       is->isnan->names->row[rowindex], fail_id, model_id, drew.pre_round, drew.textx);
+                       */
+        apop_query("insert into filled values('%s', '%s', %i, '%s');",
+                       is->isnan->names->row[rowindex], is->depvar, draw, drew.textx);
         free(drew.textx);
-        mark_an_id(&done_ctr,is->isnan->names->text[rowindex], nanvals->names->row, nanvals->names->rowct);
+        mark_an_id(&done_ctr,is->isnan->names->row[rowindex], nanvals->names->row, nanvals->names->rowct);
     }
 }
 
