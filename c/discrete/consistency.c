@@ -343,7 +343,7 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
 	return NULL;
 }
 
-void checkData(apop_data *data){
+apop_data *checkData(apop_data *data){
 	apop_data_show(data);
 	apop_data *edvars = apop_query_to_text("select name from variables;");
 	int nvars = edvars->textsize[0];
@@ -381,16 +381,14 @@ void checkData(apop_data *data){
 			if(clocus[jdx]=='c')
 				asprintf(&vals[jdx],"%g",apop_data_get(data,idx,locus[jdx]));
 			else vals[jdx] = data->text[idx][locus[jdx]];
-			printf("%s\n",vals[jdx]);
 		}
 		consist = consistency_check(fields,vals,rsize,&what,\
 			&id,&fails_edits,failed_fields);
 		//insert failure counts
 		for(int jdx=0; jdx<nvars; jdx++){
-			printf("%i\n",failed_fields[jdx]);
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);
 		}
 	}
-	apop_data_show(failCount);
+	return(failCount);
 }
 

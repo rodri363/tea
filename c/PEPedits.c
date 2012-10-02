@@ -48,7 +48,7 @@ SEXP RCheckConsistency(SEXP Rrecord_name_in, SEXP Rud_values, SEXP Rrecord_in_si
 }
 
 SEXP RCheckData(SEXP df){
-	apop_data *data = rapop_ad_from_df(df);
-	checkData(data);
-	return(R_NilValue);
+//	apop_data *data = rapop_ad_from_df(df);
+	apop_data *ret = checkData(rapop_ad_from_df(df));
+	return(rapop_df_from_ad(ret));
 }
