@@ -75,7 +75,7 @@ TEA.MCMCmnl.est <- function(env){
 	env$Fit <- try(MCMCmnl(env$Formula,data=env$Data))
 	if(inherits(env$Fit,"try-error")){
 		save(Data,file="err_data.RData",envir=env)
-		stop(paste("MCMCmnl() on", env$Formula, "did not work for given data"))
+		stop(paste("MCMCmnl() on", deparse(env$Formula), "did not work for given data"))
 	}
 	env$Newdata <- env$Data #set new data to data used for fit; user can modify this
 }

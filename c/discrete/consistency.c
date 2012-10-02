@@ -342,3 +342,55 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
 		return get_alternatives(record, record_name_in, user_to_em, *record_in_size, failed_fields);
 	return NULL;
 }
+
+void checkData(apop_data *data){
+	apop_data_show(data);
+	apop_data *edvars = apop_query_to_text("select name from variables;");
+	int nvars = edvars->textsize[0];
+	char *fields[nvars];
+	char clocus[nvars]; //which part of apop_names we find the var in
+	int locus[nvars]; //location within the part
+    for(int idx=0; idx< nvars; idx++){
+		fields[idx] = edvars->text[idx][0];
+		//look in matrix columns
+		locus[idx] = apop_name_find(data->names,fields[idx],'c');
+		//if not found, look in text columns
+		if(locus[idx]<-1){
+			locus[idx] = apop_name_find(data->names,fields[idx],'t');
+			clocus[idx] = 't';
+		}
+		else clocus[idx] = 'c';
+	}
+	//now that we have the variables, we can call check_a_record for each row
+	int id=1;
+	int *rsize = &nvars;
+	int nrow = data->matrix->size1;
+	int fails_edits;
+	int failed_fields[nvars];
+	char *vals[nvars];
+	char *what = "failed_fields";
+	apop_data *consist;
+	apop_data *failCount = apop_data_calloc(nrow,nvars);
+	//set up return apop_data names
+	for(int idx=0; idx<nvars; idx++){
+		apop_data_add_names(failCount,'c',fields[idx]);
+	}
+
+	for(int idx=0; idx<nrow; idx++){
+		for(int jdx=0; jdx<nvars; jdx++){
+			if(clocus[jdx]=='c')
+				asprintf(&vals[jdx],"%g",apop_data_get(data,idx,locus[jdx]));
+			else vals[jdx] = data->text[idx][locus[jdx]];
+			printf("%s\n",vals[jdx]);
+		}
+		consist = consistency_check(fields,vals,rsize,&what,\
+			&id,&fails_edits,failed_fields);
+		//insert failure counts
+		for(int jdx=0; jdx<nvars; jdx++){
+			printf("%i\n",failed_fields[jdx]);
+			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);
+		}
+	}
+	apop_data_show(failCount);
+}
+
