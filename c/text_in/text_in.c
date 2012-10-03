@@ -3,8 +3,6 @@
 
 int file_read = 0;
 
-
-    
 void generate_indices(char const *tablename){
     apop_data *indices = get_key_text("input", "indices");
     char *id_column = get_key_word(NULL, "id");
@@ -22,6 +20,34 @@ void generate_indices(char const *tablename){
         }
 }
 
+int join_tables(){
+    char *jointo = get_key_word("join", "host");
+    if (!jointo) return 0;
+
+    char *thistab = get_key_word("join", "add");
+    char *idcol = get_key_word("id", NULL);
+    Apop_assert(jointo && thistab, "If you have a 'join' segment in the spec, it has to have "
+                    "a 'host' key and an 'add' key.");
+    Apop_assert(idcol, "You asked me to join %s and %s, but I have no 'id' column name "
+                        "on which to join (put it outside of all groups in the spec, "
+                        "and until we get to implementing otherwise, it has to be the same for both tables).");
+    apop_query("create index j%sidx on %s(%s);\n"
+               "create index j%sidx on %s(%s);\n",
+                thistab, thistab, idcol,
+                jointo, jointo, idcol);
+    return apop_query("create table tea_temptab as select * from "
+               "%s, %s "
+               "where %s.%s = %s.%s; \n"
+               "drop table %s;\n"
+               "create table %s as select * from tea_temptab;\n"
+               "drop table tea_temptab;",
+                thistab, jointo,
+                jointo, idcol, thistab, idcol,
+                jointo,
+                jointo);
+}
+
+
 /* \key{input/input file} The text file from which to read the data set. This should be in
 the usal comma-separated format with the first row listng column names.
 \key{input/output table} The name of the table in the database to which to write the data read in.
@@ -30,24 +56,25 @@ the usal comma-separated format with the first row listng column names.
 \key input/indices Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect.
 */
 
-void text_in(){
-    char *file_in   = get_key_word("input", "input file");
-    char *table_out = get_key_word("input", "output table");
-    char *nan_marker = get_key_word("input", "missing marker");
+static int text_in_by_tag(char const *tag){
+    char *file_in   = get_key_word_tagged("input", "input file", tag);
+    char *table_out = get_key_word_tagged("input", "output table", tag);
+    char *nan_marker = get_key_word_tagged("input", "missing marker", tag);
     if (nan_marker) sprintf(apop_opts.db_nan, "%s", nan_marker);
     if (!nan_marker) nan_marker=apop_opts.db_nan;
-    Apop_assert_c(!file_read, , 0, "Already read in the input file %s; not doing it again.", file_in);
-    Apop_assert(file_in, "I don't have an input file name");
-    Apop_assert(table_out, "I don't have a name for the output table.");
-	printf("Reading text file %s into database table %s.\n", file_in, table_out);
-
-    char *overwrite = get_key_word("input", "overwrite");
+    char *overwrite = get_key_word_tagged("input", "overwrite", tag);
     if (!overwrite  || !strcasecmp(overwrite,"n") 
                     || !strcasecmp(overwrite,"no") 
                     || !strcasecmp(overwrite,"0") )
             free(overwrite), overwrite = NULL;
-    Apop_assert_c (!(!overwrite && apop_table_exists(table_out)), , 0,
+    Apop_assert_c (!(!overwrite && apop_table_exists(table_out)), 0, 0,
                         "Table %s exists; skipping the input from file %s.", table_out, file_in);
+
+    //Apop_assert_c(!apop_table_exists(table_out), 0, 0, "Already read in the input file %s; not doing it again.", file_in);
+    Apop_assert(file_in, "I don't have an input file name");
+    Apop_assert(table_out, "I don't have a name for the output table.");
+	printf("Reading text file %s into database table %s.\n", file_in, table_out);
+
     if (overwrite) apop_table_exists(table_out, 'd');
 
     //apop_data *types = get_key_text("input", "types");
@@ -61,7 +88,6 @@ void text_in(){
     //set the default type at the end of the table to character
     apop_text_add(types, types->textsize[0]-1, 0, ".*");
     apop_text_add(types, types->textsize[0]-1, 1, "text");
-
 
     char *table_key = NULL;
     char comma = ' ';
@@ -82,9 +108,27 @@ void text_in(){
                     .field_params=types, .table_params=table_key);
 	generate_indices(table_out);
     file_read ++;
+    return 0;
 }
 
+void text_in(){
+    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key like 'input%%' order by count");
+    if (!tags) return;
+    for (int i=0; i< *tags->textsize;i++)
+        text_in_by_tag(*tags->text[i]);
+    apop_data_free(tags);
+}
 
+/*
+typedef int (*int_from_char)(char const*);
+
+void foreach_tag(int_from_char fn){
+    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key like 'input%%' order by count");
+    if (!tags) return;
+
+
+}
+*/
 
 
 /* \key database The database to use for all of this. It must be the first thing on your line.

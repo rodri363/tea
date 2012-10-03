@@ -215,6 +215,7 @@ char * strip(const char *in){
 }
 
 static void set_database(char *dbname){  //only on pass 0.
+    if (!strcmp(dbname, "mem")) dbname=":memory:";
     if (verbose) printf("opening database %s.\n", dbname);
     Apop_assert(!apop_db_open(dbname), "failed to open database %s", dbname);
     database= strdup(dbname);

@@ -154,13 +154,13 @@ for (int i=0; i < vals->textsize[0]; i++)
   */
 
 //key-getting functions for the C side. Notice that get_text returns an apop_data set.
-apop_data * get_key_text(char *part1, char *part2);
-apop_data * get_key_text_tagged(char *part1, char *part2, char *tag);
-double get_key_float(char *part1, char * part2);
-apop_data* get_sub_key(char *part1);
-char* get_key_word(char *part1, char *part2);
-char* get_key_word_tagged(char *part1, char *part2, char *tag);
-void set_key_text(char *group, char *key, char *value);
+apop_data * get_key_text(char const *part1, char const *part2);
+apop_data * get_key_text_tagged(char const *part1, char const *part2, char const *tag);
+double get_key_float(char const *part1, char const * part2);
+apop_data* get_sub_key(char const *part1);
+char* get_key_word(char const *part1, char const *part2);
+char* get_key_word_tagged(char const *part1, char const *part2, char const *tag);
+void set_key_text(char const *group, char const *key, char const *value);
 
 
 /* the key is a list of numbers, delimeted by any of " \t,;". Outlist is allocated and

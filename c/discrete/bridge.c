@@ -254,7 +254,7 @@ will help. #include "tea.h" in your code, and see tea.h for overview documentati
 /** Give me a key, in either one or two parts, and I'll give you a double in
    return. If the key is not found, return \c GSL_NAN (test via \c gsl_isnan()).
 */
-double get_key_float(char *part1, char * part2){
+double get_key_float(char const *part1, char const * part2){
      char *p = NULL;
      if (part1 && part2)
          asprintf(&p, "%s/%s", part1, part2);
@@ -270,7 +270,7 @@ double get_key_float(char *part1, char * part2){
    \c returned_data->text[1][0], ....
    If the key is not found, return \c NULL.
 */
-apop_data* get_key_text(char *part1, char *part2){
+apop_data* get_key_text(char const *part1, char const *part2){
     apop_data* out = apop_query_to_text("select value from keys where "
 									    "key like '%s%s%s' order by count",
 										XN(part1),
@@ -279,8 +279,8 @@ apop_data* get_key_text(char *part1, char *part2){
     return out;
 }
 
-apop_data* get_key_text_tagged(char *part1, char *part2, char *tag){
-    if (!tag) return get_key_text(part1,part2);
+apop_data* get_key_text_tagged(char const *part1, char const *part2, char const *tag){
+    if (!tag || !strlen(tag)) return get_key_text(part1,part2);
     apop_data* out = apop_query_to_text("select value from keys where "
 									    "key like '%s%s%s' and tag like '%%%s%%'",
 										XN(part1),
@@ -292,7 +292,7 @@ apop_data* get_key_text_tagged(char *part1, char *part2, char *tag){
 /** Give me a key in two parts and I'll give you a char* with your data.
    If the key is not found, return \c NULL.
 */
-char* get_key_word(char *part1, char *part2){
+char* get_key_word(char const *part1, char const *part2){
     apop_data* almost_out = get_key_text(part1, part2);
     char *out=NULL;
     if (almost_out)
@@ -301,8 +301,8 @@ char* get_key_word(char *part1, char *part2){
     return out;
 }
 
-char* get_key_word_tagged(char *part1, char *part2, char *tag){
-    if (!tag) return get_key_word(part1,part2);
+char* get_key_word_tagged(char const *part1, char const *part2, char const *tag){
+    if (!tag || !strlen(tag)) return get_key_word(part1,part2);
     apop_data* almost_out = get_key_text_tagged(part1, part2, tag);
     char *out=NULL;
     if (almost_out)
@@ -333,11 +333,11 @@ int get_key_float_list(char *part1, char * part2, double **outlist){
 }
 
 int get_key_float_list_tagged(char *part1, char * part2, char *tag, double **outlist){
-    if (!tag) return get_key_float_list(part1, part2, outlist);
+    if (!tag || !strlen(tag)) return get_key_float_list(part1, part2, outlist);
     return breakdown(get_key_word_tagged(part1, part2, tag), outlist);
 }
 
-apop_data* get_sub_key(char *part1){
+apop_data* get_sub_key(char const *part1){
     apop_data* out = apop_query_to_text("select distinct key from keys where key like '%s/%%' order by count", part1);
 	if (out)
 		for(int i=0; i < out->textsize[0]; i++)//shift past the input key and slash.
@@ -347,11 +347,11 @@ apop_data* get_sub_key(char *part1){
 
 int vcount;
 
-void add_key_text(char *group, char *key, char *value){
+void add_key_text(char const *group, char const *key, char const *value){
     apop_query("insert into keys values('%s/%s', '', %i, '%s')", group, key, vcount++, value);
 }
 
-void set_key_text(char *group, char *key, char *value){
+void set_key_text(char const *group, char const *key, char const *value){
     apop_query("delete from keys where key='%s/%s'", group, key);
     add_key_text(group, key, value);
 }
@@ -418,14 +418,6 @@ void init_edit_list(){
 
 void verbosity(){ verbose = 1-verbose;}
 
-//Um, I (BK) couldn't work out how to just have R do this. It has to know the con, which
-//is not global.
-void teaTable(char **tab){
-    apop_data *d = apop_query_to_text("select * from %s", tab[0]);
-    apop_data_show(d);
-    apop_data_free(d);
-}
-
 void read_spec(char **infile, char **dbname_out){
     start_over();
     fname = strdup(*infile);
@@ -456,6 +448,7 @@ void read_spec(char **infile, char **dbname_out){
     //Apop_assert(!errorcount, "%i errors. Please fix and re-run.\n", errorcount);
     nflds = total_var_ct;
 	dbname_out[0] = strdup(database);
+    join_tables();
 	commit_transaction();
 }
 
@@ -470,7 +463,7 @@ void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *i
     *out = dout->textsize[0];
     apop_data_free(dout);
 }                                                             
-                                                              
+
 void get_key_text_for_R(char **group, char **key, char **tag, char **out, int *is_sub){
 	apop_data *dout;
 	if(*is_sub)
@@ -491,6 +484,6 @@ void begin_transaction(){
 }
 
 void commit_transaction(){
-    transacting--;
+    if(transacting > 0) transacting--;
     if (!transacting) apop_query("commit;");
 }

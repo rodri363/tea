@@ -33,6 +33,7 @@ void commit_transaction();
 int using_r; //r_init handles this. If zero, then it's a standalone C library.
 
 apop_data * get_variables_to_impute(char *tag); //impute/impute.c
+int join_tables(); //text_in/text_in.c
 
 void reset_ri_ext_table();  //c/discrete/name_conversions.c
 int ri_from_ext(char const *varname, char const* ext_val);

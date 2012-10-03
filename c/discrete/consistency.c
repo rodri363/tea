@@ -50,8 +50,8 @@ int prune_edits(apop_data *d, int row, int col, void *ignore){ //quick callback 
   There is one slot per field (i.e., it is unrelated to any subset of records 
   requested by the user).
   */
-int check_a_record(int const * restrict row,  int * const failures, 
-                   int const rownumber, char *const *data_as_query){
+int check_a_record(int const * restrict row,  int * failures, 
+                   int rownumber, char *const *data_as_query){
     int rowfailures[nflds];
     int out = 0, has_c_edits=0;
     if (failures)
@@ -361,15 +361,13 @@ apop_data *checkData(apop_data *data){
 		}
 		else clocus[idx] = 'c';
 	}
+    apop_data_free(edvars);
 	//now that we have the variables, we can call check_a_record for each row
 	int id=1;
-	int *rsize = &nvars;
 	int nrow = data->matrix->size1;
-	int fails_edits;
-	int failed_fields[nvars];
+	int fails_edits, failed_fields[nvars];
 	char *vals[nvars];
-	char *what = "failed_fields";
-	apop_data *consist;
+	char const *what = "failed_fields";
 	apop_data *failCount = apop_data_calloc(nrow,nvars);
 	//set up return apop_data names
 	for(int idx=0; idx<nvars; idx++){
@@ -382,13 +380,13 @@ apop_data *checkData(apop_data *data){
 				asprintf(&vals[jdx],"%g",apop_data_get(data,idx,locus[jdx]));
 			else vals[jdx] = data->text[idx][locus[jdx]];
 		}
-		consist = consistency_check(fields,vals,rsize,&what,\
+		apop_data *consist = consistency_check(fields,vals,&nvars,&what,
 			&id,&fails_edits,failed_fields);
 		//insert failure counts
 		for(int jdx=0; jdx<nvars; jdx++){
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);
 		}
+        apop_data_free(consist);
 	}
 	return(failCount);
 }
-

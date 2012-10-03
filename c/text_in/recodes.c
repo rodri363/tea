@@ -210,11 +210,14 @@ int make_recode_view(char **tag, char **first_or_last){
                    "select %s %s from %s group by %s; ",
                      group_id, group_recodestr, intab, group_id)
         || apop_query("create view tea_record_recodes as select * %s from %s", XN(recodestr), intab)
-        || apop_query("create view %s as select * from tea_record_recodes r, tea_group_stats g "
+//        || apop_query("create view %s as select * from tea_record_recodes r, tea_group_stats g "
+        || apop_query("create table %s as select * from tea_record_recodes r, tea_group_stats g "
                    "where r.%s=g.%s", out_name, group_id, group_id)
             )
     }
     else 
-        Qcheck(apop_query("create view %s as select * %s from %s", out_name, XN(recodestr), intab));
-    return set_up_triggers(intab);
+        Qcheck(apop_query("create table %s as select * %s from %s", out_name, XN(recodestr), intab));
+//        Qcheck(apop_query("create view %s as select * %s from %s", out_name, XN(recodestr), intab));
+//    return set_up_triggers(intab);
+    return 0;
 }
