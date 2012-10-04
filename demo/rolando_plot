@@ -1,0 +1,47 @@
+
+
+plotWage <- function(outname){
+    checkOutImpute("viewdc", "ok")
+    dfok <-teaTable("ok", cols="WAGP")
+    dfdc <-teaTable("dc", cols="WAGP", where="WAGP is not null")
+    dfok$WAGP <- log10(as.integer(dfok$WAGP)+1)
+    dfdc$WAGP <- log10(as.integer(dfdc$WAGP)+1)
+    dfok$imp <- "w/imputed"
+    dfdc$imp <- "original"
+    DFall <-rbind(dfdc, dfok)
+    #DFall <-dfdc
+
+
+    #plot DFall, using imp# as color
+    library(ggplot2)
+    p <- ggplot(DFall,aes(x=WAGP,color=as.factor(imp)))
+    p <- p + geom_density()
+    #p <- p + scale_color_brewer(pal="Set1")
+    p <- p + opts(axis.text.x=theme_text(angle=45,hjust=1,vjust=1))
+    bitmap(file=paste(outname,".png", sep=""),width=11*(10/11),height=8.5*(10/11),units="in",res=150)
+    print(p)
+    dev.off()
+}
+
+plotAge <- function(outname){
+    checkOutImpute("viewdc", "ok")
+    dfok <-teaTable("ok", cols="AGEP")
+    dfdc <-teaTable("dc", cols="AGEP", where="AGEP is not null")
+    #dfok$WAGP <- as.integer(dfok$WAGP)
+    #dfdc$WAGP <- as.integer(dfdc$WAGP)
+    dfok$imp <- "w/imputed"
+    dfdc$imp <- "original"
+    DFall <-rbind(dfdc, dfok)
+    #DFall <-dfdc
+
+
+    #plot DFall, using imp# as color
+    library(ggplot2)
+    p <- ggplot(DFall,aes(x=AGEP,color=as.factor(imp)))
+    p <- p + geom_density()
+    #p <- p + scale_color_brewer(pal="Set1")
+    p <- p + opts(axis.text.x=theme_text(angle=45,hjust=1,vjust=1))
+    bitmap(file=paste(outname,"png", sep=""),width=11*(10/11),height=8.5*(10/11),units="in",res=150)
+    print(p)
+    dev.off()
+}

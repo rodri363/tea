@@ -1,10 +1,14 @@
 apop_text_to_db ss08pdc.csv dc tobug.db
 
+apop_plot_query -n  tobug.db "create table fake_admin as select serialno*100+sporder as fake_id, agep+ran()*5 as fage from dc";
+
+sqlite3 -header tobug.db "select * from fake_admin;" > fake_admin
+
 for i in `seq 10 10 150` ; do
     sqlite3 tobug.db "update dc set sex=NULL where rowid = $i"
 done
 
-for i in `seq 120 3 150` ; do
+for i in `seq 1200 3 3500` ; do
     sqlite3 tobug.db "update dc set agep=NULL where rowid = $i"
 done
 

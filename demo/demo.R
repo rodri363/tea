@@ -1,8 +1,9 @@
 library(tea)
-read_spec("demo.spec")
-doInput()
-
-#doCheck()
-
-#doFingerprint()
+readSpec("demo.spec")
 doMImpute()
+
+
+
+source("rolando_plot")
+plotAge("age.")
+plotWage("wage.")
