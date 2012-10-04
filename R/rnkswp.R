@@ -35,7 +35,7 @@ RankSwapConstrained <- function(x=NULL, table=NULL, column=NULL, swap_range=0.5,
 	if(is.null(x)) {
 		if(is.null(column)) column <- PEPGetKey(key1, "column")
 		if(is.null(table)) table <- PEPGetKey(key1, "table")
-		if(is.null(table)) table <- pepenv$active_tab
+		if(is.null(table)) table <- teaenv$active_tab
 		if(is.null(column)) stop("I need to know from which colum of the table I should draw")
 		if(is.null(table)) stop("I need to know from which table I should draw")
 		x <- teaTable(table, cols=column)
@@ -51,7 +51,7 @@ RankSwapConstrained <- function(x=NULL, table=NULL, column=NULL, swap_range=0.5,
 				as.integer(cutoffsx),as.integer(lcutx),
 				as.integer(max_change),
 				as.integer(seed))[[2]];
-	if(pepenv$verbosity) print(nrnk)
+	if(teaenv$verbosity) print(nrnk)
 	x[ox] <- x[nrnk];
 	return(x)
 }

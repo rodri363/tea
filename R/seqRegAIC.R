@@ -219,14 +219,14 @@ seqRegAICfit <- function(model.spec, data){
 #' @param id unique identifier variable in the data set
 #' @param consistency if not NULL, a list (in the same variable order as model.fit) giving sentinel
 #' values for the consistency system
-#' @param con database connection to use for consistency checking. Default = pepenv\$con.
+#' @param con database connection to use for consistency checking. Default = teaenv\$con.
 #' @param bayes re-fit model using MCMC methods?
 #' @param ncore number of processor cores to use in mclapply. Default is 1
 #' @param verbose verbose output?
 #' @return a new data frame with synthetic values
 #' @author Rolando Rodriguez \email{rolando.a.rodriguez@@census.gov}
 
-seqRegAICsyn <- function(model.fit, syn.method, data, flags=vector("list",2), id = "ID", consistency = NULL, con = pepenv$con,
+seqRegAICsyn <- function(model.fit, syn.method, data, flags=vector("list",2), id = "ID", consistency = NULL, con = teaenv$con,
 	bayes = FALSE, ncore=1, verbose=FALSE){
 
 	all.lhs <- character(0)

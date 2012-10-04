@@ -5,11 +5,11 @@
 #' @param spec the configuration file to read (as character path)
 #' @param nlines the maximal number of lines to read from the config
 #' @return Nothing, but a db name and connection are placed in the global environment,
-#'    pepenv$db_name and pepenv$con
+#'    teaenv$db_name and teaenv$con
 readSpec <- function(spec,nlines=1000){
-    pepenv$db_name <-.C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
-    pepenv$con <- dbConnect(dbDriver("SQLite"), pepenv$db_name);
-    pepenv$verbosity <- 0
+    teaenv$db_name <-.C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
+    teaenv$con <- dbConnect(dbDriver("SQLite"), teaenv$db_name);
+    teaenv$verbosity <- 0
 }
 
 #' Interface with C-side record consistency checking

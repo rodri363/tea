@@ -34,8 +34,8 @@ doRake <- function(table=NULL, run_number=1, all_vars=NULL, contrasts=NULL, tole
     set_key("raking", "nudge", nudge)
     active_tab <- getInputTable("raking")
     .C("rake_for_r", as.character(active_tab)) 
-	pepenv$active_tab <- active_tab #added "_raked" on the C side
-    return(dbGetQuery(pepenv$con, paste("select * from ", pepenv$active_tab)))
+	teaenv$active_tab <- active_tab #added "_raked" on the C side
+    return(dbGetQuery(teaenv$con, paste("select * from ", teaenv$active_tab)))
 }
 
 

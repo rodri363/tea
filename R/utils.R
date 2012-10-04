@@ -151,7 +151,7 @@ teaTable <- function(table=NULL, cols=NULL, limit=NULL, offset=NULL, where=NULL,
 			ifelse(is.null(offset), " ", paste(" offset ", offset))
 		)
 print(q)
-	out <- as.data.frame(dbGetQuery(pepenv$con, q))
+	out <- as.data.frame(dbGetQuery(teaenv$con, q))
     if (!is.null(html))
         print_to_html(out, html)
 #	if (show) page(out) 
@@ -163,7 +163,7 @@ print(q)
 # You have three options on how to set tables. 
 # Highest precedence: send an input_table as an argument to the R function
 # Next: set the "input_table" setting in the relevant segment of the spec file. 
-# default: the # pepenv$active_tab variable. The idea is that on output, a procedure 
+# default: the # teaenv$active_tab variable. The idea is that on output, a procedure 
 # sets its last-edited table as the active_tab, and then the next step of the flow can
 # pick it up. 
 
@@ -172,7 +172,7 @@ getInputTable <- function(segment, cmd_line_input=NULL){
 	if (is.null(out))
 		out <- PEPGetKey(segment, "input table")
 	if (is.null(out))
-		out <- pepenv$active_tab
+		out <- teaenv$active_tab
 	if (is.null(out)) 
 		stop(paste("I can't find an \"input table\" setting in the", segment, "part of the spec file, and I currently don't have a default to use."))
 

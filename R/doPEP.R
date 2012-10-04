@@ -3,7 +3,7 @@
 #' table to make sure that they are still clean.
 #'
 #' @param input_table The table to act on. If NULL, I'll check the active table
-doPreedits <- function(input_table=pepenv$active_tab){
+doPreedits <- function(input_table=teaenv$active_tab){
     .C("do_preedits", as.character(input_table))
 }
 
@@ -37,9 +37,9 @@ doRecodes <- function(tag=NULL){
 #'		read-in once. [Technically: if present and equal to a case-insensitive version
 #'		of No, N, or 0, I won't overwrite; if present and anything else, overwrite.]
 doInput <- function(input_file=NULL,output_table=NULL,types=NULL,primary.key=NULL,indices=NULL){
-	if(is.null(pepenv$con)) stop("You need to have a spec file read in!")
-	con <- pepenv$con #for the attach-averse
-    if (pepenv$verbosity > 0)
+	if(is.null(teaenv$con)) stop("You need to have a spec file read in!")
+	con <- teaenv$con #for the attach-averse
+    if (teaenv$verbosity > 0)
         print(dbGetQuery(con,"select * from keys"))
 	if(is.null(input_file)) input_file <- PEPGetKey("input","input file")
 	if(is.null(input_file)) stop("I couldn't find the \"input file\" key in the \"input\" section of the spec.")
@@ -51,22 +51,22 @@ doInput <- function(input_file=NULL,output_table=NULL,types=NULL,primary.key=NUL
 
     #Pre-edits are here for now, at read-in, on the raw data table.
     doPreedits(tbl)
-	if (dbExistsTable(pepenv$con, paste("view",tbl,sep=""))){
-		pepenv$active_tab <- paste("view",tbl,sep="")
+	if (dbExistsTable(teaenv$con, paste("view",tbl,sep=""))){
+		teaenv$active_tab <- paste("view",tbl,sep="")
 	} else {
-		pepenv$active_tab <- tbl
+		teaenv$active_tab <- tbl
     }
 	dbGetQuery(con,
 		paste("drop table if exists",paste("ORIG",tbl,sep="")))
 	dbGetQuery(con,
 		paste("create table",paste("ORIG",tbl,sep=""),
-			"as select * from", pepenv$active_tab))
+			"as select * from", teaenv$active_tab))
 }
 
 doFingerprint <- function(flag.key=NULL,frequency=1,combinations=1,id=NULL,geolist=NULL,
 input_table=NULL){
-	if(is.null(pepenv$con)) stop("You need to have a spec file read in!")
-	con <- pepenv$con
+	if(is.null(teaenv$con)) stop("You need to have a spec file read in!")
+	con <- teaenv$con
 	viewtbl <- getInputTable("fingerprint", input_table);
 	if(is.null(flag.key)) flag.key <- PEPGetKey("fingerprint","key")
 	if(is.null(flag.key)) warning("No fingerprint key for flagging, so flagging everyone!")
@@ -80,10 +80,10 @@ input_table=NULL){
 		Rflag.SQL(con,viewtbl,flag.key,frequency,combthresh=combinations,
 			id=id,geolist=geolist,vflagrtn=TRUE,verbose=TRUE);
 	}
-	pepenv$overlay="vflags"
+	teaenv$overlay="vflags"
 }
 
-doMImpute <- function(tag=NULL, input_table=pepenv$active_tab){ 
+doMImpute <- function(tag=NULL, input_table=teaenv$active_tab){ 
 #    apop_data *category_matrix = get_key_text(configbase, "categories");
 #    int min_group_size = get_key_float(configbase, "min_group_size");
 #    int iteration_count = get_key_float(configbase, "draw_count");
@@ -107,7 +107,7 @@ doMImpute <- function(tag=NULL, input_table=pepenv$active_tab){
 #        #est <- estimateRapopModel(list(), mod)
 #    }
     .C("impute", as.character(tag), as.character(active_tab)) 
-	pepenv$active_tab <- active_tab #active_tab may have changed
+	teaenv$active_tab <- active_tab #active_tab may have changed
 }
 
-pepenv <- new.env()
+teaenv <- new.env()
