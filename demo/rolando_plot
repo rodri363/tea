@@ -1,5 +1,4 @@
 
-
 plotWage <- function(outname){
     checkOutImpute("viewdc", "ok")
     dfok <-teaTable("ok", cols="WAGP")
