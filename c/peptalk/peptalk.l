@@ -29,7 +29,7 @@ extern char parsed_type;
 digit [0-9]
 space [ \t☃]
 text [a-zA-Z_/~'][_a-zA-Z0-9./~']*
-sqlpunct (==|<=|>=|[=+/(<|>)\'"?!%]|\[|\])
+sqlpunct (==|<=|>=|[=+/(<|>)\'"?!%&]|\[|\])
 notnewline \\[ \t\n]+
 
 %option noinput
