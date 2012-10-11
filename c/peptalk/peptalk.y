@@ -148,7 +148,7 @@ preedit  : blob {add_check($1); preed2=1;} THEN blob {store_right($4);preed2=0;}
 
 declaration: DECLARATION TEXT optionalcolon TYPE {add_var($2,0, parsed_type);} numlist
 										{add_to_num_list(nan_marker ? strdup(nan_marker): NULL);}
-           | DECLARATION TEXT optionalcolon {add_var($2,0, 'c');} numlist
+           | DECLARATION TEXT optionalcolon {parsed_type='c'; add_var($2,0, 'c');} numlist
 										{add_to_num_list(nan_marker ? strdup(nan_marker): NULL);}
            | DECLARATION 
            ;
