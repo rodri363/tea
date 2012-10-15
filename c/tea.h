@@ -89,6 +89,8 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
 			int const *record_in_size, char const *const *what_you_want, 
 			int const *id, int *fails_edits, int *failed_fields);
 
+apop_data *checkData(apop_data *data);
+
 #include <apop.h>
 
 /** \defgroup config Reading configuration files
