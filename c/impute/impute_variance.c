@@ -11,6 +11,8 @@
     int maxsize = GSL_MAX(vsize, GSL_MAX(msize1, d?d->textsize[0]:0));\
     (void)(tsize||wsize||firstcol||maxsize) /*prevent unused variable complaints */;
 
+#define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
+
 /**
 Imputation (in this context) is the process of finding fill-in values for missing data
 points. Filling in values from a single imputation and then returning the values will give

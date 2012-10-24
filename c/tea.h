@@ -5,6 +5,8 @@
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
 
+#define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
+
 ///*
 #undef Apop_assert
 #undef Apop_assert_c
