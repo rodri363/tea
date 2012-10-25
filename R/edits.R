@@ -67,44 +67,6 @@ CheckConsistency <- function(vals,vars,what_you_want,con,run_id=1,na.char="NULL"
 	}
 }
 
-#' Check all rows of a data frame for failing any edits
-#' or bounds
-#' @param DF data frame you want to check
-#' @param con a connection to a database that has the tables necessary for consistency checking
-#' @param vars set of variables to check; if null, all variables are selected from the 'variables' table in DB
-#' @return a vector giving the result (1 = fail, 0 = pass) for each row
-CheckDF <- function(DF,con,vars=NULL){
-	if(nrow(DF)<1) return(NULL)
-	if(!all(vars %in% names(DF))) stop(paste("Missing the following consistency variables in your data frame",
-		paste(setdiff(vars,names(DF)),collapse=",")))
-	if(is.null(vars) & !dbExistsTable(con,"variables")) stop(paste("You need a 'variables' table",
-		"in the database if vars is NULL"))
-	if(is.null(vars)) vars <- dbGetQuery(con,"select * from variables")$name
-	#had to add as.matrix() to do literal quoting of factor values,
-	#rather than conversion to their numeric equivalents
-	Mdf <- matrix(unlist(lapply(DF,as.character)),nrow=nrow(DF))
-	colnames(Mdf) <- names(DF)
-#		dbGetQuery(con,"begin transaction")
-#		#check bounds
-#		Vfail <- rep(FALSE,nrow(DF))
-#		for(var in vars){
-#			if(is.numeric(DF[,var])) Vfail <- Vfail | as.logical(CheckBounds(DF[,var],var))
-#		}
-#		#if you didn't fail a bound, see if you fail a consistency check
-#		Vfail[!Vfail] <- apply(Mdf[!Vfail,vars],1,CheckConsistency,vars,"passfail",con)
-#		dbGetQuery(con,"commit")
-#		return(Vfail)
-#
-	if(is.null(nrow(Mdf[,vars,drop=FALSE])))
-		vret <- CheckConsistency(Mdf[,vars,drop=FALSE],vars,"passfail",con)
-		#vret <- sapply(Mdf[,vars],CheckConsistency,vars,"passfail",con)
-	else if(nrow(Mdf[,vars,drop=FALSE])>1)
-		vret <- apply(Mdf[,vars,drop=FALSE],1,CheckConsistency,vars,"passfail",con)
-	else vret <- NULL
-	names(vret) <- NULL
-	return(vret)
-}
-
 #' Check a real/integer vector for values outside of declared consistency values
 #' @param Vvar vector you want to check
 #' @param kname name of the variable in the consistency system
@@ -123,4 +85,8 @@ CheckBounds <- function(Vvar,kname,con){
 	if(is.na(kname) | is.null(kname)) stop("I need a variable name")
 	Vset <- dbGetQuery(con,paste("select * from",kname))[,kname]
 	return(as.integer(!(Vvar %in% Vset)))
+}
+
+CheckDF <- function(df){
+	return(.Call("RCheckData",df))
 }

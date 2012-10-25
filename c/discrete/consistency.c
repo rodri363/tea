@@ -343,7 +343,6 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
 
 
 apop_data *checkData(apop_data *data){
-	apop_data_show(data);
 
     //copy field names from the input data.
 	int nvars = data->names->colct + data->names->textct;

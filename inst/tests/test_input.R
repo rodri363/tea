@@ -56,7 +56,7 @@ cat(paste("fields{",
 		"	c3 z,y,x,w,v",
 		"}\n",
 		"checks{",
-		"	i1 < 2 and c3='y'",
+		"	i1 < 3 and c3='y'",
 		"}\n\n",
 	sep="\n"),
 	file="spec",
@@ -65,3 +65,6 @@ cat(paste("fields{",
 readSpec("spec")
 doInput()
 DF <- teaTable("data")
+DF <- data.frame(i1=c(0,3,2),c3=c("y","y","y"))
+print(DF) 
+CheckDF(DF)

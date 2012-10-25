@@ -181,7 +181,7 @@ void just_like_the_R_test(){
         "3|f\n"
         "83|f\n"
         "|f\n"
-        "83|");
+        "83|\n");
 
     read_spec(&specname, &db_dummy);
     text_in();
