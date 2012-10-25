@@ -19,6 +19,7 @@ void reset_ri_ext_table(){
     for (int i=0; i< ri_ext_len; i++) apop_data_free(ri_ext[i]);
     free(ri_ext);
     ri_ext=NULL;
+    ri_ext_len=0;
 }
 
 static void ri_ext_init(){

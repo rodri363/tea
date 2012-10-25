@@ -165,8 +165,8 @@ void just_like_the_R_test(){
                 "#sex: 0, 1 } \n"
                 "#checks { age > 50 and sex =\"f\" \n"
                 "#age <50 and sex=\"m\"} \n"
-                "checks { age > 50 and sex =1 \n"
-                "age <50 and sex=1} \n"
+                "checks { age > 50 and sex ='f' \n"
+                "age <50 and sex='f'} \n"
                 "impute{ input table: data \n"
                 "models{ \n"
                 "age { method: normal } \n" 
@@ -189,6 +189,10 @@ void just_like_the_R_test(){
     assert(apop_query_to_float("select count(*) from data where sex is null") == 2);
     char *d="data";
     impute(NULL, &d);
+
+
+    //this is not just like the R test:
+    apop_data_show(checkData(apop_query_to_text("select * from data")));
     apop_db_close();
     foreach(s, "spec", "t.db", "indata"){ remove(*s); }
 }

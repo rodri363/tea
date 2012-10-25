@@ -573,7 +573,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 */
         //copy the new impute to full_record, for re-testing
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
-        int size_as_int =*full_record->textsize+1;
+        int size_as_int =*full_record->textsize;
 //printf("Gut says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round, out.is_fail);
         consistency_check((char *const *)full_record->names->text,
                           (char *const *)full_record->text[0],

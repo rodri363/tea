@@ -264,23 +264,21 @@ void fill_a_record(int record[], int const record_width, char * const restrict *
     for (int i=0; i < record_width; i++)
         record[i]=-1;   //-1 == ignore-this-field marker
     for (int i=0; i < record_in_size; i++){
-        if (user_to_em[i] < 0) continue;  //This variable wasn't declared ==> can't be in an edit.
+        int ri_position = ri_from_ext(record_name_in[i], ud_values[i]);
+        if (ri_position == -100) continue;  //This variable wasn't declared ==> can't be in an edit.
 	    //	printf("Using %s at var %d with value %s\n",
     	//		record_name_in[i],user_to_em[i],ud_values[i]);
         for(int  kk = find_b[user_to_em[i]]-1; kk< find_e[user_to_em[i]]; kk++)
           record[kk] = 0;
-        int ri_position = ri_from_ext(record_name_in[i], ud_values[i]);
         Apop_assert(ri_position != -1 , "I couldn't find the value %s in your "
                 "declarations for the variable %s. Please remove the error from the data or "
                 "add that value to the declaration, then restart the program so I can rebuild "
                 "some internal data structures.", ud_values[i], record_name_in[i]);
-        if (ri_position != -100){ //-100 = undeclared = no need to check.
-            int bit = find_b[user_to_em[i]]-1 + ri_position-1;
-            Apop_assert(bit < record_width && bit >= 0, 
-                        "About to shift position %i in a record, but there "
-                        "are only %i entries.", bit, record_width);
-            record[bit] = 1;
-        }
+        int bit = find_b[user_to_em[i]]-1 + ri_position-1;
+        Apop_assert(bit < record_width && bit >= 0, 
+                    "About to shift position %i in a record, but there "
+                    "are only %i entries.", bit, record_width);
+        record[bit] = 1;
     }
     if (verbose){
         printf("record %i:\n", id);
@@ -343,50 +341,37 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
 	return NULL;
 }
 
+
 apop_data *checkData(apop_data *data){
 	apop_data_show(data);
-	apop_data *edvars = apop_query_to_text("select name from variables;");
-	int nvars = edvars->textsize[0];
+
+    //copy field names from the input data.
+	int nvars = data->names->colct + data->names->textct;
 	char *fields[nvars];
-	char clocus[nvars]; //which part of apop_names we find the var in
-	int locus[nvars]; //location within the part
-    for(int idx=0; idx< nvars; idx++){
-		fields[idx] = edvars->text[idx][0];
-		//look in matrix columns
-		locus[idx] = apop_name_find(data->names,fields[idx],'c');
-		//if not found, look in text columns
-		if(locus[idx]<-1){
-			locus[idx] = apop_name_find(data->names,fields[idx],'t');
-			clocus[idx] = 't';
-		}
-		else clocus[idx] = 'c';
-	}
-    apop_data_free(edvars);
+    memcpy(fields, data->names->column, sizeof(char*)*data->names->colct);
+    memcpy(&fields[data->names->colct], data->names->text, sizeof(char*)*data->names->textct);
+
 	//now that we have the variables, we can call check_a_record for each row
 	int id=1;
-	int nrow = data->matrix->size1;
+	int nrow = data->matrix ? data->matrix->size1: *data->textsize;
 	int fails_edits, failed_fields[nvars];
 	char *vals[nvars];
 	char const *what = "failed_fields";
 	apop_data *failCount = apop_data_calloc(nrow,nvars);
-	//set up return apop_data names
-	for(int idx=0; idx<nvars; idx++){
-		apop_data_add_names(failCount,'c',fields[idx]);
-	}
+    apop_name_stack(failCount->names, data->names, 'c', 'c');
+    apop_name_stack(failCount->names, data->names, 'c', 't');
 
 	for(int idx=0; idx<nrow; idx++){
 		for(int jdx=0; jdx<nvars; jdx++){
-			if(clocus[jdx]=='c')
-				asprintf(&vals[jdx],"%g",apop_data_get(data,idx,locus[jdx]));
-			else vals[jdx] = data->text[idx][locus[jdx]];
+			if(data->matrix && jdx < data->matrix->size2)
+				asprintf(&vals[jdx], "%g", apop_data_get(data,idx,jdx));
+			else vals[jdx] = data->text[idx][jdx];
 		}
-		apop_data *consist = consistency_check(fields,vals,&nvars,&what,
-			&id,&fails_edits,failed_fields);
+		consistency_check(fields,vals,&nvars,&what, &id,&fails_edits,failed_fields);
 		//insert failure counts
-		for(int jdx=0; jdx<nvars; jdx++){
+		for(int jdx=0; jdx < nvars; jdx++){
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);
 		}
-        apop_data_free(consist);
 	}
-	return(failCount);
+	return failCount;
 }
