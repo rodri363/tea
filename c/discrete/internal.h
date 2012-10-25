@@ -1,5 +1,6 @@
 /** \file */
 #include <apop.h>
+#define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
 typedef struct{
     char *name;

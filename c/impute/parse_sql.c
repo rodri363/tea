@@ -85,7 +85,8 @@ char *process_string(char *inquery, char **typestring){//in which we lament C's 
                 done++;
                 xprintf(&string_so_far, "%s%s ", XN(string_so_far), XN(cat));
             }
-            xprintf(typestring, "%st", XN(*typestring));
+//            xprintf(typestring, "%st", XN(*typestring));
+            xprintf(typestring, "%sm", XN(*typestring));
             capture->textsize[1]=ct;
             apop_data_free(capture);
         }

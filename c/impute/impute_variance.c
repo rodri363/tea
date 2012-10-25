@@ -1,4 +1,5 @@
 #include "imputation_variance.h"
+#define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
 // from the Apophenia internals.
 #define Get_vmsizes(d) \

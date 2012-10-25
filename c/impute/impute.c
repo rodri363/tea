@@ -123,7 +123,7 @@ typedef struct {
 	int depvar_count, position;
 	char * selectclause;
 	apop_data *isnan, *notnan;
-    bool is_bounds_checkable, is_hotdeck;
+    bool is_bounds_checkable, is_hotdeck, textdep;
 } impustruct;
 	
 static void lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
@@ -192,7 +192,6 @@ static char *construct_a_query(const char *datatab, const char *underlying, int 
     }
 	}
 */
-
     char *q;
     asprintf(&q, "select %s, %s from %s where ", id_col, varlist, datatab);
     if (!category_matrix)
@@ -354,16 +353,18 @@ printf("This set had %zu nans.\n", is->isnan->textsize[0]);
 static void model_est(impustruct *is, int *model_id){
     apop_data *notnan = is->notnan; //just an alias.
     assert(notnan);
-    for(int i=0; i< notnan->textsize[1]; i++){
+    /*for(int i=0; i< notnan->textsize[1]; i++){
         notnan->matrix=apop_matrix_realloc(notnan->matrix, 
                             notnan->matrix ? notnan->matrix->size1   : *notnan->textsize, 
                             notnan->matrix ? notnan->matrix->size2+1 : 1);
         apop_data_to_factors(notnan, .incol=i, .outcol=notnan->matrix->size2-1);
-    }
+    }*/
     //maybe check here for constant columns in regression estimations.
-    if(notnan->text && !apop_data_get_page(notnan,"<categories"))
-        for(int i=0; i< notnan->textsize[1]; i++)
-            apop_data_to_dummies(notnan, i, .keep_first='y', .append='y');
+//    if (notnan->text && !apop_data_get_page(notnan,"<categories"))
+//        for (int i=0; i< notnan->textsize[1]; i++){
+//            apop_data_to_dummies(notnan, i, .keep_first='y', .append='y');
+//            apop_data_to_dummies(is->isnan, i, .keep_first='y', .append='y'); //presumably has the same structure.
+//        }
     Apop_assert (!notnan->vector || !isnan(apop_vector_sum(notnan->vector)), 
             "NaNs in the not-NaN vector that I was going to use to estimate "
             "the imputation model. This shouldn't happen")
@@ -382,11 +383,11 @@ static void model_est(impustruct *is, int *model_id){
     if (verbose) apop_model_print(is->fitted_model);
     (*model_id)++;
     apop_query("insert into model_log values(%i, 'type', '%s');", *model_id, is->fitted_model->name);
-    /*if (is->fitted_model->parameters->vector) //others are hot-deck or kde-type
+    if (is->fitted_model->parameters->vector) //others are hot-deck or kde-type
         for (int i=0; i< is->fitted_model->parameters->vector->size; i++)
             apop_query("insert into model_log values(%i, '%s', %g);",
                     *model_id, is->fitted_model->parameters->names->row[i],
-                              is->fitted_model->parameters->vector->data[i]);*/
+                              is->fitted_model->parameters->vector->data[i]);
     apop_query("insert into model_log values(%i, 'subuniverse size', %i);"
                     , *model_id, (int)is->fitted_model->data->matrix->size1);
     /*if (is->fitted_model->parameters->vector)
@@ -395,10 +396,15 @@ static void model_est(impustruct *is, int *model_id){
 
 static void prep_for_draw(apop_data *notnan, impustruct *is){
     apop_lm_settings *lms = apop_settings_get_group(is->fitted_model, apop_lm);
+    if (is->textdep){
+        apop_data_to_factors(is->isnan);
+        apop_data_to_factors(is->notnan);
+    }
     if (lms){
         apop_data *p = apop_data_copy(notnan);
         p->vector=NULL;
         lms->input_distribution = apop_estimate(p, apop_pmf);
+        is->fitted_model->dsize=1;
     }
 }
 
@@ -795,15 +801,18 @@ void impute(char **tag, char **idatatab){
 		char *varkey;
 		asprintf(&varkey, "models/%s/vars", models[i].depvar);
 		char *d = get_key_word(configbase, varkey);
-            for (int j=0; j < total_var_ct; j++)
-                if (!strcasecmp(used_vars[j].name, models[i].depvar)){
-                    if (used_vars[j].type=='c') asprintf(&models[i].vartypes, "%st", models[i].vartypes);
-                    else                        asprintf(&models[i].vartypes, "%sm", models[i].vartypes);
-                    break;
-                }
-		if (!d) asprintf(&models[i].selectclause, "%s", models[i].depvar);	
+        int gotit=0;
+        for (int j=0; j < total_var_ct && !gotit; j++)
+            if (!strcasecmp(used_vars[j].name, models[i].depvar)){
+                if (used_vars[j].type=='c') asprintf(&models[i].vartypes, "%smt", models[i].vartypes), models[i].textdep=true;
+                else                        asprintf(&models[i].vartypes, "%sm", models[i].vartypes);
+                gotit=1;
+            }
+        if (!gotit) asprintf(&models[i].vartypes, "%smt", models[i].vartypes), models[i].textdep=true; //assume text.
+		if (!d) asprintf(&models[i].selectclause, "%s%s", models[i].textdep ? "1 as %s": " ", models[i].depvar);	
         else    asprintf(&models[i].selectclause, "%s, %s", models[i].depvar, 
 										process_string(d, &(models[i].vartypes)));
+        /*else    asprintf(&models[i].selectclause, "%s", process_string(d, &(models[i].vartypes)));*/
 	}
     //The models list has one for each item in the spec. Position is in em order.
     models[vars_to_impute] = (impustruct) {.position=-2}; //NULL sentinel
@@ -839,16 +848,3 @@ void get_means(){
     //apop_data_show(apop_multiple_imputation_variance(colmeans, main_data, fill_ins));
     apop_data_free(main_data);
 }
-
-
-/*
-The alternative would work thusly:
-
-checkout an imputation; make sure rowids mesh.
-
-run consistency_check on every row
-if a change, update filled set value = %s where field = '%s' and rowid = %i
-
-Um, then you're done?
-
- */
