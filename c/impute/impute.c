@@ -383,7 +383,7 @@ static void model_est(impustruct *is, int *model_id){
     if (verbose) apop_model_print(is->fitted_model);
     (*model_id)++;
     apop_query("insert into model_log values(%i, 'type', '%s');", *model_id, is->fitted_model->name);
-    if (is->fitted_model->parameters->vector) //others are hot-deck or kde-type
+    if (is->fitted_model->parameters && is->fitted_model->parameters->vector) //others are hot-deck or kde-type
         for (int i=0; i< is->fitted_model->parameters->vector->size; i++)
             apop_query("insert into model_log values(%i, '%s', %g);",
                     *model_id, is->fitted_model->parameters->names->row[i],
@@ -396,10 +396,7 @@ static void model_est(impustruct *is, int *model_id){
 
 static void prep_for_draw(apop_data *notnan, impustruct *is){
     apop_lm_settings *lms = apop_settings_get_group(is->fitted_model, apop_lm);
-    if (is->textdep){
-        apop_data_to_factors(is->isnan);
-        apop_data_to_factors(is->notnan);
-    }
+    if (is->textdep) apop_data_to_factors(is->notnan);
     if (lms){
         apop_data *p = apop_data_copy(notnan);
         p->vector=NULL;
@@ -563,11 +560,9 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         if (!is->is_hotdeck && is->is_bounds_checkable) //inputs all valid ==> outputs all valid
             check_bounds(&x, is->depvar, type); // just use the rounded value.
         apop_data *f;
-        char *cats; asprintf(&cats, "<categories for %s>", is->depvar);
-        if ((f = apop_data_get_page(is->fitted_model->data, cats)))
+        if (is->textdep && (f = apop_data_get_factor_names(is->fitted_model->data, .type='t')))
              out.textx = strdup(*f->text[(int)x]);
         else asprintf(&out.textx, "%g", x);
-        free (cats);
 /*        apop_query("insert into impute_log values(%i, %i, %i, %g, '%s', 'cc')",
                                 id_number, fail_id, model_id, out.pre_round, out.textx);
 */
@@ -800,7 +795,7 @@ void impute(char **tag, char **idatatab){
         models[i].base_model = tea_get_model_by_name(vars->text[i][1]);
 		char *varkey;
 		asprintf(&varkey, "models/%s/vars", models[i].depvar);
-		char *d = get_key_word(configbase, varkey);
+		char *indep_vars = get_key_word(configbase, varkey);
         int gotit=0;
         for (int j=0; j < total_var_ct && !gotit; j++)
             if (!strcasecmp(used_vars[j].name, models[i].depvar)){
@@ -809,10 +804,12 @@ void impute(char **tag, char **idatatab){
                 gotit=1;
             }
         if (!gotit) asprintf(&models[i].vartypes, "%smt", models[i].vartypes), models[i].textdep=true; //assume text.
-		if (!d) asprintf(&models[i].selectclause, "%s%s", models[i].textdep ? "1 as %s": " ", models[i].depvar);	
-        else    asprintf(&models[i].selectclause, "%s, %s", models[i].depvar, 
-										process_string(d, &(models[i].vartypes)));
-        /*else    asprintf(&models[i].selectclause, "%s", process_string(d, &(models[i].vartypes)));*/
+
+        //if a text dependent var, set aside a column to be filled in with factors.
+        asprintf(&models[i].selectclause, "%s%s", models[i].textdep ? "1, ": " ", models[i].depvar);	
+        if (indep_vars)
+            asprintf(&models[i].selectclause, "%s, %s", models[i].selectclause,
+										process_string(indep_vars, &(models[i].vartypes)));
 	}
     //The models list has one for each item in the spec. Position is in em order.
     models[vars_to_impute] = (impustruct) {.position=-2}; //NULL sentinel

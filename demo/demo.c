@@ -1,10 +1,11 @@
-#include "../tea/src/tea.h"
+#include "../src/tea.h"
 #include <apop.h>
 
 void tea_c_tests();
 
 int main(int argc, char **argv){
 	tea_c_tests();
+    /*
     apop_opts.thread_count = 2;
     gsl_rng *r = apop_rng_alloc(213);
  
@@ -19,5 +20,5 @@ init_edit_list();
 
     char *tabname = "dc";
     do_preedits(&tabname);
-
+*/
 }
