@@ -142,7 +142,7 @@ teaTable <- function(table=NULL, cols=NULL, limit=NULL, offset=NULL, where=NULL,
 	if (is.null(table))  stop("You need to specify a table for me to show") 
 
 	q <- paste("select ",
-			ifelse(is.null(cols), " * ", cols),
+			ifelse(is.null(cols), " * ", paste(cols,collapse=",")),
 			" from ", table,
 			ifelse(is.null(where), " ", paste(" where ", where)),
 			ifelse(is.null(limit), 
@@ -170,7 +170,7 @@ print(q)
 getInputTable <- function(segment, cmd_line_input=NULL){
 	out <- cmd_line_input
 	if (is.null(out))
-		out <- PEPGetKey(segment, "input table")
+		out <- teaGetKey(segment, "input table")
 	if (is.null(out))
 		out <- teaenv$active_tab
 	if (is.null(out)) 
@@ -207,11 +207,11 @@ checkOutImpute <- function(origin=NULL, dest=NULL, imputation_number=0, subset=N
 # keyTOval, existKey, getKey, CSVtoTAB unused; removed.
 # Restore via git checkout 6c8a929c .
 
-#' Get key values using the underlying PEP database connection
+#' Get key values using the underlying tea database connection
 #' @param group the key group
 #' @param key the key
 #' @return character vector containing all the lines from the key
-PEPGetKey <- function(group, key=NULL, tag=NULL){
+teaGetKey <- function(group, key=NULL, tag=NULL){
 	group <- as.character(group)
 	sub <- FALSE
 	if(is.null(key)) sub <- TRUE
@@ -242,7 +242,7 @@ PEPGetKey <- function(group, key=NULL, tag=NULL){
 
 TEAGetKey <- function(group="", key=NULL, tag=NULL, invalue=NULL, errormsg=NULL, usekey=FALSE){
     outval <- eval(invalue)
-    specvalue <- PEPGetKey(group, key, tag)
+    specvalue <- teaGetKey(group, key, tag)
     if ((is.null(invalue) || usekey) && !is.null(specvalue)) outval <- specvalue
     if (is.null(outval) && !is.null(errormsg))
         stop(errormsg)

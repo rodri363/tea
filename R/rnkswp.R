@@ -24,17 +24,17 @@
 #' @return the swapped vector
 RankSwapConstrained <- function(x=NULL, table=NULL, column=NULL, swap_range=0.5, max_change=1, seed=31337){
 	key1 <- "rankSwap"
-	potentialseed <-PEPGetKey(key1,"seed")
-	potentialswaprange <-PEPGetKey(key1,"swap range")
-	potentialmaxchange <-PEPGetKey(key1,"max change")
+	potentialseed <-teaGetKey(key1,"seed")
+	potentialswaprange <-teaGetKey(key1,"swap range")
+	potentialmaxchange <-teaGetKey(key1,"max change")
 	if(!is.null(potentialseed)) seed <- potentialseed
 	if(!is.null(potentialmaxrange)) seed <- potentialmaxrange
 	if(!is.null(potentialswaprange)) seed <- potentialswaprange
 
 	#we accept either a vector x or a db table column
 	if(is.null(x)) {
-		if(is.null(column)) column <- PEPGetKey(key1, "column")
-		if(is.null(table)) table <- PEPGetKey(key1, "table")
+		if(is.null(column)) column <- teaGetKey(key1, "column")
+		if(is.null(table)) table <- teaGetKey(key1, "table")
 		if(is.null(table)) table <- teaenv$active_tab
 		if(is.null(column)) stop("I need to know from which colum of the table I should draw")
 		if(is.null(table)) stop("I need to know from which table I should draw")
