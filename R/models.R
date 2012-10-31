@@ -112,8 +112,7 @@ TEA.MCMCmnl.draw <- function(env){
 	#different row for each record?
 	#Vrow <- sample(1:nrow(Fit),nrow(Msub),replace=TRUE)
 	#same row for all
-	#Vrow <- rep(RapopModelDraw(env$parameterModel),nrow(Msub))
-	Vrow <- rep(sample(1:nrow(env$Fit),1),nrow(Msub))
+	Vrow <- sample(1:nrow(env$Fit),1)
 	#since we are matching up factor levels, can just use levels() here
 	Vlev <- levels(env$Newdata[[all.vars(env$Formula)[1]]])
     Mp <- NULL
@@ -126,8 +125,9 @@ TEA.MCMCmnl.draw <- function(env){
 		Vcol <- ((1:ncol(env$Fit))-(ldx-1))%%(length(Vlev)-1)==0
 		#params for each row
 		Mlev <- env$Fit[Vrow,Vcol]
-		if(nrow(Msub)==1) Mlev <- t(matrix(Mlev)) #handle vector beta for a single row
-		Vlogits <- diag(Msub %*% t(Mlev)) #logits
+		Mlev <- matrix(Mlev)
+		if(nrow(Msub)==1) Mlev <- t(Mlev) #handle vector beta for a single row
+		Vlogits <- Msub %*% Mlev #logits
 		Mp <- cbind(Mp,Vlogits)
 	}
 	#at this point, Mp is a matrix of logits
@@ -213,12 +213,15 @@ TEA.MCMCregress.draw <- function(env){
 	#sample a row for each observation
 #	Vrow <- sample(1:nrow(env$Fit),nrow(Msub),replace=TRUE)
 	#same row for entire implicate
-	Vrow <- rep(sample(1:nrow(env$Fit),1),nrow(Msub))
-	#betas
+#	Vrow <- rep(sample(1:nrow(env$Fit),1),nrow(Msub))
+	Vrow <- sample(1:nrow(env$Fit),1)
+	#betas, -sigma2 column
 	Mbeta <- env$Fit[Vrow,-ncol(env$Fit)]
-	if(nrow(Msub)==1) Mbeta <- t(matrix(Mbeta)) #handle vector beta for a single row
+	Mbeta <- matrix(Mbeta)
+	if(nrow(Msub)==1) Mbeta <- t(Mbeta) #handle vector beta for a single row
 	Vsig <- sqrt(env$Fit[Vrow,ncol(env$Fit)]) #sigma
-	Vmu <- diag(Msub %*% t(Mbeta))
+#	Vmu <- diag(Msub %*% Mbeta)
+	Vmu <- Msub %*% Mbeta
 	Vdraw <- rnorm(nrow(Msub),Vmu,Vsig)
 
 	lhs <- all.vars(env$Formula)[1]

@@ -306,7 +306,7 @@ TEAConformDF <- function(DF, DFbase){
 	#column becoming a simple vector
 	DF0 <- DFbase[,unlist(lapply(DFbase,ffac)),drop=FALSE]
 	DF1 <- DF[,unlist(lapply(DF,ffac)),drop=FALSE]
-	lfac <- mapLevels(DF0)
+	lfac <- mapLevels(DF0,codes=FALSE)
 	mapLevels(DF1) <- lfac
 	#replace character/factors in DF with factors from DF1
 	DF[names(DF1)] <- DF1
