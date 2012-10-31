@@ -64,13 +64,11 @@ teagam <- new("apop_model", name="teagam",
 #' for future draws from the model.
 
 TEA.MCMCmnl.est <- function(env){
+	if(is.null(env$debug)) env$debug <- FALSE
+	if(env$debug) browser()
 	#all variables
 	Vvar <- all.vars(env$Formula)
-	env$Data <- env$Data[,Vvar]
-	ffact <- function(x){
-		if(is.character(x)) return(factor(x))
-		else return(x)
-	}
+	env$Data <- env$Data[Vvar]
 	env$Data <- TEAConformDF(env$Data,env$Data)
 	env$Fit <- try(MCMCmnl(env$Formula,data=env$Data))
 	if(inherits(env$Fit,"try-error")){
