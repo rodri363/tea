@@ -30,7 +30,7 @@ int join_tables(){
                     "a 'host' key and an 'add' key.");
     Apop_assert(idcol, "You asked me to join %s and %s, but I have no 'id' column name "
                         "on which to join (put it outside of all groups in the spec, "
-                        "and until we get to implementing otherwise, it has to be the same for both tables).");
+                        "and until we get to implementing otherwise, it has to be the same for both tables).", thistab, jointo);
     apop_query("create index j%sidx on %s(%s);\n"
                "create index j%sidx on %s(%s);\n",
                 thistab, thistab, idcol,

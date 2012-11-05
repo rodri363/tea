@@ -21,7 +21,12 @@ int total_option_ct, total_var_ct, *optionct;
 char *database;
 apop_data *settings_table, *ud_queries;
 
-void implicit_edits();
+
+/* The implicit edit code has been removed---it never worked. The last edition that had it was 
+git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
+git-svn-id: svn+ssh://svn.r-forge.r-project.org/svnroot/tea@107 edb9625f-4e0d-4859-8d74-9fd3b1da38cb
+*/
+
 void db_to_em();
 int yyparse();
 
@@ -30,12 +35,8 @@ int pass = 0; //The config file has to be scanned multiple times.
 int has_edits = 0; //incremented in peptalk.y if there's a checks{} group in the config.
 char *fname = "-stdin-";
 
+/* This is what the parser calls on error. */
 int yyerror(const char *s) { Apop_assert_c(0, 0, 0, "%s(%d): %s\n",fname,lineno,s); }
-
-void get_costs(double * restrict out){ 
-    for (size_t i=0; i< total_var_ct; i++) 
-        out[i]= used_vars[i].weight; 
-}
 
 /* This file does most of the initial processing of a table. There are many steps.
 Following recipe format, I'll list the ingredients, then give the steps.
@@ -404,7 +405,6 @@ void init_edit_list(){
 		find_e = malloc(sizeof(int)*nflds);
         setup_findxbe();
         db_to_em();
-        implicit_edits();
 	}
     if (edit_list) {
         apop_assert(database, "Please declare a database using 'database: your_db'.");
