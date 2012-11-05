@@ -6,8 +6,6 @@
 void init_edit_list();
 void xprintf(char **q, char *format, ...); //in ../impute/parse_sql.c
 
-extern int  total_var_ct;
-
 /* A great deal of the pain that went into writing this file was from letting
    the user provide variables in any order, and only a few. We thus have one
    numbering system for the user's list of variables, and one for the edit
@@ -50,7 +48,7 @@ int prune_edits(apop_data *d, int row, int col, void *ignore){ //quick callback 
   There is one slot per field (i.e., it is unrelated to any subset of records 
   requested by the user).
   */
-int check_a_record(int const * restrict row,  int * failures, 
+static int check_a_record(int const * restrict row,  int * failures, 
                    int rownumber, char *const *data_as_query){
     int rowfailures[nflds];
     int out = 0, has_c_edits=0;
@@ -149,7 +147,7 @@ int check_a_record(int const * restrict row,  int * failures,
     have passed.
 
    */
-void do_a_combo(int *record, char *const restrict  *record_name_in, int const *user_to_em, int const record_in_size, 
+static void do_a_combo(int *record, char *const restrict  *record_name_in, int const *user_to_em, int const record_in_size, 
          int const *failed_edits_in, int const this_field, int const field_count, apop_data *fillme,
 		 jmp_buf jmpbuf, time_t const timeout){
 
@@ -169,9 +167,6 @@ void do_a_combo(int *record, char *const restrict  *record_name_in, int const *u
             if (i > 0) //clear the last value
                 record[find_b[this_field_index]-1+i-1] = 0;
         }
-		/*for(int x=0;x<this_field; x++)
-			printf("\t");
-		printf("%i\n", option_ct);*/
         if (this_field +1 < nflds)
             do_a_combo(record, record_name_in, user_to_em, record_in_size,
 							failed_edits_in, this_field+1, field_count, fillme, jmpbuf, timeout);
@@ -207,7 +202,7 @@ void do_a_combo(int *record, char *const restrict  *record_name_in, int const *u
     and fills via the recursive \c do_a_combo function above. So this is really just the
     prep function for the recursion, where the real work happens.
 */
-apop_data * get_alternatives(int *restrict record, char *const  restrict  *record_name_in, 
+static apop_data * get_alternatives(int *restrict record, char *const  restrict  *record_name_in, 
 							int const *restrict user_to_em, int const record_in_size, 
 							int const *restrict  failing_records){
     int total_fails = 0;
@@ -241,7 +236,7 @@ apop_data * get_alternatives(int *restrict record, char *const  restrict  *recor
 }
 
 //set up the cross-index conversions. 
-void setup_conversion_tables(char * const restrict* record_name_in, int record_in_size){
+static void setup_conversion_tables(char * const restrict* record_name_in, int record_in_size){
 	em_to_user = realloc(em_to_user, sizeof(int)*total_var_ct);
 	user_to_em = realloc(user_to_em, sizeof(int)*record_in_size);
 	memset(em_to_user, -1, sizeof(int)*total_var_ct);
@@ -258,7 +253,7 @@ void setup_conversion_tables(char * const restrict* record_name_in, int record_i
 
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
-void fill_a_record(int record[], int const record_width, char * const restrict *record_name_in, 
+static void fill_a_record(int record[], int const record_width, char * const restrict *record_name_in, 
                         char * const restrict* ud_values, int record_in_size, 
                                 int id, char **qstring){
     for (int i=0; i < record_width; i++)
@@ -301,7 +296,7 @@ void fill_a_record(int record[], int const record_width, char * const restrict *
 }
 
 //A lengthy assertion checking that failed_fields and fails_edits are in sync.
-void do_fields_and_fails_agree(int *failed_fields, int fails_edits, int nflds){
+static void do_fields_and_fails_agree(int *failed_fields, int fails_edits, int nflds){
     int total_fails = 0;
     for (int k=0; k < nflds; k++)
         total_fails += failed_fields[k];
@@ -325,7 +320,7 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
     char *qstring;
     if (record_name_in) setup_conversion_tables(record_name_in, *record_in_size);
 	fill_a_record(record, width, record_name_in, ud_values, *record_in_size, *id, &qstring);
-    if (apop_strcmp(what_you_want[0], "passfail")){
+    if (!strcmp(what_you_want[0], "passfail")){
         *fails_edits = check_a_record(record, NULL, 0, &qstring);
         free(qstring);
         return NULL;
@@ -334,13 +329,12 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
     free(qstring);
     do_fields_and_fails_agree(failed_fields, *fails_edits, nflds);
 
-    if (apop_strcmp(what_you_want[0], "failed_fields"))
+    if (!strcmp(what_you_want[0], "failed_fields"))
         return NULL;
-    if (apop_strcmp(what_you_want[0], "find_alternatives") && *fails_edits)
+    if (!strcmp(what_you_want[0], "find_alternatives") && *fails_edits)
 		return get_alternatives(record, record_name_in, user_to_em, *record_in_size, failed_fields);
 	return NULL;
 }
-
 
 apop_data *checkData(apop_data *data){
 

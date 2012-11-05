@@ -97,7 +97,6 @@ apop_data *checkData(apop_data *data);
 
 /** \defgroup config Reading configuration files
 
-
 Given that \ref read_spec has read in one or more config files, this function will pull
 individual values.
 
@@ -112,8 +111,7 @@ apop_data *val1 = get_key_text(base, "key1", .optional = 'y');
 apop_data *val2 = get_key_text(base, "key2");
 \endcode
 
-
-  */
+*/
 
 /** \fn double get_key_float(char *part1, char * part2, char optional);
 
@@ -136,11 +134,9 @@ for (int i=0; i < vals->textsize[0]; i++)
 A small warning: the internals can't distinguish between no default value and
 <tt>.default_val=0</tt>, so design your keys with the knowledge that zero basically can't
 be the default.
-
-  */
+*/
 
 /** \fn apop_data * get_key_text(char *part1, char * part2, char optional);
-
 
   \param part1 The base of the key
   \param part2 The end of the key
@@ -161,21 +157,13 @@ for (int i=0; i < vals->textsize[0]; i++)
 apop_data * get_key_text(char const *part1, char const *part2);
 apop_data * get_key_text_tagged(char const *part1, char const *part2, char const *tag);
 double get_key_float(char const *part1, char const * part2);
-apop_data* get_sub_key(char const *part1);
 char* get_key_word(char const *part1, char const *part2);
 char* get_key_word_tagged(char const *part1, char const *part2, char const *tag);
 void set_key_text(char const *group, char const *key, char const *value);
 
-
-/* the key is a list of numbers, delimeted by any of " \t,;". Outlist is allocated and
- filled; returns the element count. */
-int get_key_float_list(char *part1, char * part2, double **outlist);
-int get_key_float_list_tagged(char *part1, char * part2, char *tag, double **outlist);
-
 void impute(char **tag, char **active_tab);
 void text_in();
 
-//void recodes(char **key, char** tag, char **outstring, char **intable); //just the recode string
 int make_recode_view(char **tag, char **first_or_last);//query to generate the view
 
 void do_preedits(char **datatab);
@@ -184,10 +172,6 @@ void do_preedits(char **datatab);
    */
 void check_out_impute(char **origin, char **dest, int *imputation_number, char **subset);
 void check_in_impute(char *origin, int serialno, int imputation_number);
-
-
-//convert a name like "normal" to a model, like apop_normal.
-apop_model tea_get_model_by_name(char *name);
 
 //peptalk.y, public mostly for the recodes.
 char * strip(const char *in); //Remove leading/trailing white space

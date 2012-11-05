@@ -207,7 +207,7 @@ checkOutImpute <- function(origin=NULL, dest=NULL, imputation_number=0, subset=N
 # keyTOval, existKey, getKey, CSVtoTAB unused; removed.
 # Restore via git checkout 6c8a929c .
 
-#' Get key values using the underlying tea database connection
+#' Get key values using the underlying Tea database connection
 #' @param group the key group
 #' @param key the key
 #' @return character vector containing all the lines from the key

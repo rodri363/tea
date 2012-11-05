@@ -754,7 +754,7 @@ apop_data * get_variables_to_impute(char *tag){ //This function is so very awkwa
   \key{impute/seed} The RNG seed
   \key{impute/draw count} How many multiple imputations should we do? Default: 5.
  */
-void impute(char **tag, char **idatatab){ 
+void do_impute(char **tag, char **idatatab){ 
     char *configbase = "impute";
     Apop_assert(*idatatab, "I need an input table, "
                         "via a '%s/input table' key. Or, search the documentation "
@@ -823,6 +823,24 @@ void impute(char **tag, char **idatatab){
                           category_matrix, fingerprint_vars, id_col);
     apop_data_free(fingerprint_vars);
     sprintf(apop_opts.db_name_column, "%s", tmp_db_name_col);
+}
+
+void impute(char **idatatab){ 
+    apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%' and tag !=''");
+    if (!tags){
+        Apop_assert(apop_query_to_float("%s", "select count(*) "
+                "from keys where key like 'impute/output vars/%'") == 1,
+        "You gave me multiple 'impute' sections in the spec file (there are multiple 'output vars' lines) "
+        "but the segments have no tags. This is going to be fatally confusing to me. Please add tags, like "
+        "impute [tag1] {...}    impute [tag2] {...} .");
+        do_impute(NULL, idatatab);
+    } else{
+        apop_data_free(tags);
+        tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
+        for (int i=0; i< *tags->textsize; i++)
+            do_impute(tags->text+i, idatatab);
+        apop_data_free(tags);
+    }
 }
 
 /* multiple_imputation_variance's default now.

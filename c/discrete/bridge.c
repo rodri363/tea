@@ -17,7 +17,7 @@ As of 4 May 2010, the main() function has been removed---it works only via PEP's
 int edit_ct, nflds, errorcount, verbose, run_number, explicit_ct;
 int *find_b, *find_e;
 FILE *yyin;
-int total_option_ct, total_var_ct, *optionct;
+int total_var_ct, *optionct;
 char *database;
 apop_data *settings_table, *ud_queries;
 
@@ -25,9 +25,10 @@ apop_data *settings_table, *ud_queries;
 /* The implicit edit code has been removed---it never worked. The last edition that had it was 
 git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
 git-svn-id: svn+ssh://svn.r-forge.r-project.org/svnroot/tea@107 edb9625f-4e0d-4859-8d74-9fd3b1da38cb
+
+get_key_float_list and get_key_float_list_tagged also made their last appearance there.
 */
 
-void db_to_em();
 int yyparse();
 
 int lineno = 1;
@@ -94,7 +95,7 @@ Each query produces a (apop_data) table of not-OK values, in the
  8 (2,5)
  */
 
-int pull_index(char const *in_name){
+static int pull_index(char const *in_name){
     for (int i =0; i< total_var_ct; i++)
         if (!strcasecmp(used_vars[i].name, in_name))
             return i;
@@ -106,7 +107,7 @@ we can merge this edit into the last run.  In terms of the little machine below,
 switching to the 's' state and continuing in state 'e'.
 This is never called when current_row==0.
 */
-char is_new_edit(apop_data *explicits, int current_row){
+static char is_new_edit(apop_data *explicits, int current_row){
     static int last_changed = -1;
 	for (int i=0; i< explicits->textsize[1]; i++)
 		if (!apop_strcmp(explicits->text[current_row][i], explicits->text[current_row-1][i])){
@@ -120,9 +121,6 @@ char is_new_edit(apop_data *explicits, int current_row){
 	return 'e';
 }
 
-apop_data *edit_grid; //generated here; useed by consistency_check.
-
-		
 /* At this point, we have a list of tables representing each edit.
 
    This little machine will do one of these things:
@@ -147,6 +145,10 @@ void db_to_em(void){
     int em_i = 0, field; 
 	char *ud_val;
     apop_data *d=NULL;
+
+    int total_option_ct = 0;
+    for (int i=0; i< total_var_ct; i++) total_option_ct +=optionct[i];
+
 	while(1){
         //d = ud_explicits[current_explicit];
         if (next_phase == 's'){ //starting a new edit
@@ -246,11 +248,7 @@ void db_to_em(void){
 }
 
 
-/* \page Lib Library versions of the routine.
-
-If you are using this system as a library inside a larger program, then these functions
-will help. #include "tea.h" in your code, and see tea.h for overview documentation.
-*/
+///// Here are functions to get keys from the key/value table generated from parsing the config.
 
 /** Give me a key, in either one or two parts, and I'll give you a double in
    return. If the key is not found, return \c GSL_NAN (test via \c gsl_isnan()).
@@ -266,28 +264,28 @@ double get_key_float(char const *part1, char const * part2){
 }
 
 /** Give me a key, in either one or two parts, and I'll give you an apop_data
- * set with a text element filled with your data. Access via 
+set with a text element filled with your data. Access via 
    \c returned_data->text[0][0]
    \c returned_data->text[1][0], ....
-   If the key is not found, return \c NULL.
+   \c apop_data_free(returned_data);
+
+\return  If the key is not found, return \c NULL.
 */
 apop_data* get_key_text(char const *part1, char const *part2){
-    apop_data* out = apop_query_to_text("select value from keys where "
+    return apop_query_to_text("select value from keys where "
 									    "key like '%s%s%s' order by count",
 										XN(part1),
 										(part1&&part2)?"/":"",
 										XN(part2));
-    return out;
 }
 
 apop_data* get_key_text_tagged(char const *part1, char const *part2, char const *tag){
     if (!tag || !strlen(tag)) return get_key_text(part1,part2);
-    apop_data* out = apop_query_to_text("select value from keys where "
+    return apop_query_to_text("select value from keys where "
 									    "key like '%s%s%s' and tag like '%%%s%%'",
 										XN(part1),
 										(part1&&part2)?"/":"",
 										XN(part2), XN(tag));
-    return out;
 }
 
 /** Give me a key in two parts and I'll give you a char* with your data.
@@ -296,8 +294,7 @@ apop_data* get_key_text_tagged(char const *part1, char const *part2, char const 
 char* get_key_word(char const *part1, char const *part2){
     apop_data* almost_out = get_key_text(part1, part2);
     char *out=NULL;
-    if (almost_out)
-        out = strdup (almost_out->text[0][0]);
+    if (almost_out) out = strdup (almost_out->text[0][0]);
     apop_data_free(almost_out);
     return out;
 }
@@ -306,39 +303,12 @@ char* get_key_word_tagged(char const *part1, char const *part2, char const *tag)
     if (!tag || !strlen(tag)) return get_key_word(part1,part2);
     apop_data* almost_out = get_key_text_tagged(part1, part2, tag);
     char *out=NULL;
-    if (almost_out)
-        out = strdup (almost_out->text[0][0]);
+    if (almost_out) out = strdup (almost_out->text[0][0]);
     apop_data_free(almost_out);
     return out;
 }
 
-int breakdown(char *inlist, double **outlist){
-    char *saveptr;
-    int ct=0;
-    *outlist = NULL;
-    if (!inlist)
-        return 0;
-    for (char* str1 = inlist; ; str1 = NULL) {
-        char *token = strtok_r(str1, ",;\t ", &saveptr);
-        if (token == NULL)
-            break;
-        *outlist = realloc(*outlist, sizeof(double)*++ct);
-        (*outlist)[ct-1] = atof(token);
-    }
-    free(inlist);
-    return ct;
-}
-
-int get_key_float_list(char *part1, char * part2, double **outlist){
-    return breakdown(get_key_word(part1, part2), outlist);
-}
-
-int get_key_float_list_tagged(char *part1, char * part2, char *tag, double **outlist){
-    if (!tag || !strlen(tag)) return get_key_float_list(part1, part2, outlist);
-    return breakdown(get_key_word_tagged(part1, part2, tag), outlist);
-}
-
-apop_data* get_sub_key(char const *part1){
+static apop_data* get_sub_key(char const *part1){
     apop_data* out = apop_query_to_text("select distinct key from keys where key like '%s/%%' order by count", part1);
 	if (out)
 		for(int i=0; i < out->textsize[0]; i++)//shift past the input key and slash.
@@ -348,7 +318,7 @@ apop_data* get_sub_key(char const *part1){
 
 int vcount;
 
-void add_key_text(char const *group, char const *key, char const *value){
+static void add_key_text(char const *group, char const *key, char const *value){
     apop_query("insert into keys values('%s/%s', '', %i, '%s')", group, key, vcount++, value);
 }
 
@@ -386,11 +356,12 @@ void start_over(){ //Reset everything in case this wasn't the first call
     errorcount =
     explicit_ct =
     total_var_ct =
-    total_option_ct =
     impute_is_prepped = 0;
 }
 
 void setup_findxbe(){
+    find_b = malloc(sizeof(int)*nflds);
+    find_e = malloc(sizeof(int)*nflds);
     find_b[0] = 1;
     find_e[0] = optionct[0];
     for(int i =1; i< total_var_ct; i++){
@@ -401,8 +372,6 @@ void setup_findxbe(){
 
 void init_edit_list(){
 	if (nflds){
-		find_b = malloc(sizeof(int)*nflds);
-		find_e = malloc(sizeof(int)*nflds);
         setup_findxbe();
         db_to_em();
 	}

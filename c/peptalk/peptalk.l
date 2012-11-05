@@ -67,7 +67,7 @@ include[ \t]*\:      BEGIN(incl);//stuff about including files that I cut/pasted
 
 <incl>[ \t]*      /* eat the whitespace */
 <incl>[^ \t\n]+   { /* got the include file name */
-				apop_assert_s(include_stack_ptr < MAX_INCLUDE_DEPTH, "Includes nested too deeply");
+				Apop_assert_s(include_stack_ptr < MAX_INCLUDE_DEPTH, "Includes nested too deeply");
 				include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
 
 				yyin = fopen( yytext, "r" );
@@ -79,18 +79,13 @@ include[ \t]*\:      BEGIN(incl);//stuff about including files that I cut/pasted
 				}
 
 <<EOF>> {
-        if ( --include_stack_ptr < 0 )
-            {
-            yyterminate();
+            if ( --include_stack_ptr < 0 )
+                yyterminate();
+            else {
+                yy_delete_buffer(YY_CURRENT_BUFFER);
+                yy_switch_to_buffer(include_stack[include_stack_ptr]);
             }
-
-        else
-            {
-            yy_delete_buffer( YY_CURRENT_BUFFER );
-            yy_switch_to_buffer(
-                 include_stack[include_stack_ptr] );
-            }
-				return EOL;
+			return EOL;
         } //end include section.
 
 
@@ -107,10 +102,10 @@ include[ \t]*\:      BEGIN(incl);//stuff about including files that I cut/pasted
 \|\|      { yylval = strdup(yytext); return TEXT;}
 
 {digit}+\.?|{digit}*\.{digit}+ { yylval = strdup(yytext); 
-	                                return NUMBER; }
+	                             return NUMBER; }
 
 ({text}|{sqlpunct})      { yylval = strdup(yytext); 
-                    return TEXT;}
+                           return TEXT;}
 
 \{      { return OPENKEY;}
 \}      { return CLOSEKEY;}

@@ -84,8 +84,6 @@ The functions here are all run by the yyparse() function. To see the context in 
 
 #include <stdlib.h>
 #include <stdbool.h>
-#include <apop.h>
-//#include "../tea.h"
 #include "tea.h"
 #include "internal.h"
 #include <string.h>
@@ -193,7 +191,7 @@ void xprintf(char **q, char *format, ...); //impute/parse_sql.c
 
 void extend_q(char **, char*, char*);
 
-int total_var_ct, total_option_ct, *optionct, query_ct;
+int query_ct;
 char *current_var, *datatab, *database, *nan_marker=NULL, *preed, *last_preed;
 char *tag = NULL;
 double *costs;
@@ -345,7 +343,6 @@ void add_to_num_list(char *v){
 				apop_query("insert into %s values (%s);", current_var, vs);
 		}
         optionct[total_var_ct-1]++;
-        total_option_ct ++;
     }
 	free(v);
 	free(vs);
@@ -356,9 +353,8 @@ void add_to_num_list_seq(char *min, char*max){
     Apop_assert_c(parsed_type!='r', , 1,
          "I ignore ranges for real variables. Please add limits in the check{} section.");
     for (int i = atoi(min); i<=atoi(max);i++){
-        apop_query("insert into %s values (%i);", current_var, i),
-		optionct[total_var_ct-1]++,
-        total_option_ct ++;
+        apop_query("insert into %s values (%i);", current_var, i);
+		optionct[total_var_ct-1]++;
     }
 	free(min);
 	free(max);
