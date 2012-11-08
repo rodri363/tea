@@ -11,10 +11,12 @@ writeLines(c( "database:t.db",
             "checks { age > 50 and sex =1",
             "age <50 and sex=1}",
             "impute{ input table: data",
-            "models{",
-            "age { method: normal }" ,
-            "sex { method: hot deck }",
-            "}}"
+            "method: normal",
+            "output vars:age}" ,
+            "impute{ input table: data",
+            "method: hot deck " ,
+            "output vars: sex",
+            "}"
             ), f)
 close(f)
 

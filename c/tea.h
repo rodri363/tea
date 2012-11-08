@@ -161,7 +161,7 @@ char* get_key_word(char const *part1, char const *part2);
 char* get_key_word_tagged(char const *part1, char const *part2, char const *tag);
 void set_key_text(char const *group, char const *key, char const *value);
 
-void impute(char **tag, char **active_tab);
+void impute(char **active_tab);
 void text_in();
 
 int make_recode_view(char **tag, char **first_or_last);//query to generate the view

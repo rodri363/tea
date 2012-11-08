@@ -67,17 +67,20 @@ void snowman_test(){
     one=2 => one=4  \n\
     \n\
     one =1  and two = 2 }\n"
-    "impute { \
+    "impute [one]{ \
     input table: d \n\
-    models { \n\
-      one { method: normal} \n\
-      two { method: normal} }}"
+      method: normal \n\
+      output vars:one} \n"
+    "impute [two]{ \
+    input table: d \n\
+      method: normal \n\
+      output vars:two}"
     );
 
     read_spec(&specname, &db_dummy);
     text_in();
     char *d="d";
-    impute(NULL, &d);
+    impute(&d);
 
     test_consistency();
     apop_db_close();
@@ -167,11 +170,12 @@ void just_like_the_R_test(){
                 "#age <50 and sex=\"m\"} \n"
                 "checks { age > 50 and sex ='f' \n"
                 "age <50 and sex='f'} \n"
-                "impute{ input table: data \n"
-                "models{ \n"
-                "age { method: normal } \n" 
-                "sex { method: hot deck } \n"
-                "}}");
+                "impute [a]{ input table: data \n"
+                "output vars: age\n"
+                "method: normal }\n"
+                "impute [b]{ input table: data \n"
+                "output vars: sex\n"
+                "method: hot deck }\n");
 
     write_a_file("indata", 
         "age|sex\n"
@@ -188,7 +192,7 @@ void just_like_the_R_test(){
     assert(apop_query_to_float("select count(*) from data where age is null") == 2);
     assert(apop_query_to_float("select count(*) from data where sex is null") == 2);
     char *d="data";
-    impute(NULL, &d);
+    impute(&d);
 
 
     //this is not just like the R test:

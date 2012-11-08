@@ -112,23 +112,12 @@ static int text_in_by_tag(char const *tag){
 }
 
 void text_in(){
-    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key like 'input%%' order by count");
+    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key like 'input/%' order by count");
     if (!tags) return;
     for (int i=0; i< *tags->textsize;i++)
         text_in_by_tag(*tags->text[i]);
     apop_data_free(tags);
 }
-
-/*
-typedef int (*int_from_char)(char const*);
-
-void foreach_tag(int_from_char fn){
-    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key like 'input%%' order by count");
-    if (!tags) return;
-
-
-}
-*/
 
 
 /* \key database The database to use for all of this. It must be the first thing on your line.

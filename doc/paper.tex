@@ -798,8 +798,27 @@ impute {
        state
     }
 
-    age : hot deck
-    income: lognormal
+    output vars: age 
+    method: hot deck
+}
+
+impute {
+    min group size: 20
+    draw count: 5
+
+    categories {
+       num_jobs_2008 = 0
+       num_jobs_2008 = 1
+       num_jobs_2008 => 2
+             age < 18
+       18 <= age < 35
+       35 <= age < 65
+       65 <= age
+       state
+    }
+
+    output vars: income
+    method: lognormal
 }
 \end{lstlisting}
 

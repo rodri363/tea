@@ -895,15 +895,23 @@ impute{
         agecat
         sex
     }
+    output vars: sex
+    method: hot deck
+}
 
-	models{
-		sex { method: hot deck }
+impute{
+    input table: dc
+    min group size: 3
+    draw count: 5
+    id: serialno
 
-        agep { method: ols
-            vars:  rac1p, nativity||sex
-        }
-	
-	}
+    categories {
+        agecat
+        sex
+    }
+    method: ols
+    output vars: agep
+    input vars: rac1p, nativity||sex
 }
 \end{lstlisting}
 
@@ -933,7 +941,7 @@ variables {\em product} has its typical meaning.
 
 
 
-
+\comment{
 Because every dependent variable must be complete for the regression to calculate the
 independent variable, it makes sense to put regressions in a sequence, with a spec file like:
 
@@ -961,6 +969,7 @@ and then two steps in R:
 doMImpute(first)
 doMImpute(second)
 \end{lstlisting}
+}
 
 \paragraph{Probit and Logit} These models behave like OLS, but are aimed at categorical
 variables. The output variable is not restricted to twoc categories.

@@ -56,14 +56,43 @@ impute{
         SEX = 1
     }
 
-	models{
-		SEX { method: hot deck }
+    method: hot deck
+	output vars: SEX
+}
 
-        WAGP { method: hot deck }
+impute{
+    input table: viewdc
+    min group size: 3
+    draw count: 3
+    seed:2332
 
-        AGEP { method: ols
-            vars:  WAGP
-        }
-	
-	}
+    categories {
+        AGEP <= 18
+        AGEP > 18 and AGEP < 65
+        AGEP >= 65
+        SEX = 0
+        SEX = 1
+    }
+
+    method: hot deck
+	output vars: WAGP
+}
+
+impute{
+    input table: viewdc
+    min group size: 3
+    draw count: 3
+    seed:2332
+
+    categories {
+        AGEP <= 18
+        AGEP > 18 and AGEP < 65
+        AGEP >= 65
+        SEX = 0
+        SEX = 1
+    }
+
+    method: ols
+	output vars: AGEP
+    input vars: WAGP
 }

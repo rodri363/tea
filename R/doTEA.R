@@ -108,7 +108,11 @@ doMImpute <- function(tag=NULL, input_table=teaenv$active_tab){
 #        mod <- get(rmodel)$model
 #        #est <- estimateRapopModel(list(), mod)
 #    }
-    .C("impute", as.character(tag), as.character(active_tab)) 
+    if (!is.null(tag)){
+        .C("do_impute", as.character(tag), as.character(active_tab)) 
+    } else {
+        .C("impute", as.character(active_tab)) 
+    }
 	teaenv$active_tab <- active_tab #active_tab may have changed
 }
 

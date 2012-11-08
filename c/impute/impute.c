@@ -14,7 +14,7 @@ char *strip (const char*); //peptalk.y
 
 data_frame_from_apop_data_type *rapop_df_from_ad;//alloced in PEPedits.c:R_init_tea
 
-/* The imputation system is arguably the core of PEP; correspondingly, it is the
+/* The imputation system is arguably the core of Tea; correspondingly, it is the
    most complex part. Fundamentally, all imputations have the same basic form: identify
 that something is missing data, find some other sufficiently complete data
 (herein, the donors), fit a specified model to that data, and draw from the 
@@ -134,7 +134,6 @@ static void lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
     *out = temp_out[0];
 }
 
-
 static void find_active_cats(const char *datatab, const int ego_id, int active_cats[], const apop_data *category_matrix, const char *id_col){
 /*For each category:
   Go through each element in the category matrix; if it's in the category, get
@@ -142,8 +141,7 @@ static void find_active_cats(const char *datatab, const int ego_id, int active_c
 
   On exit, you have a list of elements of the category_matrix that could be used for the query.
 */
-    if (!category_matrix || category_matrix->textsize[0] == 0)
-        return;
+    if (!category_matrix || category_matrix->textsize[0] == 0) return;
     apop_table_exists("internal_test", 'd');
     apop_query("create table internal_test as select * from %s where %s = %i", 
                                             datatab, id_col, ego_id);
@@ -161,7 +159,9 @@ static void find_active_cats(const char *datatab, const int ego_id, int active_c
     apop_table_exists("internal_test", 'd');
 }
 
-static char *construct_a_query(const char *datatab, const char *underlying, int categories_left, const int active_cats[], const char *varlist, const apop_data *category_matrix, const char *id_col){
+static char *construct_a_query(char const *datatab, char const *underlying, 
+            int categories_left, int const active_cats[], char const *varlist, 
+            apop_data const *category_matrix, char const *id_col){
 /* Find out which constraints fit the given record, then join them into a query.
    The query ends in "and", because get_constrained_page will add one last condition.  */
 
@@ -194,8 +194,7 @@ static char *construct_a_query(const char *datatab, const char *underlying, int 
 */
     char *q;
     asprintf(&q, "select %s, %s from %s where ", id_col, varlist, datatab);
-    if (!category_matrix)
-        return q;
+    if (!category_matrix) return q;
     //else
     for (int i=0; categories_left && i< category_matrix->textsize[0]; i++)
         if (active_cats[i]){
@@ -732,29 +731,13 @@ void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
 
 int impute_is_prepped; //restarts with new read_specs.
 
-apop_data * get_variables_to_impute(char *tag){ //This function is so very awkward.
-    char *configbase = "impute";
-    char *tagbit; if (tag) asprintf(&tagbit,"and tag='%s'", tag);
-	apop_data * rawkeys = apop_query_to_text("select distinct key, value from keys "
-								" where key like '%s/models/%%/method' %s order by count"
-                                        , configbase, tag?tagbit:" ");
-    if (tag) free(tagbit);
-    if (!rawkeys) return NULL;
-
-    for (int i=0; i< rawkeys->textsize[0]; i++){
-        *rawkeys->text[i] = strchr(*rawkeys->text[i], '/')+1; //skip a slash
-        *rawkeys->text[i] = strdup(strchr(*rawkeys->text[i], '/')+1); //skip a slash
-		*(strchr(*rawkeys->text[i], '/')) = '\0';  //set last slash to \0.
-    }
-    return rawkeys;
-}
-
 /* \key {impute/input table} The table holding the base data, with missing values. 
   Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called <tt>doInput()</tt> in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one. 
   \key{impute/seed} The RNG seed
   \key{impute/draw count} How many multiple imputations should we do? Default: 5.
  */
 void do_impute(char **tag, char **idatatab){ 
+    Apop_assert(*tag, "All the impute segments really should be tagged.")
     char *configbase = "impute";
     Apop_assert(*idatatab, "I need an input table, "
                         "via a '%s/input table' key. Or, search the documentation "
@@ -762,7 +745,7 @@ void do_impute(char **tag, char **idatatab){
     Apop_assert(apop_table_exists(*idatatab), "'%s/input table' is %s, but I can't "
                      "find that table in the db.", configbase, *idatatab);
     char *underlying = get_key_word(configbase, "underlying table");
-    apop_data *category_matrix = get_key_text_tagged(configbase, "categories", tag?*tag:NULL);
+    apop_data *category_matrix = get_key_text_tagged(configbase, "categories", *tag);
     process_category_matrix(category_matrix, *idatatab);
     float min_group_size = get_key_float(configbase, "min group size");
     if (isnan(min_group_size)) min_group_size = 1;
@@ -780,22 +763,19 @@ void do_impute(char **tag, char **idatatab){
     char *tmp_db_name_col = strdup(apop_opts.db_name_column);
     sprintf(apop_opts.db_name_column, "%s", id_col);
 
-	apop_data * vars = get_variables_to_impute(tag ? *tag : NULL);
-    Apop_assert(vars, "I couldn't find a models section (or a method section with a "
-                      "key of the form '%s/yr_variable/method').", configbase);
-	int vars_to_impute = vars->textsize[0];
-	Apop_assert(vars_to_impute, "I couldn't find a models section (or its contents).");
-	impustruct models[vars_to_impute+1];
-	for (int i=0; i < vars_to_impute; i++){
+	apop_data *vars;
+    apop_regex(get_key_word_tagged(configbase, "output vars", *tag),
+                " *([^,]*[^ ]) *(,|$) *", &vars); //split at the commas
+    Apop_assert(vars, "I couldn't find an 'output vars' line in the %s segment", configbase);
+	impustruct models[*vars->textsize + 1];
+	for (int i=0; i < *vars->textsize; i++){
         models[i] = (impustruct) {.position=-2, .vartypes=strdup("n")}; //zero out everything; posn to be filled in later.
 		models[i].depvar = strdup(vars->text[i][0]);
 		models[i].depvar_count = 1; //TO DO: implement more than one.
 
         //find the right model.
-        models[i].base_model = tea_get_model_by_name(vars->text[i][1]);
-		char *varkey;
-		asprintf(&varkey, "models/%s/vars", models[i].depvar);
-		char *indep_vars = get_key_word(configbase, varkey);
+        models[i].base_model = tea_get_model_by_name(get_key_word_tagged(configbase, "method", *tag));
+		char *indep_vars = get_key_word_tagged(configbase, "input vars", *tag);
         int gotit=0;
         for (int j=0; j < total_var_ct && !gotit; j++)
             if (!strcasecmp(used_vars[j].name, models[i].depvar)){
@@ -812,35 +792,24 @@ void do_impute(char **tag, char **idatatab){
 										process_string(indep_vars, &(models[i].vartypes)));
 	}
     //The models list has one for each item in the spec. Position is in em order.
-    models[vars_to_impute] = (impustruct) {.position=-2}; //NULL sentinel
-	apop_data_free(vars);
+    models[*vars->textsize] = (impustruct) {.position=-2}; //NULL sentinel
 
     gsl_rng *r;
     if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r);
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
-    for (int i = 0; i< vars_to_impute; i++)
+    for (int i = 0; i< *vars->textsize; i++)
         impute_a_variable(*idatatab, underlying, models+i, min_group_size, r, draw_count, 
                           category_matrix, fingerprint_vars, id_col);
+	apop_data_free(vars);
     apop_data_free(fingerprint_vars);
     sprintf(apop_opts.db_name_column, "%s", tmp_db_name_col);
 }
 
 void impute(char **idatatab){ 
-    apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%' and tag !=''");
-    if (!tags){
-        Apop_assert(apop_query_to_float("%s", "select count(*) "
-                "from keys where key like 'impute/output vars/%'") == 1,
-        "You gave me multiple 'impute' sections in the spec file (there are multiple 'output vars' lines) "
-        "but the segments have no tags. This is going to be fatally confusing to me. Please add tags, like "
-        "impute [tag1] {...}    impute [tag2] {...} .");
-        do_impute(NULL, idatatab);
-    } else{
-        apop_data_free(tags);
-        tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
-        for (int i=0; i< *tags->textsize; i++)
-            do_impute(tags->text+i, idatatab);
-        apop_data_free(tags);
-    }
+    apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
+    for (int i=0; i< *tags->textsize; i++)
+        do_impute(tags->text[i], idatatab);
+    apop_data_free(tags);
 }
 
 /* multiple_imputation_variance's default now.

@@ -443,6 +443,7 @@ void moreblob(char **out, char* so_far, char *more){
 }
 
 void extend_key(char *key_in){
+    static size_t default_tag;
     char *inkey = strip(key_in);
     char* open_brace_posn = strchr(inkey, '[');
     char* end_brace_posn = strchr(inkey, ']');
@@ -450,8 +451,10 @@ void extend_key(char *key_in){
         *end_brace_posn = '\0';  //cut off the inkey at the end brace.
         tag= strip(open_brace_posn+1);//copy everything after the open-brace (minus surrounding whitespace)
         *open_brace_posn = '\0'; //cut off the inkey at the open brace.
-    }
-    //Push a key tag on the stack
+    } else if (!current_key) //top level; make a fake tag
+        asprintf(&tag, "%zu tag", default_tag++);
+
+    //Push a key segment on the stack
     if (!current_key)
         current_key = strip(inkey);
     else 
@@ -459,7 +462,7 @@ void extend_key(char *key_in){
 }
 
 void reduce_key(char *in){
-    //Pop a key tag off the stack
+    //Pop a key segment off the stack
     Apop_assert(current_key, "The {curly braces} don't seem to match. Please "
             "check your last few changes.");
     int i;
@@ -468,14 +471,9 @@ void reduce_key(char *in){
     if (i == -1){
         free(current_key);
         current_key = NULL;
+        tag[0] = '\0';      //the tags are currently top-level only
     }
     else current_key[i]= '\0'; //crop the string to that point.
-
-    char *inkey = strip(in);
-    if (inkey){
-        char* open_brace_posn = strchr(inkey, '[');
-        if (open_brace_posn) tag[0]='\0'; //I'm assuming a single tag at a time.
-    }   
 }
 
 

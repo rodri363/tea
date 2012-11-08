@@ -122,9 +122,21 @@ void get_in_out_tabs(char const *first_or_last, char **intab, char **out_name){
         asprintf(out_name, "mid%s", *intab);
     }
 }
+
+apop_data* get_vars_to_impute(void){
+    apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
+    char *v = NULL;
+    for (int i=0; i< *tags->textsize; i++)
+        asprintf(&v, "%s%s%s", (v ? v: ""), (v ? "," :" "), get_key_word_tagged("impute", "output vars", *tags->text[i]));
+    apop_data_free(tags);
+
+    apop_data*imputables;
+    apop_regex(v, " *([^,]*[^ ]) *(,|$) *", &imputables); //split at the commas
+    return imputables;
+}
     
 int set_up_triggers(char const * intab){
-    apop_data *imputables= get_variables_to_impute(NULL);
+    apop_data *imputables= get_vars_to_impute();
     if (!imputables) return 0;
 
     intab = get_key_word("input", "output table");
