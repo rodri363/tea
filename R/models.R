@@ -64,8 +64,8 @@ teagam <- new("apop_model", name="teagam",
 #' for future draws from the model.
 
 TEA.MCMCmnl.est <- function(env){
-	if(is.null(env$debug)) env$debug <- FALSE
-	if(env$debug) browser()
+	if(is.null(env$debug)) env$debug <- 0
+	if(env$debug>0) browser()
 	#all variables
 	Vvar <- all.vars(env$Formula)
 	env$Data <- env$Data[Vvar]
@@ -94,8 +94,8 @@ TEA.MCMCmnl.est <- function(env){
 
 TEA.MCMCmnl.draw <- function(env){
 	if(is.null(env$verbose)) env$verbose <- FALSE
-	if(is.null(env$debug)) env$debug <- FALSE
-	if(env$debug) browser()
+	if(is.null(env$debug)) env$debug <- 0
+	if(env$debug>0) browser()
 
 	if(nrow(env$Newdata)==0) stop("Newdata has 0 rows")
 	#if no option for negative probilities set, set it
@@ -194,7 +194,7 @@ TEA.MCMCregress.est <- function(env){
 TEA.MCMCregress.draw <- function(env){
 	if(is.null(env$verbose)) env$verbose <- FALSE
 	if(is.null(env$debug)) env$debug <- FALSE
-	if(env$debug) browser()
+	if(env$debug>0) browser()
 	#set default back-transform and rounding functions to identity
 	if(is.null(env$transform)) env$transform <- function(x) return(x)
 	if(is.null(env$fround)) env$fround <- function(x) return(x)
@@ -205,6 +205,8 @@ TEA.MCMCregress.draw <- function(env){
 	#using "term.labels" attribute instead"
 	vtermlab <- attr(terms(env$Formula),"term.labels")
 	newform <- as.formula(paste("~",paste(vtermlab,collapse="+")))
+
+	lhs <- all.vars(env$Formula)[1]
 
 	#do level check on each character/factor variable
 	env$Newdata <- TEAConformDF(env$Newdata,env$Data)
@@ -220,11 +222,9 @@ TEA.MCMCregress.draw <- function(env){
 	Mbeta <- matrix(Mbeta)
 	if(nrow(Msub)==1) Mbeta <- t(Mbeta) #handle vector beta for a single row
 	Vsig <- sqrt(env$Fit[Vrow,ncol(env$Fit)]) #sigma
-#	Vmu <- diag(Msub %*% Mbeta)
 	Vmu <- Msub %*% Mbeta
 	Vdraw <- rnorm(nrow(Msub),Vmu,Vsig)
 
-	lhs <- all.vars(env$Formula)[1]
 	DFret <- env$Newdata
 	#return reverse-transformed data (in case of "log" type fits)
 	DFret[,lhs] <- env$fround(env$transform(Vdraw))
