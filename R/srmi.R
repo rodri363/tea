@@ -32,6 +32,7 @@ tea.klcoda <- function(M1,M2){
 	M2 <- apply(M2,2,function(x) return(ecdf(x)(x)))
 	A <- array(rbind(M1,M2),c(nrow(M1),2,ncol(M1)))
 	Mkl <- apply(A,3,function(x) return(KLdivM(x)))
+	colnames(Mkl) <- colnames(M1)
 	#each column of Mkl is the result of KLdiv for that column of M1/M2
 	return(Mkl)
 }
@@ -43,6 +44,7 @@ tea.klcoda <- function(M1,M2){
 #	del = convergence criterion; sum((th1-th0)^2) < del results in convergence
 tea.srmi.est <- function(env){
 	if(env$debug>0) browser()
+	if(is.null(env$eps)) env$eps <- 1e-3
 	#x and y variables
 	vyvar <- attr(terms(env$LHS),"term.labels")
 	vxvar <- attr(terms(env$RHS),"term.labels")
@@ -75,7 +77,6 @@ tea.srmi.est <- function(env){
 		kvar <- vyvar[idx]
 		formmod <- as.formula(paste(kvar,
 			paste(c(vxvar,vyvar[-(idx:length(vyvar))]),collapse="+"),sep="~"))
-		print(formmod)
 		emod <- as.environment(list(Data=env$Newdata[-lna[[kvar]],],Formula=formmod))
 		if(vcat[idx]) lfit[[kvar]] <- RapopModelEstimate(emod,modmnl)
 		else lfit[[kvar]] <- RapopModelEstimate(emod,modreg)
@@ -89,10 +90,17 @@ tea.srmi.est <- function(env){
 	}
 
 	#second round of fits/draws
-	for(hdx in 1:env$maxit){
+	krun <- 0 # # of rounds under epsilon
+	lMk <- list()
+	hdx <- 1
+	while(hdx <= env$maxit){
+		if(krun > 2){
+			print("Converged")
+			hdx <- env$maxit
+		}else{
 		for(idx in 1:length(vyvar)){
-			if(hdx>2) Mkl0 <- Mkl1
 			kvar <- vyvar[idx]
+			if(hdx>2) Mkl0 <- lMk[[kvar]]
 			formmod <- as.formula(paste(kvar,
 				paste(c(vxvar,vyvar[-idx]),collapse="+"),sep="~"))
 			print(paste(hdx,formmod,sep=": "))
@@ -103,14 +111,19 @@ tea.srmi.est <- function(env){
 			M2 <- lfit[[kvar]]$env$Fit
 			#currently not doing anything with the KL div,
 			#but we could use it for a stopping criterion
-			if(hdx>1) Mkl1 <- tea.klcoda(M1,M2)
-			if(hdx>2) vkldiff1 <- (sum((colSums(Mkl0)-colSums(Mkl1))^2))
+			if(hdx>1) lMk[[kvar]] <- tea.klcoda(M1,M2)
+			if(hdx>2){
+				Mdiff2 <- (lMk[[kvar]]-Mkl0)^2
+				if(all(Mdiff2<env$eps)) krun <- krun+1
+			}
 			#predict data for missing values
 			lfit[[kvar]]$env$Newdata <- env$Newdata[lna[[kvar]],]
 			dfs <- RapopModelDraw(lfit[[kvar]])
 			#replace old data
 			env$Newdata[lna[[kvar]],kvar] <- dfs[,kvar]
 		}
+		}
+		hdx <- hdx+1
 	}
 
 	env$Lfit <- lfit #save fits
