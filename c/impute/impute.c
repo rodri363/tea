@@ -123,7 +123,7 @@ typedef struct {
 	int depvar_count, position;
 	char * selectclause;
 	apop_data *isnan, *notnan;
-    bool is_bounds_checkable, is_hotdeck, textdep;
+    bool is_bounds_checkable, is_hotdeck, textdep, is_rake;
 } impustruct;
 	
 static void lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
@@ -253,6 +253,20 @@ apop_data * get_data_from_R(apop_model *m){
 apop_data *nans_no_constraints, *notnans_no_constraints;
 char *last_no_constraint;
 
+
+void verify(impustruct is){
+    Apop_assert(!(is.isnan && !is.notnan), "Even with no constraints, I couldn't find any "
+                "non-NaN records to use for fitting a model and drawing "
+                "values for %s.", is.depvar);
+    if (is.notnan){
+        int v= apop_opts.verbose; apop_opts.verbose=0;
+        Apop_assert(!(gsl_isnan(apop_matrix_sum((is.notnan)->matrix)+apop_sum((is.notnan)->vector))), 
+                "NULL values or infinities where there shouldn't be when fitting the model for %s.", is.depvar);
+        apop_opts.verbose=v;
+    }
+    Apop_assert_c(is.isnan, , 2, "%s had no missing values.", is.depvar);
+}
+
 /* Generate two tables: those that have Nulls and therefore need to be
    considered; those that don't have nulls, and therefore can be used to fit
    models.
@@ -277,9 +291,7 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
         const apop_data *fingerprint_vars, const char *id_col){
 	is->isnan = NULL;
     int active_cats[category_matrix ? category_matrix->textsize[0] : 1];
-    int v = apop_opts.verbose; apop_opts.verbose=1;
     find_active_cats(datatab, index, active_cats, category_matrix, id_col);
-    apop_opts.verbose=v;
     char *q, *q2;
     int done, constraints_left = 1, already_ran=0;
     for(int i=0; i< (category_matrix ? category_matrix->textsize[0] : 0); i++)
@@ -334,17 +346,7 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
 		free(q); q=NULL;
 		free(q2); q2=NULL;
     } while (!done);
-    Apop_assert(!(is->isnan && !is->notnan), "Even with no constraints, I couldn't find any "
-                "non-NaN records to use for fitting a model and drawing "
-                "values for %s.", is->depvar);
-    if (is->notnan){
-        int v= apop_opts.verbose; apop_opts.verbose=0;
-        Apop_assert(!(gsl_isnan(apop_matrix_sum((is->notnan)->matrix)+apop_sum((is->notnan)->vector))), 
-                "NULL values or infinities where there shouldn't be when fitting the model for %s.", is->depvar);
-        apop_opts.verbose=v;
-    }
-	apop_opts.verbose=v;
-    Apop_assert_c(is->isnan, , 2, "%s had no missing values.", is->depvar);
+    verify(*is);
 printf("This set had %zu nans.\n", is->isnan->textsize[0]);
 }
 
@@ -359,11 +361,13 @@ static void model_est(impustruct *is, int *model_id){
         apop_data_to_factors(notnan, .incol=i, .outcol=notnan->matrix->size2-1);
     }*/
     //maybe check here for constant columns in regression estimations.
-//    if (notnan->text && !apop_data_get_page(notnan,"<categories"))
-//        for (int i=0; i< notnan->textsize[1]; i++){
-//            apop_data_to_dummies(notnan, i, .keep_first='y', .append='y');
+    if (notnan->text && !apop_data_get_page(notnan,"<categories"))
+        for (int i=0; i< notnan->textsize[1]; i++){
+            if (is->textdep && strcmp(notnan->names->column[i], is->depvar) )
+                apop_data_to_dummies(notnan, i, .keep_first='y', .append='y');
+            //the actual depvar got factor-ized in prep_for_draw.
 //            apop_data_to_dummies(is->isnan, i, .keep_first='y', .append='y'); //presumably has the same structure.
-//        }
+        }
     Apop_assert (!notnan->vector || !isnan(apop_vector_sum(notnan->vector)), 
             "NaNs in the not-NaN vector that I was going to use to estimate "
             "the imputation model. This shouldn't happen")
@@ -483,17 +487,17 @@ void R_check_bounds(double *val, char **var, int *fails){
       consistency_check can produe are reserved for future work.
       */
 
-static apop_data *get_all_nanvals(impustruct *is, const char *id_col, const char *datatab){
+static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char *datatab){
     //db_name_column may be rowid, which would srsly screw us up.
 	char *nametmp = strdup(apop_opts.db_name_column);
     sprintf(apop_opts.db_name_column, "%s", id_col);
     //first pass: get the full list of NaNs; no not-NaNs yet.
     apop_data *nanvals = apop_query_to_data("select %s, %s from %s where %s is null",
-									 id_col, is->depvar, datatab, is->depvar);
+									 id_col, is.depvar, datatab, is.depvar);
     sprintf(apop_opts.db_name_column, "%s", nametmp); 
     free(nametmp);
     if (verbose){
-        printf("For %s, the following NULLs:\n", is->depvar);
+        printf("For %s, the following NULLs:\n", is.depvar);
         apop_data_show(nanvals); //may print NULL.
     }
     return nanvals;
@@ -629,7 +633,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         const int min_group_size, gsl_rng *r, const int draw_count, const apop_data *category_matrix, 
         const apop_data *fingerprint_vars, const char *id_col){
     static int fail_id=0, model_id=-1;
-    apop_data *nanvals = get_all_nanvals(is, id_col, datatab);
+    apop_data *nanvals = get_all_nanvals(*is, id_col, datatab);
     if (!nanvals) return;
     begin_transaction();
 
@@ -639,6 +643,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         if (apop_strcmp(nanvals->names->row[i], ".")) continue; //already got this person.
         get_nans_and_notnans(is, atoi(nanvals->names->row[i]) /*ego_id*/, 
                 datatab, underlying, min_group_size, category_matrix, fingerprint_vars, id_col);
+
 		if (!is->isnan) continue; //nothing missing.
 		is->is_hotdeck = (is->base_model.estimate == apop_multinomial.estimate 
 								||is->base_model.estimate ==apop_pmf.estimate);
@@ -654,7 +659,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
     apop_data_free(nanvals);
 }
 
-void process_category_matrix(apop_data *category_matrix, char *idatatab){
+static void process_category_matrix(apop_data *category_matrix, char *idatatab){
     if (!category_matrix) return;
     int initial_size = category_matrix->textsize[0];
     for (int i=0; i< initial_size; i++){
@@ -711,6 +716,7 @@ apop_model tea_get_model_by_name(char *name){
                 "I couldn't find the model named '%s' in my list of supported "
                 "models (or among models you added using setupRapopModel.", name);
 */
+        Apop_model_add_group(&out, apop_parts_wanted); //no cov
         return out;
 }
 
@@ -727,6 +733,41 @@ void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
     apop_query("create table impute_log (%s, 'fail_id', 'model', 'draw', 'declared', 'status')", id_col);
     if (!apop_table_exists("model_log"))
         apop_query("create table model_log ('model_id', 'parameter', 'value')");
+}
+
+impustruct read_model_info(char const *configbase, char const *tag){
+	apop_data *vars;
+    apop_regex(get_key_word_tagged(configbase, "output vars", tag),
+                " *([^,]*[^ ]) *(,|$) *", &vars); //split at the commas
+    Apop_assert_c(vars, (impustruct){}, 1, "I couldn't find an 'output vars' line in the %s segment", configbase);
+
+	impustruct model = (impustruct) {.position=-2, .vartypes=strdup("n")}; //zero out everything; posn to be filled in later.
+    model.depvar = strdup(**vars->text);
+    model.depvar_count = 1; //TO DO: implement more than one.
+
+    //find the right model.
+    char *model_name = get_key_word_tagged(configbase, "method", tag);
+    if (!strcmp(model_name, "rake")) {
+        model.is_rake = true;
+        model.base_model = NULL;
+    } else model.base_model = tea_get_model_by_name(model_name);
+    char *indep_vars = get_key_word_tagged(configbase, "input vars", tag);
+    int gotit=0;
+    for (int j=0; j < total_var_ct && !gotit; j++)
+        if (!strcasecmp(used_vars[j].name, model.depvar)){
+            if (used_vars[j].type=='c') asprintf(&model.vartypes, "%smt", model.vartypes), model.textdep=true;
+            else                        asprintf(&model.vartypes, "%sm", model.vartypes);
+            gotit=1;
+        }
+    if (!gotit) asprintf(&model.vartypes, "%smt", model.vartypes), model.textdep=true; //assume text.
+
+    //if a text dependent var, set aside a column to be filled in with factors.
+    asprintf(&model.selectclause, "%s%s", model.textdep ? "1, ": " ", model.depvar);	
+    if (indep_vars)
+        asprintf(&model.selectclause, "%s, %s", model.selectclause,
+                                    process_string(indep_vars, &(model.vartypes)));
+	apop_data_free(vars);
+    return model;
 }
 
 int impute_is_prepped; //restarts with new read_specs.
@@ -763,44 +804,12 @@ void do_impute(char **tag, char **idatatab){
     char *tmp_db_name_col = strdup(apop_opts.db_name_column);
     sprintf(apop_opts.db_name_column, "%s", id_col);
 
-	apop_data *vars;
-    apop_regex(get_key_word_tagged(configbase, "output vars", *tag),
-                " *([^,]*[^ ]) *(,|$) *", &vars); //split at the commas
-    Apop_assert(vars, "I couldn't find an 'output vars' line in the %s segment", configbase);
-	impustruct models[*vars->textsize + 1];
-	for (int i=0; i < *vars->textsize; i++){
-        models[i] = (impustruct) {.position=-2, .vartypes=strdup("n")}; //zero out everything; posn to be filled in later.
-		models[i].depvar = strdup(vars->text[i][0]);
-		models[i].depvar_count = 1; //TO DO: implement more than one.
-
-        //find the right model.
-        models[i].base_model = tea_get_model_by_name(get_key_word_tagged(configbase, "method", *tag));
-		char *indep_vars = get_key_word_tagged(configbase, "input vars", *tag);
-        int gotit=0;
-        for (int j=0; j < total_var_ct && !gotit; j++)
-            if (!strcasecmp(used_vars[j].name, models[i].depvar)){
-                if (used_vars[j].type=='c') asprintf(&models[i].vartypes, "%smt", models[i].vartypes), models[i].textdep=true;
-                else                        asprintf(&models[i].vartypes, "%sm", models[i].vartypes);
-                gotit=1;
-            }
-        if (!gotit) asprintf(&models[i].vartypes, "%smt", models[i].vartypes), models[i].textdep=true; //assume text.
-
-        //if a text dependent var, set aside a column to be filled in with factors.
-        asprintf(&models[i].selectclause, "%s%s", models[i].textdep ? "1, ": " ", models[i].depvar);	
-        if (indep_vars)
-            asprintf(&models[i].selectclause, "%s, %s", models[i].selectclause,
-										process_string(indep_vars, &(models[i].vartypes)));
-	}
-    //The models list has one for each item in the spec. Position is in em order.
-    models[*vars->textsize] = (impustruct) {.position=-2}; //NULL sentinel
-
     gsl_rng *r;
     if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r);
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
-    for (int i = 0; i< *vars->textsize; i++)
-        impute_a_variable(*idatatab, underlying, models+i, min_group_size, r, draw_count, 
-                          category_matrix, fingerprint_vars, id_col);
-	apop_data_free(vars);
+    impustruct model = read_model_info(configbase, *tag);
+    else impute_a_variable(*idatatab, underlying, &model, min_group_size, 
+            r, draw_count, category_matrix, fingerprint_vars, id_col);
     apop_data_free(fingerprint_vars);
     sprintf(apop_opts.db_name_column, "%s", tmp_db_name_col);
 }
@@ -831,4 +840,13 @@ void get_means(){
     //apop_data * fill_ins = apop_query_to_data("select * from all_imputes");
     //apop_data_show(apop_multiple_imputation_variance(colmeans, main_data, fill_ins));
     apop_data_free(main_data);
+}
+
+
+
+
+///// second method: via raking
+
+void rake_to_completion(char **tag, char **idatatab){ 
+    
 }

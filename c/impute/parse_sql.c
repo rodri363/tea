@@ -61,7 +61,7 @@ char *process_string(char *inquery, char **typestring){//in which we lament C's 
     for (int i=0; i < clauses_d->textsize[0]; i++){
         int done=0;
         char *name=NULL, *cat=NULL, *octo;
-        if ((octo=strchr(clauses[i][0], '#'))){ //It's numeric. cut the # and move on. Tiny memory leak.
+        if ((octo=strchr(clauses[i][0], '#'))){ //It's numeric. cut the # and move on. One-byte memory leak.
             clauses[i][0] = octo+1;
             xprintf(typestring, "%sm", XN(*typestring));
             xprintf(&string_so_far, "%s%s ", XN(string_so_far),clauses[i][0]);
@@ -85,8 +85,8 @@ char *process_string(char *inquery, char **typestring){//in which we lament C's 
                 done++;
                 xprintf(&string_so_far, "%s%s ", XN(string_so_far), XN(cat));
             }
-//            xprintf(typestring, "%st", XN(*typestring));
-            xprintf(typestring, "%sm", XN(*typestring));
+            xprintf(typestring, "%st", XN(*typestring));
+//            xprintf(typestring, "%sm", XN(*typestring));
             capture->textsize[1]=ct;
             apop_data_free(capture);
         }
