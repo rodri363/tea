@@ -34,12 +34,12 @@ char *one_recode_to_string(apop_data const *recode_list, int *is_formula, int *h
             xprintf(&clauses, "%s when %s then '%s'\n", XN(clauses), *one_rc->text[1], strip(*one_rc->text[0]));
         } else if (*one_rc->textsize==1){ 
             //the default category.
-            apop_assert(!*has_else, "You have a recode with two default categories.");
+            Apop_stopif(*has_else, return NULL, 0, "You have a recode with two default categories.");
             xprintf(&clauses, "%s else '%s'\n", 
                 clauses ? clauses : "when 0 then 0", strip(*one_rc->text[0]) );
             (*has_else)++;
         } else
-            Apop_assert(0, "This line doesn't parse right as a recode: %s", thisrc);
+            Apop_stopif(1, return NULL, 0, "This line doesn't parse right as a recode: %s", thisrc);
         if (doedits) add_to_num_list(strip(one_rc->text[0][0]));
         apop_data_free(one_rc);
     }
@@ -76,7 +76,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         char *varname = all_recodes->text[i][0]; //just an alias
         char comma = ' ';
         apop_data *recode_list = get_key_text(*key, varname);
-        Apop_assert(recode_list && recode_list->textsize[0],
+        Apop_stopif(recode_list && !recode_list->textsize[0], return, 0,
                         "%s looks like a recode field, but I can't parse "
                         "its recodes. Please check on this.", varname);
         
@@ -214,7 +214,7 @@ int make_recode_view(char **tag, char **first_or_last){
     recodes(&grgroup, tag, &group_recodestr, &intab);
     if (group_recodestr){
         char *group_id= get_key_word("group recodes", "group id");
-        Apop_assert(group_id, "There's a group recodes section, but no \"group id\" tag.");
+        Apop_stopif(!group_id, return -1, 0, "There's a group recodes section, but no \"group id\" tag.");
         apop_table_exists("tea_group_stats", 'd');
         apop_table_exists("tea_record_recodes", 'd');
         Qcheck(

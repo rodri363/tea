@@ -45,7 +45,7 @@ doInput <- function(input_file=NULL,output_table=NULL,types=NULL,primary.key=NUL
 	if(is.null(input_file)) stop("I couldn't find the \"input file\" key in the \"input\" section of the spec.")
 
 	if(is.null(overwrite)) overwrite <- teaGetKey("input","overwrite")
-	if(overwrite!="yes") return("No overwrite");
+#if(overwrite!="yes") return("No overwrite");
 	tbl <- teaGetKey("input", "output table")
     print(paste("Reading text file '", input_file, "' into output table '", tbl, "'."))
 	.C("text_in")

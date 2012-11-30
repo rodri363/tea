@@ -5,6 +5,10 @@
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
 
+//I can't believe that R claims these for its own:
+#undef error
+#undef warning
+
 #define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
 /*

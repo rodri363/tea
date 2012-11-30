@@ -137,7 +137,7 @@ keylist_item: preedit
            | keyval
            | keygroup
            | EOL
-           | error   {warning("Trouble parsing an item [$1] in the list of fields", $1);}
+           | error   {Rf_warning("Trouble parsing an item [$1] in the list of fields", $1);}
 		   | blob { if (apop_strcmp(current_key, "checks")) {add_check($1);}
                    else add_keyval(current_key, $1);}
            ;
@@ -166,7 +166,7 @@ num_item : NUMBER '-' NUMBER  {add_to_num_list_seq($1, $3);}
          | TEXT               {add_to_num_list($1);}
          | '*'               {add_to_num_list("*");}
          |'$' NUMBER           {used_vars[total_var_ct-1].weight = atof($2);}
-         | error   			{warning("Error in numeric list around [%s].", $1);}
+         | error   			{Rf_warning("Error in numeric list around [%s].", $1);}
          ;
 
 blob : blob blob_elmt {moreblob(&$$,$1,$2);}
@@ -215,7 +215,7 @@ char * strip(const char *in){
 static void set_database(char *dbname){  //only on pass 0.
     if (!strcmp(dbname, "mem")) dbname=":memory:";
     if (verbose) printf("opening database %s.\n", dbname);
-    Apop_assert(!apop_db_open(dbname), "failed to open database %s", dbname);
+    Apop_stopif(apop_db_open(dbname), return, 0, "failed to open database %s", dbname);
     database= strdup(dbname);
     apop_table_exists("keys", 'd');
     apop_table_exists("variables", 'd');
@@ -231,7 +231,7 @@ void add_keyval(char *key, char *val){
     if (!sval) return;
 	if (pass==0 && apop_strcmp(skey, "database"))
 		set_database(sval);
-	Apop_assert(database, "The first item in your config file needs to be \"database:db_file_name.db\".");
+	Apop_stopif(!database, return, 0, "The first item in your config file needs to be \"database:db_file_name.db\".");
 	apop_query("insert into keys values (\"%s\", \"%s\", %i, \"%s\")", skey, XN(tag), ++val_count, sval);
 	free(skey); free(sval);
 }
@@ -428,9 +428,8 @@ void moreblob(char **out, char* so_far, char *more){
             if (!var_list) var_list = strdup(more);
             else           asprintf(&var_list, "%s, %s", more, var_list);
             if (!isreal){
-                if (!datatab)
-                    datatab = get_key_word("input","output table");
-                apop_assert(datatab, "I need the name of the data table so I can set up the recodes."
+                if (!datatab) datatab = get_key_word("input","output table");
+                Apop_stopif(!datatab, return, 0, "I need the name of the data table so I can set up the recodes."
                                      "Put an 'output table' key in the input segment of the spec.");
                 if (!apop_table_exists(more))
                     apop_query( "create table %s as "
@@ -463,7 +462,7 @@ void extend_key(char *key_in){
 
 void reduce_key(char *in){
     //Pop a key segment off the stack
-    Apop_assert(current_key, "The {curly braces} don't seem to match. Please "
+    Apop_stopif(!current_key, return, 0, "The {curly braces} don't seem to match. Please "
             "check your last few changes.");
     int i;
     for (i=strlen(current_key); i > -1; i--)
@@ -508,7 +507,7 @@ void add_check(char *this_query){
     if (pass !=1 || !this_query || !strip(this_query)) 
         return;  //only after declaration pass; no blanks
     has_edits=1;
-	apop_assert(var_list, 
+	Apop_stopif(!var_list, return, 0, 
 				"The query \n%s\ndoesn't use any declared variables, which is a problem. "
                 "Please check your typing/syntax, and make sure you've declared the variables you'd "
                 "like me to check.\n", this_query);

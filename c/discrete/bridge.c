@@ -37,7 +37,7 @@ int has_edits = 0; //incremented in peptalk.y if there's a checks{} group in the
 char *fname = "-stdin-";
 
 /* This is what the parser calls on error. */
-int yyerror(const char *s) { Apop_assert_c(0, 0, 0, "%s(%d): %s\n",fname,lineno,s); }
+int yyerror(const char *s) { Apop_stopif(1, return 0, 0, "%s(%d): %s\n",fname,lineno,s); }
 
 /* This file does most of the initial processing of a table. There are many steps.
 Following recipe format, I'll list the ingredients, then give the steps.
@@ -376,7 +376,7 @@ void init_edit_list(){
         db_to_em();
 	}
     if (edit_list) {
-        apop_assert(database, "Please declare a database using 'database: your_db'.");
+        Apop_stopif(!database,return, 0, "Please declare a database using 'database: your_db'.");
         apop_table_exists("editinfo", 'd');
         apop_query("create table editinfo (row, edit, infotype, val1, val2);");
         if (!apop_table_exists("alternatives"))
@@ -391,7 +391,7 @@ void read_spec(char **infile, char **dbname_out){
     start_over();
     fname = strdup(*infile);
     yyin = fopen (fname, "r");
-    apop_assert(yyin, "Trouble opening spec file %s.", fname);
+    Apop_stopif(!yyin, return, 0, "Trouble opening spec file %s.", fname);
     pass=0;
     yyparse();  //fill keys table
 
@@ -400,12 +400,12 @@ void read_spec(char **infile, char **dbname_out){
     if (recode_tags){
         if (recode_tags->textsize[0]==1) make_recode_view(NULL, (char*[]){"both"});
         else for (int i=0; i< *recode_tags->textsize; i++){
-            Apop_assert(
+            Apop_stopif(!(
                     !make_recode_view(recode_tags->text[i], //pointer to list of char*s.
                         ( (i==0) ? (char*[]){"first"}
                         : (i==*recode_tags->textsize-1) ? (char*[]){"last"}
-                        : (char*[]){"middle"})),
-                    "Error in recode production.");
+                        : (char*[]){"middle"}))
+                    ), return, 0, "Error in recode production.");
         }
         apop_data_free(recode_tags);
     }
