@@ -26,6 +26,9 @@ KLdivM <- function(object, eps=10^-4, overlap=TRUE,...)
     return(z)
 }
 
+#' Given two matrices, assumed to have draws in each column for the same variables,
+#' find the Kullback-Leibler divergence of the empirical CDFs by column pair.
+#' @return a matrix, giving the result of KLdiv() for each column pair.
 tea.klcoda <- function(M1,M2){
 	if(!identical(dim(M1),dim(M2))) stop("klcoda requires matrices of same dimension")
 	M1 <- apply(M1,2,function(x) return(ecdf(x)(x)))

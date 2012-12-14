@@ -9,56 +9,171 @@ library(tea)
 library(ggplot2)
 library(Cairo)
 
-kn <- 1e4L
-
-#loginc from age
+kn <- 3e4L
 vage <- runif(kn,15,65)
-kslope <- log10(50000/15000)/50
-Mb <- matrix(c(log10(50000) - 65*kslope,kslope))
-Mx <- cbind(1,vage)
-ksig <- log10(1.2)
-vm <- as.vector(Mx %*% Mb)
-vwag <- vm + rnorm(kn,0,ksig)
-
 #sex from age
 #50% male at age 0
 #40% male at 65
 Mb <- matrix(c(0,log(0.4/0.6)/65))
+Mx <- cbind(1,vage)
 vm <- as.vector(Mx %*% Mb)
 vp <- 1/(exp(-vm)+1)
 vsex <- rbinom(kn,1,vp)
 
-#missingness from age
+#loginc from age and sex
+kaslope <- log10(50000/15000)/50
+ksslope <- log10(2)
+Mb <- matrix(c(log10(50000) - 65*kaslope - ksslope,kaslope,ksslope),ncol=1)
+Mx <- cbind(1,vage,vsex)
+ksig <- log10(1.2)
+vm <- as.vector(Mx %*% Mb)
+vlwag <- vm + rnorm(kn,0,ksig)
+
+#missing patterns
+#SEX	WAG	AGE
+#x		o	o	can depend on wag/age
+#o		x	o	can depend on sex/age
+#x		x	o	can depend on age
+
+#missing both from age
 #50% missing at age 0
 #5% missing at 65
 Mb <- matrix(c(log(0.5/0.5),(log(0.05/0.95)-log(0.5/0.5))/65))
+Mx <- cbind(1,vage)
 vm <- as.vector(Mx %*% Mb)
 vp <- 1/(exp(-vm)+1)
-vmiss <- rbinom(kn,1,vp)
+vma <- rbinom(kn,1,vp)==1
+kma <- sum(!vma) #total non-missing
 
-dfo <- data.frame(age=vage,sex=factor(vsex),lwag=vwag)
-dfo$msex <- rbinom(kn,1,vp)==1
-dfo$mlwag <- rbinom(kn,1,vp)==1
+#missing wag from sex
+vp <- (0.25*(vsex[!vma]==1)) + (0.025*(vsex[!vma]==0))
+vms <- rbinom(kma,1,vp)==1
+kms <- sum(!vms)
+
+#missing sex from wag
+vp <- 0.25*ecdf(vlwag[!vma][!vms])(vlwag[!vma][!vms]) #richer = more missing
+vmw <- rbinom(kms,1,vp)==1
+
+dfo <- data.frame(age=vage,sex=factor(vsex),lwag=vlwag)
+dfo$mlwag <- vma
+dfo$msex <- vma
+dfo$mlwag[!vma] <- vms
+dfo$msex[!vma][!vms] <- vmw
+dfo$qage <- ceiling(10*ecdf(dfo$age)(dfo$age)/2)
+dfo$qlwag <- ceiling(10*ecdf(dfo$lwag)(dfo$lwag)/2)
 df <- dfo
-is.na(df$sex) <- df$msex
-is.na(df$lwag) <- df$mlwag
 df$d <- "miss"
 dfo$d <- "full"
+is.na(df$sex) <- df$msex
+is.na(df$lwag) <- df$mlwag
 
-p <- ggplot(dfo,aes(x=age,y=lwag,color=factor(mlwag)))
-p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
-p <- p + geom_point()
-p <- p + stat_smooth(method="lm")
-CairoPNG(file="df1.png",width=1024,height=768)
+#show that dists when both missing are the same given age
+#first, show diff in univariate sex
+p <- ggplot(dfo,
+	aes(x=sex,fill=factor(mlwag & msex)))
+p <- p + geom_bar(position=position_fill())
+CairoPNG(file="sex11.png",width=1024,height=768)
+print(p)
+dev.off()
+p <- p + facet_grid(.~qage)
+CairoPNG(file="sexXage11.png",width=1024,height=768)
 print(p)
 dev.off()
 
-p <- ggplot(dfo,aes(x=lwag,fill=factor(mlwag)))
+#now show diff in conditional wag|sex
+p <- ggplot(dfo,
+	aes(x=lwag,fill=factor(mlwag & msex)))
 p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
-p <- p + geom_density()
-CairoPNG(file="df2.png",width=1024,height=768)
+p <- p + geom_density(alpha=1/4)
+p <- p + facet_grid(sex~.)
+CairoPNG(file="lwag11.png",width=1024,height=768)
 print(p)
 dev.off()
+#now show how age fixes it
+p <- p + facet_grid(sex~qage)
+CairoPNG(file="lwagXage11.png",width=1024,height=768)
+print(p)
+dev.off()
+
+#show diff in univariate sex when only wag is missing
+p <- ggplot(dfo,
+	aes(x=sex,fill=factor(msex & !mlwag)))
+p <- p + geom_bar(position=position_fill())
+CairoPNG(file="sex01.png",width=1024,height=768)
+print(p)
+dev.off()
+p <- p + facet_grid(.~qlwag)
+CairoPNG(file="sexXwag01.png",width=1024,height=768)
+print(p)
+dev.off()
+
+#now show diff in wag when only it is missing
+p <- ggplot(dfo,
+	aes(x=lwag,fill=factor(mlwag & !msex)))
+p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
+p <- p + geom_density(alpha=1/2)
+CairoPNG(file="lwag01.png",width=1024,height=768)
+print(p)
+dev.off()
+#now show how sex fixes it
+p <- p + facet_grid(sex~.)
+CairoPNG(file="lwagXsex01.png",width=1024,height=768)
+print(p)
+dev.off()
+
+msrmi <- setupRapopModel(tea.srmi)
+esrmi <- as.environment(list(Data=df, LHS=~sex+lwag, RHS=~age,
+	debug=FALSE,maxit=10,verbose=1))
+efit <- RapopModelEstimate(esrmi,msrmi)
+
+dfa <- dfo
+for(idx in 1:9){
+	dfs <- RapopModelDraw(efit)
+	dfs$d <-as.factor(formatC(idx,width=2,flag="0"))
+	dfa <- rbind(dfa,dfs)
+}
+
+dfa <- rbind(dfa,df[complete.cases(df),])
+#	dfa <- subset(dfa,mb==1 | ma==1)
+
+p <- ggplot(dfa,aes(fill=d,color=d))
+p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
+p <- p + geom_bar(aes(x=sex),position=position_dodge())
+CairoPNG(file=paste("sex","png",sep="."),width=1024,height=768)
+print(p)
+dev.off()
+
+p <- ggplot(dfa,aes(fill=d,color=d))
+p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
+p <- p + geom_density(aes(x=lwag),alpha=1/10)
+p <- p + facet_grid(sex ~ .)
+CairoPNG(file=paste("lwagdist",".png",sep="."),width=1024,height=768)
+print(p)
+dev.off()
+
+p <- ggplot(dfa,aes(fill=d,color=d))
+p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
+p <- p + stat_smooth(aes(x=age,y=lwag),method="lm")
+p <- p + facet_grid(sex ~ .)
+CairoPNG(file=paste("lwagXage","png",sep="."),width=1024,height=768)
+print(p)
+dev.off()
+
+p <- ggplot(dfa,aes(fill=d,color=d))
+p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
+p <- p + geom_boxplot(aes(x=d,y=lwag),alpha=1/5)
+CairoPNG(file=paste("bdens","png",sep="."),width=1024,height=768)
+print(p)
+dev.off()
+
+CairoPDF(paste("codalwag","pdf",sep="."))
+plot(esrmi$Lfit$lwag$env$Fit)
+dev.off()
+
+CairoPDF(paste("codasex","pdf",sep="."))
+plot(esrmi$Lfit$sex$env$Fit)
+dev.off()
+
 
 if(FALSE){
 dfacs <- with(subset(dcp,WAGP>0),data.frame(age=AGEP,lwag=log(WAGP)))
@@ -77,57 +192,4 @@ B <- (1/km)*sum((vQ-Qbar)^2)
 T <- (1+1/km)*B + Ubar
 stat <- Qbar/sqrt(T) #assumes Q=coef=0
 nu <- (km-1)*(1+(Ubar/((1+1/km)*B)))^2
-}
-
-for(outdx in 1:1){
-	msrmi <- setupRapopModel(tea.srmi)
-	esrmi <- as.environment(list(Data=df, LHS=~sex+lwag, RHS=~age,
-		debug=FALSE,maxit=10,verbose=1))
-	efit <- RapopModelEstimate(esrmi,msrmi)
-
-	dfa <- dfo
-	for(idx in 1:9){
-		dfs <- RapopModelDraw(efit)
-		dfs$d <-as.factor(formatC(idx,width=2,flag="0"))
-		dfa <- rbind(dfa,dfs)
-	}
-
-#	dfa <- subset(dfa,mb==1 | ma==1)
-
-	p <- ggplot(dfa,aes(fill=d,color=d))
-	p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
-	p <- p + geom_bar(aes(x=sex),position=position_dodge())
-	CairoPNG(file=paste("sex",outdx,"png",sep="."),width=1024,height=768)
-	print(p)
-	dev.off()
-
-	p <- ggplot(dfa,aes(fill=d,color=d))
-	p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
-	p <- p + geom_density(aes(x=lwag),alpha=1/10)
-	CairoPNG(file=paste("lwagdist",outdx,".png",sep="."),width=1024,height=768)
-	print(p)
-	dev.off()
-
-	p <- ggplot(dfa,aes(fill=d,color=d))
-	p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
-	p <- p + stat_smooth(aes(x=age,y=lwag),method="lm")
-	CairoPNG(file=paste("lwagXage",outdx,"png",sep="."),width=1024,height=768)
-	print(p)
-	dev.off()
-
-	p <- ggplot(subset(dfa,mlwag==1),aes(fill=d,color=d))
-	p <- p + scale_color_brewer(pal="Paired") + scale_fill_brewer(pal="Paired")
-	p <- p + geom_boxplot(aes(x=d,y=lwag),alpha=1/5)
-	CairoPNG(file=paste("bdens",outdx,"png",sep="."),width=1024,height=768)
-	print(p)
-	dev.off()
-
-	CairoPDF(paste("codalwag",outdx,"pdf",sep="."))
-	plot(esrmi$Lfit$lwag$env$Fit)
-	dev.off()
-
-	CairoPDF(paste("codasex",outdx,"pdf",sep="."))
-	plot(esrmi$Lfit$sex$env$Fit)
-	dev.off()
-
 }
