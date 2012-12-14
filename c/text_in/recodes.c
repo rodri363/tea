@@ -17,7 +17,7 @@ char *one_recode_to_string(apop_data const *recode_list, int *is_formula, int *h
     char *clauses=NULL;
     for (int j=0; j < *recode_list->textsize; j++){
         apop_data *one_rc = NULL;
-        char const *thisrc = *recode_list->text[0];
+        char const *thisrc = *recode_list->text[j];
         apop_regex(thisrc, "[ \t]*(([^|]|\\|\\|)+)[ \t]*(\\||$)", &one_rc);//break into delimited parts
         //first column is the data, second is garbage (an artifact of regex parens), third may be a pipe
         //If there are multiple pipes, then there are multiple rows like that.

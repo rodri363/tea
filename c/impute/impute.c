@@ -28,9 +28,6 @@ currently trying to fill in. Here is the detailed procedure.
 --First, identify the subcategory of the data for the missing data point
 	--Imputation is customarily done by subgroups: we fill in for Californians
 		with other Californians, or fill in for rich kids with other rich kids.
-	--We have an elaborate system that starts with all categorizations, and
-		then, if the group of complete data points is too small, drop one 
-		category at a time. This is mostly in find_active_cats().
 
 --identify missing points, and candidates for estimation. This is get_nans_and_notnans().
 	--Both are done at once because 80% of the work is the same, like the first
@@ -97,6 +94,9 @@ currently trying to fill in. Here is the detailed procedure.
 		--MLE
 		--nearest neighbor, or probabilistic n.n., where the model is simply a distance function.
 
+--Anybody left? If somebody didn't have enough data in their category to produce good estimates,
+    remove the bottom-most category from the list and re-run.
+
 Now that you have the output of the imputations, there's a function to use that 
 table to produce variances on each imputation, and another function to fill in 
 the original data.
@@ -119,35 +119,69 @@ the players
 
 typedef struct {
 	apop_model base_model, *fitted_model;
-	char * depvar, *vartypes;
-	int depvar_count, position;
-	char * selectclause;
+	char * depvar, **allvars, *vartypes, *selectclause;
+	int position, allvars_ct;
 	apop_data *isnan, *notnan;
     bool is_bounds_checkable, is_hotdeck, textdep, is_rake;
 } impustruct;
 
 ///// second method: via raking
 
+int cull_pmf(apop_data *onerow, void *subject_col_in){
+    apop_data *subject_col = subject_col_in;
+    for (int i=0; i< subject_col->matrix->size2; i++){
+        double this = apop_data_get(subject_col, .col=i);
+        if (isnan(this)) continue;
+        int corresponding_col = apop_name_find(onerow->names, subject_col->names->column[i], 'c');
+        if (corresponding_col==-2) continue; //not found
+        if (apop_data_get(onerow, .col=corresponding_col) != this) return 1;
+    }
+    return 0;
+}
+
+apop_model * prep_the_draws(apop_data *raked, void *fin){
+    gsl_vector *focus = fin;
+    apop_data *drawfrom = apop_data_copy(raked);
+    apop_data_rm_rows(drawfrom, .do_drop=cull_pmf, .drop_parameter=focus);
+    return apop_estimate(drawfrom, apop_pmf);
+}
+
 static void rake_to_completion(const char *datatab, const char *underlying, impustruct is, 
         const int min_group_size, gsl_rng *r, const int draw_count, apop_data *category_matrix, 
         const apop_data *fingerprint_vars, const char *id_col, char const *weight_col){
 
-    apop_data *d = apop_query_to_data("select * from %s", datatab);
+    apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
+    char *varlist = apop_text_paste(&as_data, .between=", ");
+    apop_data *d = apop_query_to_data("select %s, %s from %s", id_col, varlist, datatab);
     Apop_stopif(d->error, return, 0, "query error.");
-    apop_data_listwise_delete(d, .inplace='y');
-    Apop_stopif(!d || d->error, return, 0, "listwise deletion error");
-    apop_data_print(d, .output_file="notnan", .output_append='o', .output_type='d');
+    apop_data *notnan = apop_data_listwise_delete(d);
+    Apop_stopif(!notnan || notnan->error, return, 0, "listwise deletion error");
+    apop_data_print(notnan, .output_file="notnan", .output_append='w', .output_type='d');
 
-    
-    //convert , to |
-    for (char *c=is.selectclause; *c!='\0'; c++) if(*c==',') *c='|';
     apop_data *raked =
-        apop_rake(.margin_table=datatab, .count_col=weight_col, .init_table="notnan", .init_count_col=weight_col);
+        apop_rake(.margin_table=datatab,
+                .var_list=is.allvars, .var_ct=is.allvars_ct,
+                .contrasts=is.allvars, .contrast_ct=is.allvars_ct,
+                .count_col=weight_col, .init_table="notnan", .init_count_col=weight_col);
+    apop_data_pmf_compress(raked); //probably a no-op, but just in case.
 
-    //for each observation
-    //cull. just fucking cull.
-    for (size_t i=0; i< um; i++){
+    for (size_t i=0; i< d->matrix->size1; i++){
+        Apop_row(d, i, focusv); //as vector
+        if (!isnan(apop_sum(focusv))) continue;
+        gsl_vector *cp_to_fill = apop_vector_copy(focusv);
+        Apop_data_row(d, i, focus); //as data set w/names
 
+        //draw the entire row at once, but write only the NaN elmts to the filled tab.
+        apop_model *m = prep_the_draws(raked, focus); 
+        apop_draw(cp_to_fill->data, r, m);
+        for (size_t j=0; j< focus->matrix->size2; j++)  
+            if (isnan(apop_data_get(focus, .col=j)))
+                apop_query("insert into filled values('%s', '%s', %g, %g);",
+                       *focus->names->row, focus->names->column[j], 
+                       cp_to_fill->data[j], cp_to_fill->data[j]);
+        gsl_vector_free(cp_to_fill);
+        apop_data_free(m->data);
+        apop_model_free(m);
     }
 
     /*apop_data *allvals = apop_query_to_data("select  %s%c %s from %s",
@@ -157,12 +191,6 @@ static void rake_to_completion(const char *datatab, const char *underlying, impu
                                      datatab);
     apop_data_show(nanvals);
     */
-
-    
-
-    //query everything, nan or not.
-    //rake
-    //profit!
 }
 
 
@@ -177,33 +205,8 @@ static void lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
     *out = temp_out[0];
 }
 
-static void find_active_cats(const char *datatab, const int ego_id, int active_cats[], const apop_data *category_matrix, const char *id_col){
-/*For each category:
-  Go through each element in the category matrix; if it's in the category, get
-  this observation's value, and test it against each constraint.
-
-  On exit, you have a list of elements of the category_matrix that could be used for the query.
-*/
-    if (!category_matrix || category_matrix->textsize[0] == 0) return;
-    apop_table_exists("internal_test", 'd');
-    apop_query("create table internal_test as select * from %s where %s = %i", 
-                                            datatab, id_col, ego_id);
-    for (int j=0; j < category_matrix->textsize[0]; j++){
-        active_cats[j] = 0;
-        if (!strlen(category_matrix->text[j][0]))
-            continue; //this was blanked out by process_category_matrix
-        apop_data *d = apop_query_to_data("select * from internal_test where %s",
-                                        category_matrix->text[j][0]);
-        if (d != NULL){
-            apop_data_free(d);
-            active_cats[j] = 1;
-        }
-    }
-    apop_table_exists("internal_test", 'd');
-}
-
-static char *construct_a_query(char const *datatab, char const *underlying, int const active_cats[], 
-                    char const *varlist, apop_data const *category_matrix, char const *id_col){
+static char *construct_a_query(char const *datatab, char const *underlying, char const *varlist, 
+                                apop_data const *category_matrix, char const *id_col, int ego_id){
 /* Find out which constraints fit the given record, then join them into a query.
    The query ends in "and", because get_constrained_page will add one last condition.  */
 
@@ -238,8 +241,11 @@ static char *construct_a_query(char const *datatab, char const *underlying, int 
     asprintf(&q, "select %s, %s from %s where ", id_col, varlist, datatab);
     if (!category_matrix) return q;
     //else
-    for (int i=0; i< category_matrix->textsize[0]; i++)
-        if (active_cats[i]) qxprintf(&q, "%s %s and\n", q, category_matrix->text[i][0]);
+    for (int i=0; i< category_matrix->textsize[0]; i++){
+        char *n = *category_matrix->text[i]; //short name
+        qxprintf(&q, "%s %s = (select %s from %s where %s = %i) and\n",  
+                       q, n,           n,  datatab, id_col, ego_id);
+    }
     return q;
 }
 
@@ -293,11 +299,11 @@ apop_data *nans_no_constraints, *notnans_no_constraints;
 char *last_no_constraint;
 
 void verify(impustruct is){
-    Apop_stopif(!(is.isnan && !is.notnan), return, 0, "Even with no constraints, I couldn't find any "
+    Apop_stopif(is.isnan && !is.notnan, return, 0, "Even with no constraints, I couldn't find any "
                 "non-NaN records to use for fitting a model and drawing values for %s.", is.depvar);
     if (is.notnan){
         int v= apop_opts.verbose; apop_opts.verbose=0;
-        Apop_stopif(!(gsl_isnan(apop_matrix_sum((is.notnan)->matrix)+apop_sum((is.notnan)->vector))), 
+        Apop_stopif(gsl_isnan(apop_matrix_sum((is.notnan)->matrix)+apop_sum((is.notnan)->vector)), 
                 return, 0, 
                 "NULL values or infinities where there shouldn't be when fitting the model for %s.", is.depvar);
         apop_opts.verbose=v;
@@ -328,10 +334,7 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
         const char *underlying, int min_group_size, const apop_data *category_matrix, 
         const apop_data *fingerprint_vars, const char *id_col){
 	is->isnan = NULL;
-    int active_cats[category_matrix ? category_matrix->textsize[0] : 1];
-    find_active_cats(datatab, index, active_cats, category_matrix, id_col);
     char *q, *q2;
-    int already_ran=0;
     if (!category_matrix || *category_matrix->textsize == 0){
         if (nans_no_constraints){//maybe recycle what we have.
             if(apop_strcmp(last_no_constraint, is->selectclause)){
@@ -347,8 +350,7 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
         }//else, carry on:
         asprintf(&q, "select %s, %s from %s where 1 and ", id_col, is->selectclause, datatab);
     } else
-        q = construct_a_query(datatab, underlying, active_cats,
-                                        is->selectclause, category_matrix, id_col);
+        q = construct_a_query(datatab, underlying, is->selectclause, category_matrix, id_col, index);
     q2 = construct_a_query_II(id_col, is, fingerprint_vars);
     is->notnan = q2? apop_query_to_mixed_data(is->vartypes, "%s %s is not null except %s", q, is->depvar, q2)
                 : apop_query_to_mixed_data(is->vartypes, "%s %s is not null", q, is->depvar);
@@ -358,11 +360,9 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
         apop_data_show(is->notnan);
         printf("--------------");
     }
-
-    if (!already_ran++) //we don't winnow down the isnan query.
-        is->isnan = q2 && is->depvar_count == 1 ? 
-              apop_query_to_text("%s %s is null union %s", q, is->depvar, q2)
-            : apop_query_to_text("%s %s is null", q, is->depvar);
+    is->isnan = q2 ? 
+          apop_query_to_text("%s %s is null union %s", q, is->depvar, q2)
+        : apop_query_to_text("%s %s is null", q, is->depvar);
     free(q); q=NULL;
     free(q2); q2=NULL;
     verify(*is);
@@ -386,10 +386,10 @@ static void model_est(impustruct *is, int *model_id){
             //the actual depvar got factor-ized in prep_for_draw.
 //            apop_data_to_dummies(is->isnan, i, .keep_first='y', .append='y'); //presumably has the same structure.
         }
-    Apop_stopif(!notnan->vector || !isnan(apop_vector_sum(notnan->vector)), return, 
+    Apop_stopif(notnan->vector && isnan(apop_vector_sum(notnan->vector)), return, 
             0, "NaNs in the not-NaN vector that I was going to use to estimate "
             "the imputation model. This shouldn't happen")
-    Apop_stopif(!notnan->matrix || !isnan(apop_matrix_sum(notnan->matrix)), return,
+    Apop_stopif(notnan->matrix && isnan(apop_matrix_sum(notnan->matrix)), return,
             0, "NaNs in the not-NaN matrix that I was going to use to estimate "
             "the imputation model. This shouldn't happen")
     if (is->is_hotdeck) apop_data_pmf_compress(notnan);
@@ -512,6 +512,7 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
     //first pass: get the full list of NaNs; no not-NaNs yet.
     apop_data *nanvals = apop_query_to_data("select %s, %s from %s where %s is null",
 									 id_col, is.depvar, datatab, is.depvar);
+    if (!nanvals) return NULL; //query worked, nothing found.
     Apop_stopif(nanvals->error, return NULL, 0, "Error querying for missing values.");
     sprintf(apop_opts.db_name_column, "%s", nametmp); 
     free(nametmp);
@@ -618,7 +619,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
         do drew = onedraw(r, is, type, id_number, fail_id, 
                           model_id, full_record, col_of_interest);
         while (drew.is_fail && tryctr++ < 1000);
-        Apop_stopif(!drew.is_fail, return, 0, "I just made a thousand attempts to find an "
+        Apop_stopif(drew.is_fail, return, 0, "I just made a thousand attempts to find an "
             "imputed value that passes checks, and couldn't. "
             "Something's wrong that a computer can't fix.\n "
             "I'm at id %i.", id_number);
@@ -634,7 +635,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
     }
 }
 
-double still_is_nan(apop_data *in){return !strcmp(*in->names->row, ".");}
+double still_is_nan(apop_data *in){return strcmp(*in->names->row, ".");}
 
 /* As named, impute from a single model, almost certainly a single variable.
    We check bounds, because those can be done on a single-variable basis.
@@ -696,30 +697,9 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         still_has_missings = apop_map_sum(nanvals, .fn_r=still_is_nan);
     } while (still_has_missings && !hit_zero);
     commit_transaction();
-    if (hit_zero) printf("I am so screwed: even with no constraints, I still couldn't find enough "
-                         "data to model the data set.");
+    if (still_has_missings && hit_zero) printf("Even with no constraints, I still "
+                         "couldn't find enough data to model the data set.");
     apop_data_free(nanvals);
-}
-
-static void process_category_matrix(apop_data *category_matrix, char *idatatab){
-    if (!category_matrix) return;
-    int initial_size = category_matrix->textsize[0];
-    for (int i=0; i< initial_size; i++){
-        char const *cat = category_matrix->text[i][0];
-        if (!apop_regex(cat, "[<>!|=&]")){
-            apop_data *queried;
-            if (apop_table_exists(strip(cat))) //If we have the declaration, then use it
-                queried = apop_query_to_text("select * from %s", cat);
-            else
-                queried = apop_query_to_text("select distinct(%s) from %s", cat, idatatab);
-            //= apop_query_to_text("select distinct('%s='||%s) from %s", cat, cat, idatatab);//far too slow
-            for (int j=0; j< queried->textsize[0]; j++)
-                xprintf(&queried->text[j][0], "%s='%s'", cat, queried->text[j][0]);
-            apop_data_stack(category_matrix, queried, .inplace='y');
-            apop_data_free(queried);
-            apop_text_add(category_matrix, i, 0, "0 = 1");//always-false filler
-        }
-    }
 }
 
 apop_model tea_get_model_by_name(char *name){
@@ -778,14 +758,15 @@ void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
 }
 
 impustruct read_model_info(char const *configbase, char const *tag){
-	apop_data *vars;
+	apop_data *vars=NULL, *indepvarlist=NULL;
     apop_regex(get_key_word_tagged(configbase, "output vars", tag),
                 " *([^,]*[^ ]) *(,|$) *", &vars); //split at the commas
+    apop_regex(get_key_word_tagged(configbase, "input vars", tag),
+                " *([^,]*[^ ]) *(,|$) *", &indepvarlist); //same
     Apop_assert_c(vars, (impustruct){}, 1, "I couldn't find an 'output vars' line in the %s segment", configbase);
 
 	impustruct model = (impustruct) {.position=-2, .vartypes=strdup("n")}; //zero out everything; posn to be filled in later.
     model.depvar = strdup(**vars->text);
-    model.depvar_count = 1; //TO DO: implement more than one.
 
     //find the right model.
     char *model_name = get_key_word_tagged(configbase, "method", tag);
@@ -803,11 +784,21 @@ impustruct read_model_info(char const *configbase, char const *tag){
         }
     if (!gotit) asprintf(&model.vartypes, "%smt", model.vartypes), model.textdep=true; //assume text.
 
+    if (model.is_rake){
+        int i=0;
+        model.allvars_ct = *indepvarlist->textsize + *vars->textsize;
+        model.allvars = malloc(sizeof(char*)*model.allvars_ct);
+        if (vars) for (; i< *vars->textsize; i++) model.allvars[i]= strdup(*vars->text[i]);
+        if (indepvarlist) for (int j=0; j< *indepvarlist->textsize; j++) model.allvars[i+j]= strdup(*indepvarlist->text[j]);
+    }
+
     //if a text dependent var, set aside a column to be filled in with factors.
     if (!model.is_rake)
-        asprintf(&model.selectclause, "%s%s", model.textdep ? "1, ": " ", model.depvar);	
+         asprintf(&model.selectclause, "%s%s", model.textdep ? "1, ": " ", model.depvar);	
+    else asprintf(&model.selectclause, "%s", model.depvar);	
     if (indep_vars)
-        asprintf(&model.selectclause, "%s, %s", model.selectclause,
+        asprintf(&model.selectclause, "%s%c %s", 
+                XN(model.selectclause),model.selectclause ? ',' : ' ',
                                     process_string(indep_vars, &(model.vartypes)));
 	apop_data_free(vars);
     return model;
@@ -833,7 +824,6 @@ void do_impute(char **tag, char **idatatab){
 
     char *underlying = get_key_word(configbase, "underlying table");
     apop_data *category_matrix = get_key_text_tagged(configbase, "categories", *tag);
-    process_category_matrix(category_matrix, *idatatab);
 
     float min_group_size = get_key_float(configbase, "min group size");
     if (isnan(min_group_size)) min_group_size = 1;

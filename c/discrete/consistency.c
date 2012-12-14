@@ -209,14 +209,14 @@ static apop_data * get_alternatives(int *restrict record, char *const  restrict 
     int rows = 1;
     for (int i = 0; i< record_in_size; i++){
 	    int this_field = user_to_em[i];
-        Apop_stopif(this_field >= 0, apop_data*out=apop_data_alloc(); out->error='f'; return out,
+        Apop_stopif(this_field < 0, apop_data*out=apop_data_alloc(); out->error='f'; return out,
                0,  "I couldn't find %s.", record_name_in[i]);
         total_fails += failing_records[this_field] ? 1 : 0;
         if (failing_records[this_field]){
             rows *= find_e[this_field] - find_b[this_field]+1;
         }
     }
-	Apop_stopif(total_fails,  apop_data*out=apop_data_alloc(); out->error='c'; return out,
+	Apop_stopif(!total_fails,  apop_data*out=apop_data_alloc(); out->error='c'; return out,
                 0, "Failed internal consistency check: I marked this "
 				"record as failed but couldn't find which fields were causing failure.");
     apop_data *out = apop_data_alloc(1, rows, total_fails);
@@ -267,12 +267,12 @@ static void fill_a_record(int record[], int const record_width, char * const res
     	//		record_name_in[i],user_to_em[i],ud_values[i]);
         for(int  kk = find_b[user_to_em[i]]-1; kk< find_e[user_to_em[i]]; kk++)
           record[kk] = 0;
-        Apop_stopif(ri_position != -1 , return, 0, "I couldn't find the value %s in your "
+        Apop_stopif(ri_position == -1 , return, 0, "I couldn't find the value %s in your "
                 "declarations for the variable %s. Please remove the error from the data or "
                 "add that value to the declaration, then restart the program so I can rebuild "
                 "some internal data structures.", ud_values[i], record_name_in[i]);
         int bit = find_b[user_to_em[i]]-1 + ri_position-1;
-        Apop_stopif(bit < record_width && bit >= 0, return, 0,
+        Apop_stopif(bit >= record_width || bit < 0, return, 0,
                     "About to shift position %i in a record, but there "
                     "are only %i entries.", bit, record_width);
         record[bit] = 1;
