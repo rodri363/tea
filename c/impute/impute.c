@@ -139,23 +139,42 @@ int cull_pmf(apop_data *onerow, void *subject_col_in){
     return 0;
 }
 
-apop_model * prep_the_draws(apop_data *raked, void *fin){
-    gsl_vector *focus = fin;
-    apop_data *drawfrom = apop_data_copy(raked);
-    apop_data_rm_rows(drawfrom, .do_drop=cull_pmf, .drop_parameter=focus);
+apop_model * prep_the_draws(apop_data *raked, apop_data *fin){
+    int hasrun=0;
+    apop_data *cp = NULL, *drawfrom=NULL;
+    do {
+        if (drawfrom){  //there are cases where we have no matches in the main table,
+                        //so we have to blank some not-NaN values and try again.
+            apop_data *freeme = NULL;
+            if (cp) freeme = cp;
+            cp = apop_data_copy(cp ? cp : fin);
+            apop_data_free(freeme);
+            for (int i=0; i< cp->matrix->size2; i++) 
+                if (!isnan(apop_data_get(cp, 0, i))) 
+                    {apop_data_set(cp, 0, i, NAN); break;}
+            apop_data_free(drawfrom);
+        }
+        drawfrom = apop_data_copy(raked);
+        apop_data_rm_rows(drawfrom, .do_drop=cull_pmf, .drop_parameter=(cp ? cp: fin));
+    } while (!drawfrom || !drawfrom->matrix || !drawfrom->matrix->size1);
     return apop_estimate(drawfrom, apop_pmf);
 }
 
-static void rake_to_completion(const char *datatab, const char *underlying, impustruct is, 
-        const int min_group_size, gsl_rng *r, const int draw_count, apop_data *category_matrix, 
-        const apop_data *fingerprint_vars, const char *id_col, char const *weight_col){
-
+static void rake_to_completion(const char *datatab, const char *underlying, 
+        impustruct is, const int min_group_size, gsl_rng *r, 
+        const int draw_count, apop_data *category_matrix, 
+        const apop_data *fingerprint_vars, const char *id_col, 
+        char const *weight_col){
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
     char *varlist = apop_text_paste(&as_data, .between=", ");
-    apop_data *d = apop_query_to_data("select %s, %s from %s", id_col, varlist, datatab);
+    apop_data *d = apop_query_to_data("select %s, %s %c %s from %s", id_col, varlist, 
+                    weight_col ? ',' : ' ',
+                    XN(weight_col), datatab);
+    Apop_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
     Apop_stopif(d->error, return, 0, "query error.");
     apop_data *notnan = apop_data_listwise_delete(d);
     Apop_stopif(!notnan || notnan->error, return, 0, "listwise deletion error");
+    begin_transaction();
     apop_data_print(notnan, .output_file="notnan", .output_append='w', .output_type='d');
 
     apop_data *raked =
@@ -164,6 +183,8 @@ static void rake_to_completion(const char *datatab, const char *underlying, impu
                 .contrasts=is.allvars, .contrast_ct=is.allvars_ct,
                 .count_col=weight_col, .init_table="notnan", .init_count_col=weight_col);
     apop_data_pmf_compress(raked); //probably a no-op, but just in case.
+    Apop_stopif(!raked, commit_transaction(); return, 
+                0, "Raking returned a blank table. This shouldn't happen.");
 
     for (size_t i=0; i< d->matrix->size1; i++){
         Apop_row(d, i, focusv); //as vector
@@ -173,27 +194,20 @@ static void rake_to_completion(const char *datatab, const char *underlying, impu
 
         //draw the entire row at once, but write only the NaN elmts to the filled tab.
         apop_model *m = prep_the_draws(raked, focus); 
-        apop_draw(cp_to_fill->data, r, m);
-        for (size_t j=0; j< focus->matrix->size2; j++)  
-            if (isnan(apop_data_get(focus, .col=j)))
-                apop_query("insert into filled values('%s', '%s', %g, %g);",
-                       *focus->names->row, focus->names->column[j], 
-                       cp_to_fill->data[j], cp_to_fill->data[j]);
+        for (int drawno=0; drawno< draw_count; drawno++){
+            apop_draw(cp_to_fill->data, r, m);
+            for (size_t j=0; j< focus->matrix->size2; j++)  
+                if (isnan(apop_data_get(focus, .col=j)))
+                    apop_query("insert into filled values('%s', '%s', %i, %g);",
+                           *focus->names->row, focus->names->column[j], 
+                           drawno, cp_to_fill->data[j]);
+        }
         gsl_vector_free(cp_to_fill);
         apop_data_free(m->data);
         apop_model_free(m);
     }
-
-    /*apop_data *allvals = apop_query_to_data("select  %s%c %s from %s",
-									 is.selectclause, 
-                                     weight_col ? ',': ' ',
-                                     weight_col ? weight_col : "",
-                                     datatab);
-    apop_data_show(nanvals);
-    */
+    commit_transaction();
 }
-
-
 
 
 	
