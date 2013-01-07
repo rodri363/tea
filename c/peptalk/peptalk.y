@@ -237,6 +237,7 @@ void add_keyval(char *key, char *val){
 }
 
 void add_var(char *var, int is_recode, char type){
+    if (!var) return; //should never happen.
     if (pass !=0 && !is_recode) return;
 	/* set current_var
 		create the table in the db

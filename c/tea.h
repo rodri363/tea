@@ -161,6 +161,7 @@ for (int i=0; i < vals->textsize[0]; i++)
 apop_data * get_key_text(char const *part1, char const *part2);
 apop_data * get_key_text_tagged(char const *part1, char const *part2, char const *tag);
 double get_key_float(char const *part1, char const * part2);
+double get_key_float_tagged(char const *part1, char const * part2, char const *tag);
 char* get_key_word(char const *part1, char const *part2);
 char* get_key_word_tagged(char const *part1, char const *part2, char const *tag);
 void set_key_text(char const *group, char const *key, char const *value);
@@ -174,8 +175,7 @@ void do_preedits(char **datatab);
 
 /* Once you've made your filled_tab, you'll want an image of one draw or another.
    */
-void check_out_impute(char **origin, char **dest, int *imputation_number, char **subset);
-void check_in_impute(char *origin, int serialno, int imputation_number);
+void check_out_impute(char **origin, char **dest, int *imputation_number, char **subset, char** filltabin);
 
 //peptalk.y, public mostly for the recodes.
 char * strip(const char *in); //Remove leading/trailing white space

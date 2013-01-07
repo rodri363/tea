@@ -196,11 +196,14 @@ rnorm.edit <- function(mean,sigma,alts){
 #' @param dest  If given and not NULL, the output table name. If NULL, fill dest.
 #' @param imputation_number You had multiple imputations; which do you want? First is zero.
 #' @param subset What to put into a 'where' clause if you want less than the whole table.
+#` @param filltab The table of fill-ins that you specified in the impute block of your spec file.
 
-checkOutImpute <- function(origin=NULL, dest=NULL, imputation_number=0, subset=NULL) {
+checkOutImpute <- function(origin=NULL, dest=NULL, imputation_number=0, subset=NULL,
+        filltab=NULL) {
     origin <-getInputTable(origin)
 	.C("check_out_impute", as.character(origin), as.character(dest), 
-					as.integer(imputation_number), as.character(subset))
+					as.integer(imputation_number), as.character(subset),
+                    as.character(filltab))
 }
 
 

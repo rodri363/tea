@@ -263,6 +263,16 @@ double get_key_float(char const *part1, char const * part2){
     return out;
 }
 
+double get_key_float_tagged(char const *part1, char const * part2, char const *tag){
+    if (!tag || !strlen(tag)) return get_key_float(part1,part2);
+    return apop_query_to_float("select value from keys where "
+									    "key like '%s%s%s' and tag ='%s'",
+										XN(part1),
+										(part1&&part2)?"/":"",
+										XN(part2), XN(tag));
+
+}
+
 /** Give me a key, in either one or two parts, and I'll give you an apop_data
 set with a text element filled with your data. Access via 
    \c returned_data->text[0][0]

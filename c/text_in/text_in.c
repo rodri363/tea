@@ -70,9 +70,8 @@ static int text_in_by_tag(char const *tag){
     Apop_assert_c (!(!overwrite && apop_table_exists(table_out)), 0, 0,
                         "Table %s exists; skipping the input from file %s.", table_out, file_in);
 
-    //Apop_assert_c(!apop_table_exists(table_out), 0, 0, "Already read in the input file %s; not doing it again.", file_in);
-    Apop_assert(file_in, "I don't have an input file name");
-    Apop_assert(table_out, "I don't have a name for the output table.");
+    Apop_stopif(!file_in, return -1, 0,  "I don't have an input file name");
+    Apop_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
 	printf("Reading text file %s into database table %s.\n", file_in, table_out);
 
     if (overwrite) apop_table_exists(table_out, 'd');

@@ -120,62 +120,84 @@ the players
 typedef struct {
 	apop_model base_model, *fitted_model;
 	char * depvar, **allvars, *vartypes, *selectclause;
-	int position, allvars_ct;
+	int position, allvars_ct, error;
 	apop_data *isnan, *notnan;
     bool is_bounds_checkable, is_hotdeck, textdep, is_rake;
 } impustruct;
 
 ///// second method: via raking
 
-int cull_pmf(apop_data *onerow, void *subject_col_in){
-    apop_data *subject_col = subject_col_in;
-    for (int i=0; i< subject_col->matrix->size2; i++){
-        double this = apop_data_get(subject_col, .col=i);
+/* Zero out the weights of those rows that don't match. 
+ * Thanks to copy_by_name, we know that the two input data sets match.
+ */
+double cull2(apop_data *onerow, void *subject_row_in){
+    apop_data *subject_row = subject_row_in;
+    for (int i=0; i< subject_row->matrix->size2; i++){
+        double this = apop_data_get(subject_row, .col=i);
         if (isnan(this)) continue;
-        int corresponding_col = apop_name_find(onerow->names, subject_col->names->column[i], 'c');
-        if (corresponding_col==-2) continue; //not found
-        if (apop_data_get(onerow, .col=corresponding_col) != this) return 1;
+        if (apop_data_get(onerow, .col=i) != this) {
+            *onerow->weights->data = 0;
+            return 0;
+        }
     }
     return 0;
 }
 
-apop_model * prep_the_draws(apop_data *raked, apop_data *fin){
-    int hasrun=0;
-    apop_data *cp = NULL, *drawfrom=NULL;
-    do {
-        if (drawfrom){  //there are cases where we have no matches in the main table,
-                        //so we have to blank some not-NaN values and try again.
-            apop_data *freeme = NULL;
-            if (cp) freeme = cp;
-            cp = apop_data_copy(cp ? cp : fin);
-            apop_data_free(freeme);
+//reduce the number of calls to apop_name_find by order N.
+apop_data *copy_by_name(apop_data *data, apop_data *form){
+    apop_data *out= apop_data_copy(form);
+    gsl_matrix_set_all(form->matrix, NAN);
+    for (int i=0; i< data->matrix->size2; i++){
+        double this = apop_data_get(data, .col=i);
+        if (isnan(this)) continue; //don't bother.
+        int corresponding_col = apop_name_find(out->names, data->names->column[i], 'c');
+        if (corresponding_col!=-2) 
+            apop_data_set(out, 0, corresponding_col, this);
+    }
+    return out;
+
+}
+
+apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector *orig){
+    Apop_stopif(!raked, return NULL, 0, "NULL raking results.")
+    bool done=false;
+    Apop_data_row(raked, 0, firstrow);
+    apop_data *cp = copy_by_name(fin, firstrow);
+    while (!done) {
+        apop_data_free_base(
+            apop_map(raked, .fn_rp=cull2, .param=cp) );
+        done=apop_sum(raked->weights);
+        if (!done){//there are cases where we have no matches in the main table,
+                    //so we have to blank some not-NaN values and try again.
+            gsl_vector_memcpy(raked->weights, orig);
             for (int i=0; i< cp->matrix->size2; i++) 
                 if (!isnan(apop_data_get(cp, 0, i))) 
                     {apop_data_set(cp, 0, i, NAN); break;}
-            apop_data_free(drawfrom);
         }
-        drawfrom = apop_data_copy(raked);
-        apop_data_rm_rows(drawfrom, .do_drop=cull_pmf, .drop_parameter=(cp ? cp: fin));
-    } while (!drawfrom || !drawfrom->matrix || !drawfrom->matrix->size1);
-    return apop_estimate(drawfrom, apop_pmf);
+        //apop_data_rm_rows(drawfrom, .do_drop=cull_pmf, .drop_parameter=(cp ? cp: fin));
+    }
+    apop_data_free(cp);
+    return apop_estimate(raked, apop_pmf);
 }
 
 static void rake_to_completion(const char *datatab, const char *underlying, 
         impustruct is, const int min_group_size, gsl_rng *r, 
-        const int draw_count, apop_data *category_matrix, 
+        const int draw_count, char *catlist, 
         const apop_data *fingerprint_vars, const char *id_col, 
-        char const *weight_col){
+        char const *weight_col, char *fill_tab){
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
     char *varlist = apop_text_paste(&as_data, .between=", ");
-    apop_data *d = apop_query_to_data("select %s, %s %c %s from %s", id_col, varlist, 
+    apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s", id_col, varlist, 
                     weight_col ? ',' : ' ',
-                    XN(weight_col), datatab);
+                    XN(weight_col), datatab, catlist ? "where": " ", XN(catlist));
     Apop_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
     Apop_stopif(d->error, return, 0, "query error.");
     apop_data *notnan = apop_data_listwise_delete(d);
     Apop_stopif(!notnan || notnan->error, return, 0, "listwise deletion error");
     begin_transaction();
     apop_data_print(notnan, .output_file="notnan", .output_append='w', .output_type='d');
+    commit_transaction();
+    apop_data_free(notnan);
 
     apop_data *raked =
         apop_rake(.margin_table=datatab,
@@ -183,30 +205,56 @@ static void rake_to_completion(const char *datatab, const char *underlying,
                 .contrasts=is.allvars, .contrast_ct=is.allvars_ct,
                 .count_col=weight_col, .init_table="notnan", .init_count_col=weight_col);
     apop_data_pmf_compress(raked); //probably a no-op, but just in case.
-    Apop_stopif(!raked, commit_transaction(); return, 
+    Apop_stopif(!raked, return, 
                 0, "Raking returned a blank table. This shouldn't happen.");
 
+    int batch_size=10000; //just in case...
+    gsl_vector *original_weights=apop_vector_copy(raked->weights);
+    gsl_vector *cp_to_fill = gsl_vector_alloc(d->matrix->size2);
+    apop_data *fillins = apop_data_alloc();
     for (size_t i=0; i< d->matrix->size1; i++){
         Apop_row(d, i, focusv); //as vector
         if (!isnan(apop_sum(focusv))) continue;
-        gsl_vector *cp_to_fill = apop_vector_copy(focusv);
         Apop_data_row(d, i, focus); //as data set w/names
 
         //draw the entire row at once, but write only the NaN elmts to the filled tab.
-        apop_model *m = prep_the_draws(raked, focus); 
+        apop_model *m = prep_the_draws(raked, focus, original_weights); 
+        if (m->error) {apop_model_free(m); continue;} //get it on the next go `round.
+        size_t len=0;
         for (int drawno=0; drawno< draw_count; drawno++){
             apop_draw(cp_to_fill->data, r, m);
             for (size_t j=0; j< focus->matrix->size2; j++)  
-                if (isnan(apop_data_get(focus, .col=j)))
-                    apop_query("insert into filled values('%s', '%s', %i, %g);",
+                if (isnan(apop_data_get(focus, .col=j))){
+                    len = *fillins->textsize;
+                    fillins->matrix = apop_matrix_realloc(fillins->matrix, len+1, 2);
+                    apop_text_alloc(fillins, len+1, 2);
+                    apop_text_add(fillins, len, 0, *focus->names->row);
+                    apop_text_add(fillins, len, 1, focus->names->column[j]);
+                    gsl_matrix_set(fillins->matrix, len, 0, drawno);
+                    gsl_matrix_set(fillins->matrix, len, 1, cp_to_fill->data[j]);
+                }
+                /*    apop_query("insert into filled values('%s', '%s', %i, %g);",
                            *focus->names->row, focus->names->column[j], 
-                           drawno, cp_to_fill->data[j]);
+                           drawno, cp_to_fill->data[j]);*/
+            if (len > batch_size){
+                begin_transaction();
+                apop_data_print(fillins, .output_file=fill_tab, .output_type='d', .output_append='a');
+                commit_transaction();
+                gsl_matrix_free(fillins->matrix);
+                fillins->matrix = NULL;
+                apop_text_alloc(fillins, 0, 0);
+            }
         }
-        gsl_vector_free(cp_to_fill);
-        apop_data_free(m->data);
         apop_model_free(m);
+        gsl_vector_memcpy(raked->weights, original_weights);
     }
+    begin_transaction();
+    apop_data_print(fillins, .output_file=fill_tab, .output_type='d', .output_append='a');
     commit_transaction();
+    apop_data_free(fillins);
+    gsl_vector_free(cp_to_fill);
+    gsl_vector_free(original_weights);
+    apop_data_free(d);
 }
 
 
@@ -411,6 +459,7 @@ static void model_est(impustruct *is, int *model_id){
 
     install_data_to_R(notnan, &is->base_model); //no-op if not an R model.
 	is->fitted_model = apop_estimate(notnan, is->base_model);
+    Apop_stopif(!is->fitted_model, return, 0, "model fitting fail.");
     if (apop_strcmp(is->base_model.name, "multinomial"))
         apop_data_set(is->fitted_model->parameters, .row=0, .col=-1, .val=1);
     if (apop_strcmp(is->base_model.name, "Ordinary Least Squares"))
@@ -621,7 +670,8 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 
 //a shell for do onedraw() while (!done).
 static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
-                        int model_id, int draw, apop_data *nanvals){
+                        int model_id, int draw, apop_data *nanvals,
+                        char *filltab){
     int done_ctr = 0; //for marking what's done.
     char type = get_coltype(total_var_ct, is->depvar);
     int col_of_interest=apop_name_find(is->isnan->names, is->depvar, 't');
@@ -637,13 +687,8 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
             "imputed value that passes checks, and couldn't. "
             "Something's wrong that a computer can't fix.\n "
             "I'm at id %i.", id_number);
-/*        apop_query("insert into filled values('%s', '%s', %i, '%s');\n"
-                   "insert into impute_log values('%s', %i, %i, %g, '%s', '? ?')",
-                       is->isnan->names->row[rowindex], is->depvar, draw, drew.textx,
-                       is->isnan->names->row[rowindex], fail_id, model_id, drew.pre_round, drew.textx);
-                       */
-        apop_query("insert into filled values('%s', '%s', %i, '%s');",
-                       is->isnan->names->row[rowindex], is->depvar, draw, drew.textx);
+        apop_query("insert into %s values(%i, '%s', '%s', '%s');",
+                       filltab,  draw, drew.textx, is->isnan->names->row[rowindex], is->depvar);
         free(drew.textx);
         mark_an_id(&done_ctr,is->isnan->names->row[rowindex], nanvals->names->row, nanvals->names->rowct);
     }
@@ -667,7 +712,7 @@ double still_is_nan(apop_data *in){return strcmp(*in->names->row, ".");}
    */
 static void impute_a_variable(const char *datatab, const char *underlying, impustruct *is, 
         const int min_group_size, gsl_rng *r, const int draw_count, apop_data *category_matrix, 
-        const apop_data *fingerprint_vars, const char *id_col){
+        const apop_data *fingerprint_vars, const char *id_col, char *filltab){
     static int fail_id=0, model_id=-1;
     apop_data *nanvals = get_all_nanvals(*is, id_col, datatab);
     if (!nanvals) return;
@@ -691,7 +736,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
             model_est(is, &model_id); //notnan may be pmf_compressed here.
             prep_for_draw(is->notnan, is);
             for (int draw=0; draw< draw_count; draw++)
-                make_a_draw(is, r, ++fail_id, model_id, draw, nanvals);
+                make_a_draw(is, r, ++fail_id, model_id, draw, nanvals, filltab);
             apop_model_free(is->fitted_model); //if (is_hotdeck) apop_data_free(is->fitted_model->data);
             bail:
             apop_data_free(is->notnan);
@@ -752,19 +797,14 @@ apop_model tea_get_model_by_name(char *name){
                 "I couldn't find the model named '%s' in my list of supported "
                 "models (or among models you added using setupRapopModel.", name);
 */
+        Apop_stopif(!strcmp(out.name, "Null model"), return (apop_model){}, 0, "model selection fail.");
         Apop_model_add_group(&out, apop_parts_wanted); //no cov
         return out;
 }
 
-void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
+void prep_imputations(char *configbase, char *id_col, gsl_rng **r, char *filltab){
     int seed = get_key_float(configbase, "seed");
     *r = apop_rng_alloc((!isnan(seed) && seed>=0) ? seed : 35);
-    apop_table_exists("filled", 'd');
-    apop_query("create table filled ('%s', 'field', 'draw', 'value');"
-                "create index filledind   on filled (%s);"
-                "create index filledindx  on filled (field);"
-                "create index filledindex on filled (draw);"
-                    , id_col, id_col);
     apop_table_exists("impute_log", 'd');
     apop_query("create table impute_log (%s, 'fail_id', 'model', 'draw', 'declared', 'status')", id_col);
     if (!apop_table_exists("model_log"))
@@ -777,7 +817,7 @@ impustruct read_model_info(char const *configbase, char const *tag){
                 " *([^,]*[^ ]) *(,|$) *", &vars); //split at the commas
     apop_regex(get_key_word_tagged(configbase, "input vars", tag),
                 " *([^,]*[^ ]) *(,|$) *", &indepvarlist); //same
-    Apop_assert_c(vars, (impustruct){}, 1, "I couldn't find an 'output vars' line in the %s segment", configbase);
+    Apop_stopif(!vars, return (impustruct){.error=1}, 0, "I couldn't find an 'output vars' line in the %s segment", configbase);
 
 	impustruct model = (impustruct) {.position=-2, .vartypes=strdup("n")}; //zero out everything; posn to be filled in later.
     model.depvar = strdup(**vars->text);
@@ -788,6 +828,7 @@ impustruct read_model_info(char const *configbase, char const *tag){
         model.is_rake = true;
         model.base_model = (apop_model){.name="null model"};
     } else model.base_model = tea_get_model_by_name(model_name);
+    Apop_stopif(!strlen(model.base_model.name), model.error=1; return model, 0, "model selection fail.");
     char *indep_vars = get_key_word_tagged(configbase, "input vars", tag);
     int gotit=0;
     for (int j=0; j < total_var_ct && !gotit; j++)
@@ -800,7 +841,10 @@ impustruct read_model_info(char const *configbase, char const *tag){
 
     if (model.is_rake){
         int i=0;
-        model.allvars_ct = *indepvarlist->textsize + *vars->textsize;
+        int ict = indepvarlist ? *indepvarlist->textsize : 0;
+        int dct = vars ? *vars->textsize : 0;
+        model.allvars_ct = ict + dct;
+        Apop_stopif(!model.allvars_ct, model.error=1; return model, 0, "Neither 'output vars' nor 'input vars' in the raking segment of the spec.");
         model.allvars = malloc(sizeof(char*)*model.allvars_ct);
         if (vars) for (; i< *vars->textsize; i++) model.allvars[i]= strdup(*vars->text[i]);
         if (indepvarlist) for (int j=0; j< *indepvarlist->textsize; j++) model.allvars[i+j]= strdup(*indepvarlist->text[j]);
@@ -819,35 +863,38 @@ impustruct read_model_info(char const *configbase, char const *tag){
 }
 
 int impute_is_prepped; //restarts with new read_specs.
+char *configbase = "impute";
 
 /* \key {impute/input table} The table holding the base data, with missing values. 
   Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called <tt>doInput()</tt> in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one. 
   \key{impute/seed} The RNG seed
   \key{impute/draw count} How many multiple imputations should we do? Default: 5.
+  \key{impute/output table} Where the fill-ins will be written. You'll still need <tt>checkOutImpute</tt> to produce a completed table.
  */
-void do_impute(char **tag, char **idatatab){ 
+int do_impute(char **tag, char **idatatab){ 
     //This fn does nothing but read the config file and do appropriate setup.
     //See impute_a_variable for the real work.
-    Apop_stopif(!*tag, return, 0, "All the impute segments really should be tagged.")
-    char *configbase = "impute";
-    Apop_stopif(!*idatatab, return, 0, "I need an input table, "
+    Apop_stopif(!*tag, return -1, 0, "All the impute segments really should be tagged.")
+    Apop_stopif(!*idatatab, return -1, 0, "I need an input table, "
                         "via a '%s/input table' key. Or, search the documentation "
                         "for the active table (which is currently not set).", configbase);
-    Apop_stopif(!apop_table_exists(*idatatab), return, 0, "'%s/input table' is %s, but I can't "
+    Apop_stopif(!apop_table_exists(*idatatab), return -1, 0, "'%s/input table' is %s, but I can't "
                      "find that table in the db.", configbase, *idatatab);
 
-    char *underlying = get_key_word(configbase, "underlying table");
+    char *underlying = get_key_word_tagged(configbase, "underlying table", *tag);
     apop_data *category_matrix = get_key_text_tagged(configbase, "categories", *tag);
 
-    float min_group_size = get_key_float(configbase, "min group size");
+    float min_group_size = get_key_float_tagged(configbase, "min group size", *tag);
     if (isnan(min_group_size)) min_group_size = 1;
 
-    float draw_count = get_key_float(configbase, "draw count");
+    float draw_count = get_key_float_tagged(configbase, "draw count", *tag);
     if (isnan(draw_count) || !draw_count) draw_count = 1;
 
-    char *weight_col = get_key_word(configbase, "weights");
+    char *weight_col = get_key_word_tagged(configbase, "weights", *tag);
+    char *out_tab = get_key_word_tagged(configbase, "output table", *tag);
+    if (!out_tab) out_tab = "filled";
 
-    char *id_col = get_key_word(configbase, "id");
+    char *id_col = get_key_word_tagged(configbase, "id", *tag);
     if (!id_col) id_col= get_key_word(NULL, "id");
     if (!id_col) {
         id_col=strdup("rowid");
@@ -860,22 +907,55 @@ void do_impute(char **tag, char **idatatab){
     sprintf(apop_opts.db_name_column, "%s", id_col);
 
     gsl_rng *r;
-    if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r);
+    if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r, out_tab);
+    if (!apop_table_exists(out_tab))
+        apop_query("create table %s ('draw', 'value', '%s', 'field');"
+                "create index %sind   on %s (%s);"
+                "create index %sindx  on %s (field);"
+                "create index %sindex on %s (draw);",
+                    out_tab, id_col, out_tab, out_tab, id_col,
+                    out_tab, out_tab, out_tab, out_tab);
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
 
     impustruct model = read_model_info(configbase, *tag);
+    Apop_stopif(model.error, return -1, 0, "Trouble reading in model info.");
 
-    if (model.is_rake) rake_to_completion(*idatatab, underlying, model, min_group_size, 
-                    r, draw_count, category_matrix, fingerprint_vars, id_col, weight_col);
+    if (model.is_rake) {
+        apop_data *catlist=NULL;
+        if (category_matrix){
+            char *cats= apop_text_paste(category_matrix, .between=", ");
+            catlist = apop_query_to_text("select distinct %s from %s", cats, *idatatab);
+            Apop_stopif(!catlist || catlist->error, return -1, 0, 
+                    "Trouble querying for categories [select distinct %s from %s].", cats, *idatatab);
+        }
+        for (int i=0; i< (catlist ? *catlist->textsize: 1); i++){
+            char *wherecat = NULL;
+            if (catlist){
+                char *and = " ";
+                for (int j=0; j< catlist->textsize[1]; j++)
+                    qxprintf(&wherecat, "%s %s=%s %s", XN(wherecat), catlist->names->text[j],
+                            catlist->text[i][j], and);
+                    and = " and ";
+            }
+            rake_to_completion(*idatatab, underlying, model, min_group_size, 
+                        r, draw_count, wherecat, fingerprint_vars, id_col, weight_col, out_tab);
+        }
+    }
     else impute_a_variable(*idatatab, underlying, &model, min_group_size, 
-                r, draw_count, category_matrix, fingerprint_vars, id_col);
+                r, draw_count, category_matrix, fingerprint_vars, id_col, out_tab);
     apop_data_free(fingerprint_vars);
     apop_data_free(category_matrix);
     sprintf(apop_opts.db_name_column, "%s", tmp_db_name_col);
+    return 0;
 }
 
 void impute(char **idatatab){ 
     apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
+    for (int i=0; i< *tags->textsize; i++){
+        char *out_tab = get_key_word_tagged(configbase, "output table", *tags->text[i]);
+        if (!out_tab) out_tab = "filled";
+        apop_table_exists(out_tab, 'd');
+    }
     for (int i=0; i< *tags->textsize; i++)
         do_impute(tags->text[i], idatatab);
     apop_data_free(tags);

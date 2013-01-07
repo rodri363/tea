@@ -198,6 +198,7 @@ int make_recode_view(char **tag, char **first_or_last){
     static char *intab =NULL;
     static char *out_name =NULL;
     get_in_out_tabs(*first_or_last, &intab, &out_name);
+    Apop_stopif(!out_name, return -1, 0, "Error setting recode table name.");
 
     char *recodestr=NULL, *group_recodestr=NULL;
     char *overwrite = get_key_word("input", "overwrite");
