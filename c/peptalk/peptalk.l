@@ -24,6 +24,7 @@ extern int lineno;        /* current line number  */
 extern char parsed_type;
 
 //<<EOF>> {static int once=0; return once++ ? 0 : EOL;}
+//sqlpunct is probably obsolete. Feel free to remove.
 %}
 
 digit [0-9]
@@ -55,13 +56,12 @@ int include_stack_ptr = 0;
 
 ^[ \t]*fields[ \t]*\{                    { BEGIN(declarations);}
 <declarations>\}                         { BEGIN(INITIAL);}
-<declarations>\\\n                       { return SPACE; }
-<declarations>[ \t]int[ \t\n] { parsed_type = 'i'; return TYPE; }
-<declarations>[ \t]real[ \t\n] { parsed_type = 'r'; return TYPE; }
-<declarations>[ \t]cat[ \t\n] { parsed_type = 'c'; return TYPE; }
+<declarations>(\n|#.*\n)     { lineno++; return EOL; } 
+<declarations>({text}|{sqlpunct})      { yylval = strdup(yytext); return DTEXT;}
+<declarations>[ \t]*int($|[ \t]) { parsed_type = 'i'; return TYPE; }
+<declarations>[ \t]*real($|[ \t]) { parsed_type = 'r'; return TYPE; }
+<declarations>[ \t]*cat($|[ \t]) { parsed_type = 'c'; return TYPE; }
 <declarations>({space}|{notnewline})+    { ; }
-<declarations>#.*\n                      { return DECLARATION; }
-<declarations>\n                         { return DECLARATION; }
 				
 include[ \t]*\:      BEGIN(incl);//stuff about including files that I cut/pasted it from the flex documentation.
 

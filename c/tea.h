@@ -7,7 +7,7 @@
 
 //I can't believe that R claims these for its own:
 #undef error
-#undef warning
+//#undef warning
 
 #define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
@@ -19,6 +19,10 @@
 #define Apop_assert_c(test, returnval, level, ...) if (!(test)) \
 			{if (apop_opts.verbose >= level) warning(__VA_ARGS__); return returnval;}
 */
+
+#undef Apop_stopif
+#define Apop_stopif(test, returnop, level, ...) if (test) \
+			{if (apop_opts.verbose >= level) warning(__VA_ARGS__); returnop;}
 
 
 /*
@@ -180,4 +184,4 @@ void check_out_impute(char **origin, char **dest, int *imputation_number, char *
 //peptalk.y, public mostly for the recodes.
 char * strip(const char *in); //Remove leading/trailing white space
 void add_to_num_list(char *v);
-void add_var(char *var, int, char);
+void add_var(char const *var, int, char);

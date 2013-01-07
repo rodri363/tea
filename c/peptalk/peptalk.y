@@ -99,6 +99,7 @@ void reduce_key();
 void store_right(char*); 
 void add_check(char *);
 void moreblob(char **, char *, char *);
+char add_var_no_edit(char const *var, int is_recode, char type);
 
 used_var_t *used_vars;
 edit_t *edit_list;
@@ -110,7 +111,7 @@ char  *nan_marker;
 
 %}
 //tokens delivered from lex
-%token SPACE NUMBER DECLARATION THEN EOL TEXT ',' ':' OPENKEY CLOSEKEY '$' '-' '*' TYPE
+%token SPACE NUMBER DTEXT THEN EOL TEXT ',' ':' OPENKEY CLOSEKEY '$' '-' '*' TYPE
 
 %%
 list: list item 
@@ -144,11 +145,10 @@ keylist_item: preedit
 
 preedit  : blob {add_check($1); preed2=1;} THEN blob {store_right($4);preed2=0;} EOL ;
 
-declaration: DECLARATION TEXT optionalcolon TYPE {add_var($2,0, parsed_type);} numlist
-										{add_to_num_list(nan_marker ? strdup(nan_marker): NULL);}
-           | DECLARATION TEXT optionalcolon {parsed_type='c'; add_var($2,0, 'c');} numlist
-										{add_to_num_list(nan_marker ? strdup(nan_marker): NULL);}
-           | DECLARATION 
+declaration: DTEXT optionalcolon TYPE {add_var($2,0, parsed_type);} numlist
+										{add_to_num_list(nan_marker ? strdup(nan_marker): NULL);}  EOL
+           | DTEXT optionalcolon {parsed_type='c'; add_var($2,0, 'c');} numlist
+										{add_to_num_list(nan_marker ? strdup(nan_marker): NULL);} EOL
            ;
 
 optionalcolon: ':'
@@ -163,10 +163,10 @@ numlist : num_item
 
 num_item : NUMBER '-' NUMBER  {add_to_num_list_seq($1, $3);}
          | NUMBER             {add_to_num_list($1);}
-         | TEXT               {add_to_num_list($1);}
+         | DTEXT               {add_to_num_list($1);}
          | '*'               {add_to_num_list("*");}
          |'$' NUMBER           {used_vars[total_var_ct-1].weight = atof($2);}
-         | error   			{Rf_warning("Error in numeric list around [%s].", $1);}
+         | error   			{Rf_warning("Error in list around [%s].", $1);}
          ;
 
 blob : blob blob_elmt {moreblob(&$$,$1,$2);}
@@ -194,7 +194,6 @@ void extend_q(char **, char*, char*);
 int query_ct;
 char *current_var, *datatab, *database, *nan_marker=NULL, *preed, *last_preed;
 char *tag = NULL;
-double *costs;
 
 //Declarations. Create a new table for each variable,
 //then just read in values as given.
@@ -236,22 +235,35 @@ void add_keyval(char *key, char *val){
 	free(skey); free(sval);
 }
 
-void add_var(char *var, int is_recode, char type){
-    if (!var) return; //should never happen.
-    if (pass !=0 && !is_recode) return;
+char add_var_no_edit(char const *var, int is_recode, char type){
+    if (!var) return 's'; //should never happen.
+    if (pass !=0 && !is_recode) return 's';
 	/* set current_var
-		create the table in the db
-		set default cost
 		prep the optionct list
 		add it all to used_vars
 	*/
     if (is_recode) //recodes may have already been declared.
         for (int i=0; i< total_var_ct; i++)
-            if (apop_strcmp(var, used_vars[i].name)) return;
+            if (apop_strcmp(var, used_vars[i].name)) return 's';
     free(current_var);
 	if (verbose)
 	    printf("A var: %s (type %s)\n", var, type=='n' ? "no type" : type=='i' ? "integer" : "unknown");
     current_var = strdup(var);
+    //we used to have costs, but I removed them after revison b8a03fe3740eb6c07c .
+	total_var_ct++;
+	used_vars = realloc(used_vars, sizeof(used_var_t)*(total_var_ct+1));
+	used_vars[total_var_ct-1] = (used_var_t) {.name=strdup(var), .weight=1, .last_query=-1, .type=type};
+	used_vars[total_var_ct] = (used_var_t) {.name=""};//null sentinel.
+    return 'c';
+}
+
+
+void add_var(char const *var, int is_recode, char type){
+	/* set call the to-do list in add_var_no_edit
+		create the table in the db
+	*/
+    char stop_or_continue = add_var_no_edit(var, is_recode, type);
+    if (stop_or_continue =='s') return;
     if (type!='r'){
         apop_table_exists(current_var, 'd');
 		/*ahh here it is, table was always text*/
@@ -262,14 +274,9 @@ void add_var(char *var, int is_recode, char type){
 	        apop_query("create table %s (%s text); create index indx%svar on %s(%s)",
                                     var, var,var,var,var);
         apop_query("insert into variables values ('%s')", var);
-        optionct = realloc(optionct, sizeof(int)*(total_var_ct+1));
-        optionct[total_var_ct] = 0;
+        optionct = realloc(optionct, sizeof(int)*(total_var_ct));
+        optionct[total_var_ct-1] = 0;
     }
-    costs = realloc(costs, sizeof(double)*(total_var_ct+1));
-	costs[total_var_ct] = 1;
-	total_var_ct++;
-	used_vars = realloc(used_vars, sizeof(used_var_t)*(total_var_ct));
-	used_vars[total_var_ct-1] = (used_var_t) {.name=strdup(var), .weight=1, .last_query=-1, .type=type};
 }
 
 
@@ -313,13 +320,15 @@ void add_to_num_list(char *v){
     Apop_assert_c(!(parsed_type=='r' && (v && strlen(vs)>0)), , 1,
          "I ignore ranges for real variables. Please add limits in the check{} section.");
     if (parsed_type=='r') return; 
-	if (apop_strcmp(vs, "*")){
-		text_in();
+/*	if (apop_strcmp(vs, "*")){
+		text_in(); //See, I need to prep the elements before I do text_in,
+                   //so this * feature creates a dependency loop. Resolving
+                   //this is now low on the to-do list.
 		apop_data *invalues = apop_query_to_text("select distinct %s from %s", current_var, datatab);
 		for (int i=0; i< invalues->textsize[0]; i++)
 			add_to_num_list(invalues->text[i][0]);
 		apop_data_free(invalues);
-	}
+	}*/
 	int already_have = 
 			(vs && apop_query_to_float("select count(*) from %s where %s='%s'", 
 												current_var, current_var, vs))

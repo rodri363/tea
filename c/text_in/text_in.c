@@ -3,6 +3,21 @@
 
 int file_read = 0;
 
+apop_data *make_type_table(){
+    //apop_data *types = get_key_text("input", "types");
+    apop_data *types = apop_text_alloc(NULL, 1, 2);
+    for (int i=0; *used_vars[i].name != '\0'; i++){
+        apop_text_alloc(types, types->textsize[0]+1, types->textsize[1]);
+        apop_text_add(types, types->textsize[0]-2, 0, used_vars[i].name);
+        apop_text_add(types, types->textsize[0]-2, 1, 
+        used_vars[i].type=='r' || used_vars[i].type=='i' ? "numeric" : "text");
+    }
+    //set the default type at the end of the table to character
+    apop_text_add(types, types->textsize[0]-1, 0, ".*");
+    apop_text_add(types, types->textsize[0]-1, 1, "text");
+    return types;
+}
+
 void generate_indices(char const *tablename){
     apop_data *indices = get_key_text("input", "indices");
     char *id_column = get_key_word(NULL, "id");
@@ -67,26 +82,17 @@ static int text_in_by_tag(char const *tag){
                     || !strcasecmp(overwrite,"no") 
                     || !strcasecmp(overwrite,"0") )
             free(overwrite), overwrite = NULL;
-    Apop_assert_c (!(!overwrite && apop_table_exists(table_out)), 0, 0,
-                        "Table %s exists; skipping the input from file %s.", table_out, file_in);
 
     Apop_stopif(!file_in, return -1, 0,  "I don't have an input file name");
     Apop_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
+    Apop_assert_c (!(!overwrite && apop_table_exists(table_out)), 0, 0,
+                        "Table %s exists; skipping the input from file %s.", table_out, file_in);
 	printf("Reading text file %s into database table %s.\n", file_in, table_out);
 
     if (overwrite) apop_table_exists(table_out, 'd');
 
-    //apop_data *types = get_key_text("input", "types");
-    apop_data *types = apop_query_to_text("select key,value from keys where key like 'input/types/%%'");
-    if (types){
-        for (int i = 0; i< types->textsize[0]; i++)
-            types->text[i][0] += strlen("input/types/");//step past this to the varname
-        apop_text_alloc(types, types->textsize[0]+1, types->textsize[1]);
-    } else
-        types = apop_text_alloc(NULL, 1, 2);
-    //set the default type at the end of the table to character
-    apop_text_add(types, types->textsize[0]-1, 0, ".*");
-    apop_text_add(types, types->textsize[0]-1, 1, "text");
+    apop_data *types = make_type_table();
+
 
     char *table_key = NULL;
     char comma = ' ';
@@ -107,6 +113,7 @@ static int text_in_by_tag(char const *tag){
                     .field_params=types, .table_params=table_key);
 	generate_indices(table_out);
     file_read ++;
+    apop_data_free(types);
     return 0;
 }
 

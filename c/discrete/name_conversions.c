@@ -25,7 +25,7 @@ void reset_ri_ext_table(){
 static void ri_ext_init(){
     ri_ext=malloc(sizeof(apop_data*)*(total_var_ct));
     ri_ext_len=0;
-    for (int v=0; v< total_var_ct; v++){
+    for (int v=0; *used_vars[v].name!='\0'; v++){
         char *q; 
         if (!apop_table_exists(used_vars[v].name)){
             v++; continue;

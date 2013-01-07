@@ -37,3 +37,5 @@ int join_tables(); //text_in/text_in.c
 void reset_ri_ext_table();  //c/discrete/name_conversions.c
 int ri_from_ext(char const *varname, char const* ext_val);
 char * ext_from_ri(char const *varname, int const ri_val);
+
+char get_coltype(char const* depvar); //bridge.c

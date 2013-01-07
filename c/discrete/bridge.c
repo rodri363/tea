@@ -96,7 +96,7 @@ Each query produces a (apop_data) table of not-OK values, in the
  */
 
 static int pull_index(char const *in_name){
-    for (int i =0; i< total_var_ct; i++)
+    for (int i =0; *used_vars[i].name!='\0'; i++)
         if (!strcasecmp(used_vars[i].name, in_name))
             return i;
     return -1;
@@ -350,7 +350,7 @@ void start_over(){ //Reset everything in case this wasn't the first call
     apop_data_free(edit_grid);
     apop_data_free(pre_edits);
     edit_list = NULL;
-    for (int i=0; i< total_var_ct; i++)
+    for (int i=0; *used_vars[i].name!='\0'; i++)
         free(used_vars[i].name);
     free(used_vars);
     apop_data_free(ud_queries);
@@ -466,3 +466,18 @@ void commit_transaction(){
     if(transacting > 0) transacting--;
     if (!transacting) apop_query("commit;");
 }
+
+
+
+//Do we need to use the edit check interface, and if so, what is the column type?
+//type = '\0' means not in the index of variables to check.
+char get_coltype(char const* depvar){
+    char type = 'i'; //default to integer
+    for (int v=0; *used_vars[v].name!='\0'; v++)
+        if (!strcasecmp(depvar, used_vars[v].name)){
+            type= used_vars[v].type;
+            return type;
+        }
+    return '\0';
+}
+

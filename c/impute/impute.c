@@ -599,18 +599,6 @@ static void mark_an_id(int *ctr, const char *target, char * const *list, int len
     sprintf(list[*ctr], ".");
 }
 
-//Do we need to use the edit check interface, and if so, what is the column type?
-//type = '\0' means not in the index of variables to check.
-static char get_coltype(int total_var_ct, char const* depvar){
-    char type = 'i'; //default to integer
-    for (int v=0; v<total_var_ct; v++)
-        if (!strcasecmp(depvar, used_vars[v].name)){
-            type= used_vars[v].type;
-            return type;
-        }
-    return '\0';
-}
-
 typedef struct {
     char *textx;
     double pre_round;
@@ -673,7 +661,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
                         int model_id, int draw, apop_data *nanvals,
                         char *filltab){
     int done_ctr = 0; //for marking what's done.
-    char type = get_coltype(total_var_ct, is->depvar);
+    char type = get_coltype(is->depvar);
     int col_of_interest=apop_name_find(is->isnan->names, is->depvar, 't');
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         int tryctr=0;
@@ -831,7 +819,7 @@ impustruct read_model_info(char const *configbase, char const *tag){
     Apop_stopif(!strlen(model.base_model.name), model.error=1; return model, 0, "model selection fail.");
     char *indep_vars = get_key_word_tagged(configbase, "input vars", tag);
     int gotit=0;
-    for (int j=0; j < total_var_ct && !gotit; j++)
+    for (int j=0; *used_vars[j].name !='\0' && !gotit; j++)
         if (!strcasecmp(used_vars[j].name, model.depvar)){
             if (used_vars[j].type=='c') asprintf(&model.vartypes, "%smt", model.vartypes), model.textdep=true;
             else                        asprintf(&model.vartypes, "%sm", model.vartypes);
