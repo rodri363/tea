@@ -187,9 +187,12 @@ static void rake_to_completion(const char *datatab, const char *underlying,
         char const *weight_col, char *fill_tab){
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
     char *varlist = apop_text_paste(&as_data, .between=", ");
+	char *nametmp = strdup(apop_opts.db_name_column);
+    sprintf(apop_opts.db_name_column, "%s", id_col);
     apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s", id_col, varlist, 
                     weight_col ? ',' : ' ',
                     XN(weight_col), datatab, catlist ? "where": " ", XN(catlist));
+    sprintf(apop_opts.db_name_column, "%s", nametmp); 
     Apop_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
     Apop_stopif(d->error, return, 0, "query error.");
     apop_data *notnan = apop_data_listwise_delete(d);
@@ -199,16 +202,18 @@ static void rake_to_completion(const char *datatab, const char *underlying,
     commit_transaction();
     apop_data_free(notnan);
 
+    begin_transaction();
     apop_data *raked =
         apop_rake(.margin_table=datatab,
                 .var_list=is.allvars, .var_ct=is.allvars_ct,
                 .contrasts=is.allvars, .contrast_ct=is.allvars_ct,
                 .count_col=weight_col, .init_table="notnan", .init_count_col=weight_col);
+    commit_transaction();
     apop_data_pmf_compress(raked); //probably a no-op, but just in case.
     Apop_stopif(!raked, return, 
                 0, "Raking returned a blank table. This shouldn't happen.");
 
-    int batch_size=10000; //just in case...
+    int batch_size=1000; //just in case...
     gsl_vector *original_weights=apop_vector_copy(raked->weights);
     gsl_vector *cp_to_fill = gsl_vector_alloc(d->matrix->size2);
     apop_data *fillins = apop_data_alloc();
@@ -222,12 +227,14 @@ static void rake_to_completion(const char *datatab, const char *underlying,
         if (m->error) {apop_model_free(m); continue;} //get it on the next go `round.
         size_t len=0;
         for (int drawno=0; drawno< draw_count; drawno++){
+            Apop_stopif(!focus->names, continue, 0, "focus->names is NULL. This should never have happened.");
             apop_draw(cp_to_fill->data, r, m);
             for (size_t j=0; j< focus->matrix->size2; j++)  
                 if (isnan(apop_data_get(focus, .col=j))){
                     len = *fillins->textsize;
                     fillins->matrix = apop_matrix_realloc(fillins->matrix, len+1, 2);
                     apop_text_alloc(fillins, len+1, 2);
+                    Apop_stopif(fillins->error, return, 0, "Something wrong with the table of fill-ins when drawing from the imputation model. Out of memory?");
                     apop_text_add(fillins, len, 0, *focus->names->row);
                     apop_text_add(fillins, len, 1, focus->names->column[j]);
                     gsl_matrix_set(fillins->matrix, len, 0, drawno);
@@ -518,26 +525,12 @@ int check_bounds(double *val, char const *var, char type){
 		return !!apop_query_to_float("select count(*) from %s where %s = '%s'",
 var, var, val);*/
     else {//integer type
-        apop_table_exists("tea_bound_check", 'd');
-apop_opts.verbose--;
-        apop_data *closest= apop_query_to_text ("create view tea_bound_check as "
-                                      " select %s as value, abs(%s - %g) as dist from %s; "
-                                      " select value, dist from "
-                                      "  tea_bound_check t, "
-                                      "  (select min(dist) as d from tea_bound_check) m "
-                                      " where t.dist = m.d; "
-                                      "drop view tea_bound_check;"
-                                      , var, var, *val, var);
-        Apop_assert(closest, "Checking a variable that wasn't declared. This shouldn't happen.");
-        if (verbose>1) apop_data_show(closest);
-        if (fabs(atof(closest->text[0][1])) > 0){//may overdetect for some floats
-if (verbose) printf("rounding %g -> %s\n", *val , closest->text[0][0]);
-            *val = atof(closest->text[0][0]);
-            apop_data_free(closest);
+        double closest = find_nearest_val(var, *val);
+        if (fabs(closest-*val) > 0){//may overdetect for some floats
+            if (verbose) printf("rounding %g -> %g\n", *val , closest);
+            *val = closest;
             return 1;
         }
-        apop_data_free(closest);
-apop_opts.verbose++;
     }
     return 0;
 }
@@ -675,8 +668,12 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
             "imputed value that passes checks, and couldn't. "
             "Something's wrong that a computer can't fix.\n "
             "I'm at id %i.", id_number);
+        char * final_value = (type=='c') 
+                                ? ext_from_ri(is->depvar, drew.pre_round)
+                                : strdup(drew.textx); //I should save the numeric val.
         apop_query("insert into %s values(%i, '%s', '%s', '%s');",
-                       filltab,  draw, drew.textx, is->isnan->names->row[rowindex], is->depvar);
+                       filltab,  draw, final_value, is->isnan->names->row[rowindex], is->depvar);
+        free(final_value);
         free(drew.textx);
         mark_an_id(&done_ctr,is->isnan->names->row[rowindex], nanvals->names->row, nanvals->names->rowct);
     }
@@ -684,7 +681,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
 
 double still_is_nan(apop_data *in){return strcmp(*in->names->row, ".");}
 
-/* As named, impute from a single model, almost certainly a single variable.
+/* As named, impute a single variable.
    We check bounds, because those can be done on a single-variable basis.
    But overall consistency gets done on the whole-record basis. 
    

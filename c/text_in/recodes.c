@@ -111,13 +111,14 @@ void get_in_out_tabs(char const *first_or_last, char **intab, char **out_name){
            || apop_strcmp(first_or_last, "both"))
         *intab = get_key_word("input", "output table");
     else {//chaining from before
+        Apop_stopif(!intab, return, 0, "intab is blank but shouldn't be in this situation. Shouldn't happen.");
         free(*intab);
         *intab = strdup(*out_name);
     }
     if (apop_strcmp(first_or_last, "last") 
-           || apop_strcmp(first_or_last, "both"))
+           || apop_strcmp(first_or_last, "both")){
          asprintf(out_name, "view%s", get_key_word("input", "output table"));
-    else {
+    } else {
         free(*out_name);
         asprintf(out_name, "mid%s", *intab);
     }
@@ -190,9 +191,11 @@ the read-in now.
 Returns 0 on OK, 1 on error.
 */
 int make_recode_view(char **tag, char **first_or_last){
+    Apop_stopif(!*first_or_last, return -1, 0, "first_or_last not set. Should never happen.");
     //first_or_last may be "first", "last", "both", or "middle"
     if (tag && !test_for_recodes(*tag)) return 0;
 
+    text_in();
     if (!file_read && get_key_word("input", "input file")) text_in();
 
     static char *intab =NULL;

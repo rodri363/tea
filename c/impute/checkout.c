@@ -13,7 +13,7 @@ extern char *datatab;
 */
 
 void check_out_impute(char **origin, char **destin, int *imputation_number, char **subset, char **filltabin){
-    char *filltab = *filltabin ? *filltabin : "filled";
+    char *filltab = (filltabin && *filltabin) ? *filltabin : "filled";
     char *id_column= get_key_word(NULL, "id");
     const char *dest = destin ? *destin : NULL;
     if (!id_column) 

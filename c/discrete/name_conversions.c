@@ -64,3 +64,20 @@ char * ext_from_ri(char const *varname, int const ri_val){
     apop_data *this = get_named_tab(varname);
     return strdup(*this->text[ri_val-1]);
 }
+
+double find_nearest_val(char const *varname, double ext_val){
+    double this_dist, smallest_dist=INFINITY;
+    int smallest_index = 0;
+    if (isnan(ext_val)) return NAN;
+    apop_data *this = get_named_tab(varname);
+    if (!this) return NAN;
+    for (int i=0; i< *this->textsize; i++){
+         this_dist = fabs(atof(*this->text[i])-ext_val);
+         if (!this_dist) return ext_val;
+         if (this_dist < smallest_dist){
+             smallest_dist = this_dist;
+             smallest_index = i;
+         }
+    }
+    return atof(*this->text[smallest_index]);
+}

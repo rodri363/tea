@@ -7,10 +7,6 @@ doPreedits <- function(input_table=teaenv$active_tab){
     .C("do_preedits", as.character(input_table))
 }
 
-doRecodes <- function(tag=NULL){
-    .C("make_recode_view", as.character(tag));
-}
-
 #\key {input/input file} Path to a comma-separated value (CSV) file containing
 #data to read into the database.
 #\key {input/output table} Name for the database table generated from the input file

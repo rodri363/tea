@@ -350,9 +350,11 @@ void start_over(){ //Reset everything in case this wasn't the first call
     apop_data_free(edit_grid);
     apop_data_free(pre_edits);
     edit_list = NULL;
-    for (int i=0; *used_vars[i].name!='\0'; i++)
-        free(used_vars[i].name);
-    free(used_vars);
+    if (used_vars){
+        for (int i=0; *used_vars[i].name!='\0'; i++)
+            free(used_vars[i].name);
+        free(used_vars);
+    }
     apop_data_free(ud_queries);
     used_vars = NULL;
     fname = "-stdin-";

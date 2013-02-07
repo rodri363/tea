@@ -109,8 +109,10 @@ static int text_in_by_tag(char const *tag){
     //OK, got all the config info. Go.
     if (verbose) fprintf(stderr, "Reading in file %s to table %s.", file_in, table_out);
     commit_transaction();
+    begin_transaction();
     apop_text_to_db(.text_file=file_in,  .tabname=table_out, 
                     .field_params=types, .table_params=table_key);
+    commit_transaction();
 	generate_indices(table_out);
     file_read ++;
     apop_data_free(types);
