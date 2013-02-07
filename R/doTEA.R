@@ -96,7 +96,6 @@ doMImpute <- function(tag=NULL, input_table=teaenv$active_tab){
 	print ("Imputing missing values")
     active_tab <- getInputTable("impute")
     if (!is.null(tag)) print (paste("tag= ", tag))
-    print (paste("input table= ", active_tab))
 
 #    rmodel <- TEAGetKey("impute", "%%/Rmodel", tag)
 #    mod <- NULL

@@ -147,6 +147,7 @@ preedit  : blob {add_check($1); preed2=1;} THEN blob {store_right($4);preed2=0;}
 
 declaration: DTEXT optionalcolon TYPE {add_var($2,0, parsed_type);} numlist
 										{add_to_num_list(nan_marker ? strdup(nan_marker): NULL);}  EOL
+           | DTEXT optionalcolon TYPE {add_var($2,0, parsed_type);}  EOL
            | DTEXT optionalcolon {parsed_type='c'; add_var($2,0, 'c');} numlist
 										{add_to_num_list(nan_marker ? strdup(nan_marker): NULL);} EOL
            ;
@@ -158,6 +159,7 @@ optionalcolon: ':'
 
 numlist : num_item
         | numlist ',' num_item
+        | numlist SPACE
         |
         ;
 
@@ -218,7 +220,6 @@ static void set_database(char *dbname){  //only on pass 0.
     database= strdup(dbname);
     apop_table_exists("keys", 'd');
     apop_table_exists("variables", 'd');
-	begin_transaction();  //the commit is in bridge.c:read_spec.
     apop_query("create table keys (key, tag, count, value); "
                "create table variables (name);");
 }
@@ -253,7 +254,7 @@ char add_var_no_edit(char const *var, int is_recode, char type){
 	total_var_ct++;
 	used_vars = realloc(used_vars, sizeof(used_var_t)*(total_var_ct+1));
 	used_vars[total_var_ct-1] = (used_var_t) {.name=strdup(var), .weight=1, .last_query=-1, .type=type};
-	used_vars[total_var_ct] = (used_var_t) {.name=""};//null sentinel.
+	used_vars[total_var_ct] = (used_var_t) {};//null sentinel.
     return 'c';
 }
 
@@ -264,6 +265,8 @@ void add_var(char const *var, int is_recode, char type){
 	*/
     char stop_or_continue = add_var_no_edit(var, is_recode, type);
     if (stop_or_continue =='s') return;
+    optionct = realloc(optionct, sizeof(int)*(total_var_ct));
+    optionct[total_var_ct-1] = 0;
     if (type!='r'){
         apop_table_exists(current_var, 'd');
 		/*ahh here it is, table was always text*/
@@ -274,8 +277,6 @@ void add_var(char const *var, int is_recode, char type){
 	        apop_query("create table %s (%s text); create index indx%svar on %s(%s)",
                                     var, var,var,var,var);
         apop_query("insert into variables values ('%s')", var);
-        optionct = realloc(optionct, sizeof(int)*(total_var_ct));
-        optionct[total_var_ct-1] = 0;
     }
 }
 

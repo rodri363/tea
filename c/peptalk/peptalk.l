@@ -28,7 +28,7 @@ extern char parsed_type;
 %}
 
 digit [0-9]
-space [ \t☃]
+space [ \t]
 text [a-zA-Z_/~'][_a-zA-Z0-9./~']*
 sqlpunct (==|<=|>=|[=+/(<|>)\'"?!%&]|\[|\])
 notnewline \\[ \t\n]+
@@ -57,10 +57,10 @@ int include_stack_ptr = 0;
 ^[ \t]*fields[ \t]*\{                    { BEGIN(declarations);}
 <declarations>\}                         { BEGIN(INITIAL);}
 <declarations>(\n|#.*\n)     { lineno++; return EOL; } 
+<declarations>[ \t]*int/(\n|{space}) { parsed_type = 'i'; return TYPE; }
+<declarations>[ \t]*real/(\n|{space}) { parsed_type = 'r'; return TYPE; }
+<declarations>[ \t]*cat/(\n|{space}) { parsed_type = 'c'; return TYPE; }
 <declarations>({text}|{sqlpunct})      { yylval = strdup(yytext); return DTEXT;}
-<declarations>[ \t]*int($|[ \t]) { parsed_type = 'i'; return TYPE; }
-<declarations>[ \t]*real($|[ \t]) { parsed_type = 'r'; return TYPE; }
-<declarations>[ \t]*cat($|[ \t]) { parsed_type = 'c'; return TYPE; }
 <declarations>({space}|{notnewline})+    { ; }
 				
 include[ \t]*\:      BEGIN(incl);//stuff about including files that I cut/pasted it from the flex documentation.

@@ -20,9 +20,11 @@
 			{if (apop_opts.verbose >= level) warning(__VA_ARGS__); return returnval;}
 */
 
+/*
 #undef Apop_stopif
 #define Apop_stopif(test, returnop, level, ...) if (test) \
 			{if (apop_opts.verbose >= level) warning(__VA_ARGS__); returnop;}
+*/
 
 
 /*

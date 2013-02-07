@@ -11,6 +11,7 @@ As of 4 May 2010, the main() function has been removed---it works only via PEP's
 */
 
 #include <apop.h>
+#include <stdbool.h>
 #include "tea.h"
 #include "internal.h"
 
@@ -333,12 +334,14 @@ static void add_key_text(char const *group, char const *key, char const *value){
 }
 
 void set_key_text(char const *group, char const *key, char const *value){
-    apop_query("delete from keys where key='%s/%s'", group, key);
+    apop_query("delete from keys where key='%s%s%s'", group,
+                                (group && key) ? "/": "", key);
     add_key_text(group, key, value);
 }
 
 void set_key_text_for_R(char **group, char **key, char **value){
-    apop_query("delete from keys where key='%s/%s'", *group, *key);
+    apop_query("delete from keys where key='%s%s%s'", *group, 
+                                (*group && *key) ? "/": "", *key);
     add_key_text(*group, *key, *value);
 }
 
@@ -351,7 +354,7 @@ void start_over(){ //Reset everything in case this wasn't the first call
     apop_data_free(pre_edits);
     edit_list = NULL;
     if (used_vars){
-        for (int i=0; *used_vars[i].name!='\0'; i++)
+        for (int i=0; used_vars[i].name; i++)
             free(used_vars[i].name);
         free(used_vars);
     }
@@ -405,6 +408,7 @@ void read_spec(char **infile, char **dbname_out){
     yyin = fopen (fname, "r");
     Apop_stopif(!yyin, return, 0, "Trouble opening spec file %s.", fname);
     pass=0;
+    begin_transaction();
     yyparse();  //fill keys table
 
     apop_data *recode_tags = apop_query_to_text("select distinct tag from keys "
@@ -430,7 +434,7 @@ void read_spec(char **infile, char **dbname_out){
     nflds = total_var_ct;
 	dbname_out[0] = strdup(database);
     join_tables();
-	commit_transaction();
+    commit_transaction();
 }
 
 void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *is_sub){
@@ -465,8 +469,9 @@ void begin_transaction(){
 }
 
 void commit_transaction(){
-    if(transacting > 0) transacting--;
-    if (!transacting) apop_query("commit;");
+    bool started_in_transaction = (transacting > 0);
+    if (transacting > 0) transacting--;
+    if (transacting==0 && started_in_transaction) apop_query("commit;");
 }
 
 
@@ -474,8 +479,9 @@ void commit_transaction(){
 //Do we need to use the edit check interface, and if so, what is the column type?
 //type = '\0' means not in the index of variables to check.
 char get_coltype(char const* depvar){
+    if (!used_vars) return '\0';
     char type = 'i'; //default to integer
-    for (int v=0; *used_vars[v].name!='\0'; v++)
+    for (int v=0; used_vars[v].name; v++)
         if (!strcasecmp(depvar, used_vars[v].name)){
             type= used_vars[v].type;
             return type;

@@ -25,11 +25,12 @@ void reset_ri_ext_table(){
 static void ri_ext_init(){
     ri_ext=malloc(sizeof(apop_data*)*(total_var_ct));
     ri_ext_len=0;
-    for (int v=0; *used_vars[v].name!='\0'; v++){
+    Apop_stopif(!used_vars, return, 0, "No used_vars list. Please add a \"fields\" section declaring the variables you want me to use.");
+    for (int v=0; used_vars[v].name; v++){
         char *q; 
-        if (!apop_table_exists(used_vars[v].name)){
-            v++; continue;
-        }
+        if (!apop_table_exists(used_vars[v].name) ||
+            used_vars[v].type=='r')
+                 continue;
         asprintf(&q, "select * from %s order by rowid", used_vars[v].name);
         ri_ext[ri_ext_len] = apop_query_to_text("%s", q);
         sprintf(ri_ext[ri_ext_len]->names->title, "%s", used_vars[v].name);
@@ -62,6 +63,9 @@ int ri_from_ext(char const *varname, char const * ext_val){
 
 char * ext_from_ri(char const *varname, int const ri_val){
     apop_data *this = get_named_tab(varname);
+    Apop_stopif(ri_val > *this->textsize, return strdup("NULL"), 0,
+            "You're asking for value %i of variable %s, but it only "
+            "has %zu values.", ri_val, varname, *this->textsize);
     return strdup(*this->text[ri_val-1]);
 }
 

@@ -319,7 +319,7 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
     int width = edit_grid->matrix->size2;
 	Apop_stopif(!width, return NULL, 1, "zero edit grid; returning NULL.");
     int record[width];
-    char *qstring;
+    char *qstring = NULL;
     if (record_name_in) setup_conversion_tables(record_name_in, *record_in_size);
 	fill_a_record(record, width, record_name_in, ud_values, *record_in_size, *id, &qstring);
     if (!strcmp(what_you_want[0], "passfail")){

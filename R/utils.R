@@ -200,7 +200,7 @@ rnorm.edit <- function(mean,sigma,alts){
 
 checkOutImpute <- function(origin=NULL, dest=NULL, imputation_number=0, subset=NULL,
         filltab=NULL) {
-    origin <-getInputTable(origin)
+    if (is.null(origin)) origin <-getInputTable(NULL)
 	.C("check_out_impute", as.character(origin), as.character(dest), 
 					as.integer(imputation_number), as.character(subset),
                     as.character(filltab))

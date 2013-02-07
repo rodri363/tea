@@ -209,9 +209,8 @@ int make_recode_view(char **tag, char **first_or_last){
                 || !strcasecmp(overwrite,"no") 
                 || !strcasecmp(overwrite,"0") )
         {free(overwrite), overwrite = NULL;}
-    /*Apop_assert_c (!(!overwrite && apop_table_exists(out_name)), , 0,
+    Apop_stopif (!overwrite && apop_table_exists(out_name) && (!(strcmp(*first_or_last, "last")||!strcmp(*first_or_last, "both"))), return 0, 1,
                     "Recode view %s exists and input/overwrite tells me to not recreate it.", out_name);
-*/
     apop_table_exists(out_name, 'd');
     char *rgroup="recodes", *grgroup="group recodes";
     recodes(&rgroup, tag, &recodestr, &intab);      //will query there for whether any recodes exist.

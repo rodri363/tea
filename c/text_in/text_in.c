@@ -6,7 +6,7 @@ int file_read = 0;
 apop_data *make_type_table(){
     //apop_data *types = get_key_text("input", "types");
     apop_data *types = apop_text_alloc(NULL, 1, 2);
-    for (int i=0; *used_vars[i].name != '\0'; i++){
+    for (int i=0; used_vars && used_vars[i].name; i++){
         apop_text_alloc(types, types->textsize[0]+1, types->textsize[1]);
         apop_text_add(types, types->textsize[0]-2, 0, used_vars[i].name);
         apop_text_add(types, types->textsize[0]-2, 1, 
@@ -69,6 +69,7 @@ the usal comma-separated format with the first row listng column names.
 \key input/overwrite If {\tt n} or {\tt no}, I will skip the input step if the output table already exists. This makes it easy to re-run a script and only sit through the input step the first time.
 \key{input/primarky key} The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.
 \key input/indices Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect.
+\key{input/missing marker} How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.
 */
 
 static int text_in_by_tag(char const *tag){
@@ -85,7 +86,7 @@ static int text_in_by_tag(char const *tag){
 
     Apop_stopif(!file_in, return -1, 0,  "I don't have an input file name");
     Apop_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
-    Apop_assert_c (!(!overwrite && apop_table_exists(table_out)), 0, 0,
+    Apop_stopif(!overwrite && apop_table_exists(table_out), return 0, 0,
                         "Table %s exists; skipping the input from file %s.", table_out, file_in);
 	printf("Reading text file %s into database table %s.\n", file_in, table_out);
 
