@@ -59,7 +59,7 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
 void test_check_out_impute(){
     apop_table_exists("testcheckoutbase", 'd');
     apop_table_exists("testcheckoutfill", 'd');
-    apop_table_exists("testcheckoutbase_cp", 'd');
+    apop_table_exists("testcheckoutbase_copy", 'd');
     apop_table_exists("tcb", 'd');
     apop_query("create table testcheckoutbase (id, a, b); "
             " insert into testcheckoutbase values(0, 3, 0./0.);"
@@ -85,6 +85,6 @@ void test_check_out_impute(){
     assert(apop_query_to_float("select avg(b) from tcb")==4);
     apop_table_exists("testcheckoutbase", 'd');
     apop_table_exists("testcheckoutfill", 'd');
-    apop_table_exists("testcheckoutbase_cp", 'd');
+    apop_table_exists("testcheckoutbase_copy", 'd');
     apop_table_exists("tcb", 'd');
 }
