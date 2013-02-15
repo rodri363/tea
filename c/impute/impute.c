@@ -272,7 +272,7 @@ static void lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
 }
 
 static char *construct_a_query(char const *datatab, char const *underlying, char const *varlist, 
-                                apop_data const *category_matrix, char const *id_col, int ego_id){
+                                apop_data const *category_matrix, char const *id_col, int ego_id, char *depvar){
 /* Find out which constraints fit the given record, then join them into a query.
    The query ends in "and", because get_constrained_page will add one last condition.  */
 
@@ -309,8 +309,9 @@ static char *construct_a_query(char const *datatab, char const *underlying, char
     //else
     for (int i=0; i< category_matrix->textsize[0]; i++){
         char *n = *category_matrix->text[i]; //short name
-        qxprintf(&q, "%s %s = (select %s from %s where %s = %i) and\n",  
-                       q, n,           n,  datatab, id_col, ego_id);
+        if (strcmp(n, depvar)) //if n==depvar, you're categorizing by the missing var.
+            qxprintf(&q, "%s (%s) = (select %s from %s where %s = %i) and\n",  
+                           q,  n,           n,  datatab, id_col, ego_id);
     }
     return q;
 }
@@ -418,7 +419,7 @@ static void get_nans_and_notnans(impustruct *is, int index, const char *datatab,
         }//else, carry on:
         asprintf(&q, "select %s, %s from %s where 1 and ", id_col, is->selectclause, datatab);
     } else
-        q = construct_a_query(datatab, underlying, is->selectclause, category_matrix, id_col, index);
+        q = construct_a_query(datatab, underlying, is->selectclause, category_matrix, id_col, index, is->depvar);
     q2 = construct_a_query_II(id_col, is, fingerprint_vars);
 
     if (!strcmp(is->vartypes, "all numeric"))
@@ -631,6 +632,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 	static char const *const whattodo="passfail";
     double x;
     apop_draw(&x, r, is->fitted_model);
+    Apop_stopif(isnan(x), return out, 0, "I drew NaN from the fitted model. Something is wrong.");
     apop_data *rd = get_data_from_R(is->fitted_model);
     if (rd) {
         x = rd->vector ? *rd->vector->data : *rd->matrix->data;
@@ -653,7 +655,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
         int size_as_int =*full_record->textsize;
 //printf("Gut says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round, out.is_fail);
-        consistency_check((char *const *)full_record->names->text,
+        consistency_check((char *const *)(full_record->names->text ? full_record->names->text : full_record->names->column),
                           (char *const *)full_record->text[0],
                           &size_as_int,
                           &whattodo,
@@ -824,7 +826,7 @@ apop_model tea_get_model_by_name(char *name){
                 "models (or among models you added using setupRapopModel.", name);
 */
         Apop_stopif(!strcmp(out.name, "Null model"), return (apop_model){}, 0, "model selection fail.");
-        Apop_model_add_group(&out, apop_parts_wanted); //no cov
+        Apop_model_add_group(&out, apop_parts_wanted, .predicted='y'); //no cov
         return out;
 }
 
