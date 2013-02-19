@@ -33,7 +33,7 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
                         (subset && *subset) ? "where" : " ",
                         (subset && *subset) ? *subset : " "
                         );
-        apop_query("create index icwwww on %s(%s)", dest, id_column);
+        apop_query("create index idxidx%s on %s(%s)", dest, dest, id_column);
     } else dest = *origin;
     apop_assert_c(apop_table_exists(filltab), , 0, "No table named '%s'; did you already doMImpute()?", filltab);
     apop_data *fills = apop_query_to_text("select %s, field, value from %s where draw+0.0=%i"
@@ -76,7 +76,7 @@ void test_check_out_impute(){
                        "testcheckoutbase_copy", //2
                        "tcb" //3
     };
-    set_key_text(NULL, "id", "id");
+    set_key_text("id", NULL, "id");
     check_out_impute( strings+0, strings+2, (int[]){0}, NULL, strings+1);
     assert(apop_query_to_float("select avg(a) from testcheckoutbase_copy")==3);
     assert(apop_query_to_float("select avg(b) from testcheckoutbase_copy")==3);

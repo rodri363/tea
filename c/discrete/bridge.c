@@ -330,18 +330,19 @@ static apop_data* get_sub_key(char const *part1){
 int vcount;
 
 static void add_key_text(char const *group, char const *key, char const *value){
-    apop_query("insert into keys values('%s/%s', '', %i, '%s')", group, key, vcount++, value);
+    apop_query("insert into keys values('%s%s%s', '', %i, '%s')", XN(group), 
+                                (group && key) ? "/": "", XN(key), vcount++, value);
 }
 
 void set_key_text(char const *group, char const *key, char const *value){
-    apop_query("delete from keys where key='%s%s%s'", group,
-                                (group && key) ? "/": "", key);
+    apop_query("delete from keys where key='%s%s%s'", XN(group),
+                                (group && key) ? "/": "", XN(key));
     add_key_text(group, key, value);
 }
 
 void set_key_text_for_R(char **group, char **key, char **value){
-    apop_query("delete from keys where key='%s%s%s'", *group, 
-                                (*group && *key) ? "/": "", *key);
+    apop_query("delete from keys where key='%s%s%s'", XN(*group), 
+                                (*group && *key) ? "/": "", XN(*key));
     add_key_text(*group, *key, *value);
 }
 
