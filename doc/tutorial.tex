@@ -222,7 +222,9 @@ output tables, is specified in a single file, herein the {\em spec file}. There 
 several intents to this setup. First, because the spec file is separate from programming
 languages like R or SAS, it is a simpler grammar that is easier to write, and so 
 analysts can write technical specifications without the assistance of a programmer or
-a full training in a new programming language.
+a full training in a new programming language. In other words, the spec file allows 
+users whose areas of expertise are not in programming to customize and use TEA in a 
+standardized and acccessible environment. 
 
 As a logistic matter, edits, recodes, or specification of imputation model can easily
 take several pages to express in full, so there is benefit to separating these parts.
@@ -250,6 +252,11 @@ recodes {
 }
 \end{lstlisting}
 
+%DV: Adding some more detail about recodes and how they're used in the spec file
+The agecat variable recode variable can now be used as input to an imputation model 
+which is specified at a later point in the spec file. Other possible recode variables 
+could be income, education level, etc... It's up to the user to decide what recode variables 
+make sense to use for the data being imputed.
 
 \paragraph{Interactive R}
 The specification file described to this point does nothing by itself, but provides
