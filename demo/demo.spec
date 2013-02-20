@@ -35,6 +35,7 @@ recodes  {
     }
 
     SSN: SERIALNO*100+SPORDER
+	logWAGP: log(WAGP+1)
 }
 
 checks {
