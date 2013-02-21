@@ -125,12 +125,53 @@ typedef struct {
     bool is_bounds_checkable, is_hotdeck, textdep, is_rake;
 } impustruct;
 
+
+////////////////////////
+
+/* This function is a hack under time pressure by BK, intended 
+    to allow raking to use the fingerprinting output. I just blank
+    out the results from the fingerprinting and do the imputation. 
+    In an effort to be conservative, I blank out only the most 
+    implicated field in each record.
+    So you'll want to run a for loop that re-checks the vflags.
+    I'll have to see later if that creates problems...
+
+    Input is **datatab for the convenience of R.
+
+*/
+int blank_fingerprints(char const **datatab){
+    if (!apop_table_exists("vflags")) return 0;
+    char *id = get_key_word(NULL, "id");
+    
+    sprintf(apop_opts.db_name_column, "%s", id);
+    apop_data *prints = apop_query_to_data("select * from vflags");
+    Apop_stopif(!prints || prints->error, return -1, 0, 
+            "vflags exists, but select * from vflags failed.");
+    for (int i=0; i< prints->matrix->size1; i++){
+        //mm is a matrix with one row; v is the vector view.
+        Apop_submatrix(prints->matrix, i, 0, 1, prints->matrix->size2-2, mm);
+        Apop_matrix_row(mm, 0, v);
+
+        apop_query("update %s set %s = null where %s+0.0 = %s",
+                *datatab, 
+                prints->names->column[gsl_vector_max_index(v)],
+                id, prints->names->row[i]
+                );
+    }
+    return 0;
+}
+
+////////////////////////
+
+
+
+
 ///// second method: via raking
 
 /* Zero out the weights of those rows that don't match. 
  * Thanks to copy_by_name, we know that the two input data sets match.
  */
-double cull2(apop_data *onerow, void *subject_row_in){
+double cull(apop_data *onerow, void *subject_row_in){
     apop_data *subject_row = subject_row_in;
     for (int i=0; i< subject_row->matrix->size2; i++){
         double this = apop_data_get(subject_row, .col=i);
@@ -143,7 +184,10 @@ double cull2(apop_data *onerow, void *subject_row_in){
     return 0;
 }
 
-//reduce the number of calls to apop_name_find by order N.
+/* We're depending on the data columns and the draw columns to
+   be the same fields, and we aren't guaranteed that the raking
+   gave us data in the right format(BK: check this?). Copy the 
+   raked output to explicitly fit the data format. */
 apop_data *copy_by_name(apop_data *data, apop_data *form){
     apop_data *out= apop_data_copy(form);
     gsl_matrix_set_all(form->matrix, NAN);
@@ -155,17 +199,22 @@ apop_data *copy_by_name(apop_data *data, apop_data *form){
             apop_data_set(out, 0, corresponding_col, this);
     }
     return out;
-
 }
 
+/* We have raked output, and will soon be making draws from it. 
+   So it needs to be a PMF of the right format to match the data point
+   we're trying to match.
+ */
 apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector *orig){
     Apop_stopif(!raked, return NULL, 0, "NULL raking results.")
+    Apop_stopif(isnan(apop_sum(raked->weights)), return NULL, 0, "NaNs in raking results.")
+    Apop_stopif(!apop_sum(raked->weights), return NULL, 0, "No weights in raking results.")
     bool done=false;
     Apop_data_row(raked, 0, firstrow);
     apop_data *cp = copy_by_name(fin, firstrow);
     while (!done) {
         apop_data_free_base(
-            apop_map(raked, .fn_rp=cull2, .param=cp) );
+            apop_map(raked, .fn_rp=cull, .param=cp) );
         done=apop_sum(raked->weights);
         if (!done){//there are cases where we have no matches in the main table,
                     //so we have to blank some not-NaN values and try again.
@@ -193,22 +242,36 @@ static void rake_to_completion(const char *datatab, const char *underlying,
     Apop_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
     Apop_stopif(d->error, return, 0, "query error.");
     apop_data *notnan = apop_data_listwise_delete(d);
-    Apop_stopif(!notnan || notnan->error, return, 0, "listwise deletion error");
-    begin_transaction();
-    apop_data_print(notnan, .output_file="notnan", .output_append='w', .output_type='d');
-    commit_transaction();
-    apop_data_free(notnan);
+    Apop_stopif(notnan && notnan->error, return, 0, "listwise deletion error");
+    //if notnan=NULL or < 1/2 the full data set, then raking will use the default all-one init table.
+    bool notnan_tab_big_enough = notnan && notnan->matrix->size1 > 0.5*d->matrix->size1;
+    if (notnan_tab_big_enough){
+        begin_transaction();
+        apop_data_print(notnan, .output_file="notnan", .output_append='w', .output_type='d');
+        commit_transaction();
+        apop_data_free(notnan);
+    }
+
+    char *zeros=NULL, *or="";
+    for (int i=0; edit_list[i].clause; i++){
+        asprintf(&zeros, "%s%s(%s)", XN(zeros), or, edit_list[i].clause);
+        or = " or ";
+    }
 
     begin_transaction();
     apop_data *raked =
         apop_rake(.margin_table=datatab,
                 .var_list=is.allvars, .var_ct=is.allvars_ct,
                 .contrasts=is.allvars, .contrast_ct=is.allvars_ct,
-                .count_col=weight_col, .init_table="notnan", .init_count_col=weight_col);
+                .count_col=weight_col, .init_table=notnan_tab_big_enough ? "notnan": NULL, 
+                .structural_zeros=zeros,
+                .init_count_col=notnan_tab_big_enough ? weight_col: NULL);
     commit_transaction();
-    apop_data_pmf_compress(raked); //probably a no-op, but just in case.
     Apop_stopif(!raked, return, 
                 0, "Raking returned a blank table. This shouldn't happen.");
+    Apop_stopif(raked->error, return,
+                0, "Error (%c) in raking.", raked->error);
+    apop_data_pmf_compress(raked); //probably a no-op, but just in case.
 
     int batch_size=1000; //just in case...
     gsl_vector *original_weights=apop_vector_copy(raked->weights);
@@ -221,7 +284,7 @@ static void rake_to_completion(const char *datatab, const char *underlying,
 
         //draw the entire row at once, but write only the NaN elmts to the filled tab.
         apop_model *m = prep_the_draws(raked, focus, original_weights); 
-        if (m->error) {apop_model_free(m); continue;} //get it on the next go `round.
+        if (!m || m->error) {apop_model_free(m); continue;} //get it on the next go `round.
         size_t len=0;
         for (int drawno=0; drawno< draw_count; drawno++){
             Apop_stopif(!focus->names, continue, 0, "focus->names is NULL. This should never have happened.");
@@ -237,9 +300,6 @@ static void rake_to_completion(const char *datatab, const char *underlying,
                     gsl_matrix_set(fillins->matrix, len, 0, drawno);
                     gsl_matrix_set(fillins->matrix, len, 1, cp_to_fill->data[j]);
                 }
-                /*    apop_query("insert into filled values('%s', '%s', %i, %g);",
-                           *focus->names->row, focus->names->column[j], 
-                           drawno, cp_to_fill->data[j]);*/
             if (len > batch_size){
                 begin_transaction();
                 apop_data_print(fillins, .output_file=fill_tab, .output_type='d', .output_append='a');
@@ -316,7 +376,7 @@ static char *construct_a_query(char const *datatab, char const *underlying, char
     return q;
 }
 
-static char *construct_a_query_II(const char *id_col, const impustruct *is, const apop_data *fingerprint_vars){
+static char *construct_a_query_II(char const *id_col, const impustruct *is, apop_data const *fingerprint_vars){
     /* Do we need the clause that includes the requisite items from the vflags table? */
     if (!fingerprint_vars || !apop_table_exists("vflags")) return NULL;
     char *q2 = NULL;
@@ -399,9 +459,9 @@ void verify(impustruct is){
 	version (probably most versions) goes one var. at a time --> leans toward one
 	var over the others.
 */
-static void get_nans_and_notnans(impustruct *is, int index, const char *datatab, 
-        const char *underlying, int min_group_size, const apop_data *category_matrix, 
-        const apop_data *fingerprint_vars, const char *id_col){
+static void get_nans_and_notnans(impustruct *is, int index, char const *datatab, 
+        char const *underlying, int min_group_size, apop_data const *category_matrix, 
+        apop_data const *fingerprint_vars, char const *id_col){
 	is->isnan = NULL;
     char *q, *q2;
     if (!category_matrix || *category_matrix->textsize == 0){

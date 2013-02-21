@@ -81,7 +81,8 @@ Rflag.SQL <- function(con, tbl, risknames, freqthresh,
 				  vflagrtn=FALSE,vflag.name="vflags",
 				  verbose=FALSE,
 				  all=FALSE){
-    id <- TEAGetKey("id", invalue=id, 
+#id <- TEAGetKey(group="fingerprint", key="id", invalue=id, 
+id <- TEAGetKey(key="id", invalue=id, 
             errormsg="Flagging needs an ID variable; add an 'id' key to the spec after the database name.")
     geolist <- TEAGetKey("fingerprint", "geography list")
   #function to convert decimal to binary character

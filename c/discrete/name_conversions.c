@@ -32,7 +32,9 @@ static void ri_ext_init(){
             used_vars[v].type=='r')
                  continue;
         asprintf(&q, "select * from %s order by rowid", used_vars[v].name);
-        ri_ext[ri_ext_len] = apop_query_to_text("%s", q);
+        ri_ext[ri_ext_len] = used_vars[v].type=='i' 
+                               ? apop_query_to_data("%s", q)
+                               : apop_query_to_text("%s", q);
         sprintf(ri_ext[ri_ext_len]->names->title, "%s", used_vars[v].name);
         free(q);
         ri_ext_len++;
@@ -53,35 +55,52 @@ static apop_data *get_named_tab(char const *varname){
    returned -1 means variable found, but value wasn't.
  */
 int ri_from_ext(char const *varname, char const * ext_val){
-    if (apop_strcmp(ext_val, "NULL")) ext_val = apop_opts.db_nan;
+    Apop_stopif(!ext_val, return -1, 0, "You asked about an actual NULL.");
+    if (!strcmp(ext_val, "NULL")) ext_val = apop_opts.db_nan;
     apop_data *this = get_named_tab(varname);
     if (!this) return -100;
-    for (int i=0; i< *this->textsize; i++)
-        if (apop_strcmp(ext_val, *this->text[i])) return i+1;
+    if (this->matrix && this->matrix->size1){
+        for (int i=0; i< this->matrix->size1; i++)
+            if (atof(ext_val) == apop_data_get(this, i)) return i+1;
+    } else {
+        for (int i=0; i< *this->textsize; i++)
+            if (!strcmp(ext_val, *this->text[i])) return i+1;
+    }
     return -1;
 }
 
 char * ext_from_ri(char const *varname, int const ri_val){
     apop_data *this = get_named_tab(varname);
-    Apop_stopif(ri_val > *this->textsize, return strdup("NULL"), 0,
+    if (this->matrix && this->matrix->size1){
+        Apop_stopif(ri_val > this->matrix->size1, return strdup("NULL"), 0,
+            "You're asking for value %i of variable %s, but it only "
+            "has %zu values.", ri_val, varname, this->matrix->size1);
+        char *out;
+        asprintf(&out, "%g", apop_data_get(this, ri_val-1));
+        return out;
+    } else {
+        Apop_stopif(ri_val > *this->textsize, return strdup("NULL"), 0,
             "You're asking for value %i of variable %s, but it only "
             "has %zu values.", ri_val, varname, *this->textsize);
-    return strdup(*this->text[ri_val-1]);
+        return strdup(*this->text[ri_val-1]);
+    }
 }
 
 double find_nearest_val(char const *varname, double ext_val){
     double this_dist, smallest_dist=INFINITY;
-    int smallest_index = 0;
     if (isnan(ext_val)) return NAN;
     apop_data *this = get_named_tab(varname);
     if (!this) return NAN;
-    for (int i=0; i< *this->textsize; i++){
-         this_dist = fabs(atof(*this->text[i])-ext_val);
+    size_t lim = *this->textsize ? *this->textsize : this->matrix->size1;
+    double closest_val = NAN; //overwritten on first pass.
+    for (int i=0; i< lim; i++){
+         int val_i = *this->textsize ? atof(*this->text[i]) : apop_data_get(this, i);
+         this_dist = fabs(val_i - ext_val);
          if (!this_dist) return ext_val;
          if (this_dist < smallest_dist){
              smallest_dist = this_dist;
-             smallest_index = i;
+             closest_val = val_i;
          }
     }
-    return atof(*this->text[smallest_index]);
+    return closest_val;
 }

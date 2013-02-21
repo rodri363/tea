@@ -97,7 +97,7 @@ Each query produces a (apop_data) table of not-OK values, in the
  */
 
 static int pull_index(char const *in_name){
-    for (int i =0; *used_vars[i].name!='\0'; i++)
+    for (int i =0; used_vars[i].name; i++)
         if (!strcasecmp(used_vars[i].name, in_name))
             return i;
     return -1;
@@ -154,6 +154,7 @@ void db_to_em(void){
         //d = ud_explicits[current_explicit];
         if (next_phase == 's'){ //starting a new edit
 			if (!d) d = apop_query_to_text("%s", ud_queries->text[current_explicit][0]);
+            Apop_stopif(d && d->error, return, 0, "query error setting up edit grid; edits after this one won't happen.");
             em_i++;         //add a row to edit_grid->matrix.
             if (!edit_grid) edit_grid = apop_data_alloc();
             edit_grid->vector = apop_vector_realloc(edit_grid->vector, em_i);
@@ -256,8 +257,7 @@ void db_to_em(void){
 */
 double get_key_float(char const *part1, char const * part2){
      char *p = NULL;
-     if (part1 && part2)
-         asprintf(&p, "%s/%s", part1, part2);
+     if (part1 && part2) asprintf(&p, "%s/%s", part1, part2);
     double out = apop_query_to_float("select value from keys where key like '%s' order by count", 
                             p ? p : part1 ? part1 : part2);
     if (p) free(p);
@@ -269,7 +269,7 @@ double get_key_float_tagged(char const *part1, char const * part2, char const *t
     return apop_query_to_float("select value from keys where "
 									    "key like '%s%s%s' and tag ='%s'",
 										XN(part1),
-										(part1&&part2)?"/":"",
+										(part1 && strlen(part1)&&part2 && strlen(part2))?"/":"",
 										XN(part2), XN(tag));
 
 }
@@ -286,7 +286,7 @@ apop_data* get_key_text(char const *part1, char const *part2){
     return apop_query_to_text("select value from keys where "
 									    "key like '%s%s%s' order by count",
 										XN(part1),
-										(part1&&part2)?"/":"",
+										(part1 && strlen(part1)&&part2 && strlen(part2))?"/":"",
 										XN(part2));
 }
 
@@ -295,7 +295,7 @@ apop_data* get_key_text_tagged(char const *part1, char const *part2, char const 
     return apop_query_to_text("select value from keys where "
 									    "key like '%s%s%s' and tag like '%%%s%%'",
 										XN(part1),
-										(part1&&part2)?"/":"",
+										(part1 && strlen(part1)&&part2 && strlen(part2))?"/":"",
 										XN(part2), XN(tag));
 }
 
@@ -319,11 +319,11 @@ char* get_key_word_tagged(char const *part1, char const *part2, char const *tag)
     return out;
 }
 
-static apop_data* get_sub_key(char const *part1){
-    apop_data* out = apop_query_to_text("select distinct key from keys where key like '%s/%%' order by count", part1);
+static apop_data* get_sub_key(char const *part1,char const *part2){
+    apop_data* out = apop_query_to_text("select distinct key from keys where key like '%s%s%s/%%' order by count", XN(part1), (part1 && strlen(part1) && part2 && strlen(part2)) ? "/":"", XN(part2));
 	if (out)
 		for(int i=0; i < out->textsize[0]; i++)//shift past the input key and slash.
-			out->text[i][0] += strlen(part1)+1; //leaks; don't care.
+			out->text[i][0] += strlen(part1)+ (part2 ? strlen(part2)+1:0) + 1; //leaks; don't care.
     return out;
 }
 
@@ -440,24 +440,21 @@ void read_spec(char **infile, char **dbname_out){
 
 void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *is_sub){
 	apop_data *dout = *is_sub 
-                        ? get_sub_key(group ? *group : NULL)
+                        ? get_sub_key(group ? *group : NULL, key ? *key : NULL)
                         : get_key_text_tagged(group ? *group : NULL, *key, (tag ? *tag:NULL));
 	if (!dout){
 	    *out = 0;
 	    return;
 	}
     *out = dout->textsize[0];
-    apop_data_free(dout);
+    //apop_data_free(dout);
 }                                                             
 
 void get_key_text_for_R(char **group, char **key, char **tag, char **out, int *is_sub){
-	apop_data *dout;
-	if(*is_sub)
-    	    dout = get_sub_key(*group);
-	else
-	    dout = get_key_text_tagged(*group, *key, (tag ? *tag:NULL));
-	if (!dout)
-	    return;
+	apop_data *dout = (*is_sub)
+    	                ? get_sub_key(*group, key ? *key : NULL)
+	                    : get_key_text_tagged(*group, *key, (tag ? *tag:NULL));
+	if (!dout) return;
     for (int i=0; i< dout->textsize[0]; i++)
         out[i] = strdup(dout->text[i][0]);
     //apop_data_free(dout);

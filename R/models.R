@@ -1,3 +1,163 @@
+
+###########Rolando's earlier version, for use with GQ disclosure avoidance.
+
+#' Fit a generalized addive model and return the fitted values for each data row
+#'
+#' @param model = a 'formula' object
+#' @param data = a data frame
+#'
+#' @return list containing vector of predicted values for each data row and the residual error
+PEP.gam <- function(model,data){
+	print("Running gam on")
+	print(model)
+	fit <- try(gam(model,data=data))
+	if(inherits(fit,"try-error")) return(fit)
+	predicted <- predict(fit,newdata=data,type="link")
+	if(inherits(predicted,"try-error")) stop("prediction not successful")
+	return(list(predicted=predicted,sigma=sqrt(sum(fit$residuals^2)/fit$df.residual)))
+}
+
+#' Fit an OLS and return the fitted values for each data row
+#'
+#' @param model = a 'formula' object
+#' @param data = a data frame
+#'
+#' @return vector of predicted values for each data row and the residual error
+PEP.lm <- function(model,data){
+	print("Running OLS on")
+	print(model)
+	fit <- try(lm(model,data=data))
+	if(inherits(fit,"try-error")) return(fit)
+	predicted <- predict(fit,newdata=data,type="link")
+	if(inherits(predicted,"try-error")) stop("prediction not successful")
+	return(list(predicted=predicted,sigma=sqrt(sum(fit$residuals^2)/fit$df.residual)))
+}
+
+
+#' Fit a multinom model and return the fitted probablities for each data row
+#'
+#' @param model = a 'formula' object
+#' @param data = a data frame
+#'
+#' @return Matrix of predicted probabilities for each data row
+PEP.multinom <- function(model,data){
+	print("Running multinom on")
+	print(model)
+	fit <- try(multinom(model,data,reltol=1e-8,maxit=500,trace=FALSE))
+	#fit <- try(multinom(model,data,reltol=1e-8,maxit=500,trace=FALSE,na.action="na.omit"))
+	if(inherits(fit,"try-error")) return(fit)
+	predicted <- try(predict(fit,newdata=data,"prob"),silent=TRUE)
+	if(inherits(predicted,"try-error")) stop("prediction not successful!!")
+	#handle case when there are 2 outcome levels
+	#and multinom() returns only a vector of predicted
+	#probabilities
+	if(!is.matrix(predicted)){
+		predicted <- as.matrix(predicted,ncol=1)
+		#changed order of 1-predicted to predicted
+		#perhaps R drops the first level?
+		predicted <- cbind(1-predicted,predicted[,1])
+	}
+	return(list(probs = predicted, lev = fit$lev))
+}
+
+#' Fit a ordered logistic model and return the fitted probablities for each data row
+#'
+#' @param model = a 'formula' object
+#' @param data = a data frame
+#'
+#' @return Matrix of predicted probabilities for each data row
+PEP.polr <- function(model,data){
+	print("Running polr on")
+	print(model)
+	fit <- try(polr(model,data,control=list(reltol=1e-8,maxit=500,trace=0)))
+	if(inherits(fit,"try-error")) return(fit)
+	predicted <- try(predict(fit,newdata=data,"probs"),silent=TRUE)
+	if(inherits(predicted,"try-error")) stop("prediction not successful!!")
+	return(list(probs = predicted, lev = fit$lev))
+}
+	
+
+#' Fit a multinomial model using MCMC and return the fitted probablities for each data row
+#'
+#' @param model = a 'formula' object
+#' @param data = a data frame
+#'
+#' @return Matrix of predicted probabilities for each data row
+PEP.MCMCmnl <- function(model,data){
+	print("Running MCMCmnl on")
+	print(model)
+	lhs <- all.vars(model)[1]	#extract LHS variable
+	fit <- MCMCmnl(model, baseline=names(table(data[lhs]))[1], data=data,
+		burnin = 1000, mcmc = 10000, thin = 1,
+		mcmc.method = "IndMH", tune = 1, tdf=6,
+		verbose = 0, seed = NA, beta.start = NA, b0 = 0, B0 = 0);
+	if(inherits(fit,"try-error")) return(fit)
+
+	thetas <- fit[sample(1:nrow(fit),1,replace=TRUE),]
+	names(thetas) <- colnames(fit)
+
+	b <- matrix(thetas,ncol=length(table(data[lhs]))-1,byrow=TRUE)
+	X <- model.matrix(model,data=data)
+	rel.odds <- exp(X%*%b)
+	ps <- 1/((rowSums(rel.odds)+1))*cbind(1,rel.odds)
+	return(list(probs = ps, lev = names(table(data[lhs]))))
+}
+
+#' Fit a ordinal probit model using MCMC and return the fitted probablities for each data row
+#'
+#' @param model = a 'formula' object
+#' @param data = a data frame
+#'
+#' @return Matrix of predicted probabilities for each data row
+PEP.MCMCoprobit <- function(model,data){
+	print("Running MCMCoprobit on")
+	print(model)
+	lhs <- all.vars(model)[1]
+	fit <- MCMCoprobit(model, data = data, burnin = 1000, mcmc = 10000,
+				thin=1, tune = NA, tdf = 1, verbose = 0, seed = NA, beta.start = NA)
+	if(inherits(fit,"try-error")) return(fit)
+
+	#for probit fit, probabilities are
+	#p_ic = PHI(gamma_c - x_i%*%b) - PHI(gamma_c-1 - x_i %*% b)
+
+	thetas <- fit[sample(1:nrow(fit),1,replace=TRUE),]
+
+	#cdfs <- apply(fit,2,ecdf)
+	#unifs <- runif(ncol(fit),0,1)
+
+	#thetas <- vector("numeric",ncol(fit))
+	#for(cdx in 1:ncol(fit)){
+	#	thetas[cdx] <- optimize(function(x) (cdfs[[cdx]](x) - unifs[cdx])^2,
+	#		interval=c(min(fit[,cdx]),max(fit[,cdx])))$minimum;
+	#}
+	names(thetas) <- colnames(fit)
+	gammas <- grep("gamma",names(thetas))
+
+	b <- matrix(thetas[-gammas],ncol=1,byrow=TRUE)
+	X <- model.matrix(model,data=data)
+	#0 is first cutpoint in Cowles method
+	#have to add Inf to get probability in last section
+	#that is, p(last section) = 1 - phi(last cutpoint),
+	#and 1 = phi(Inf)
+	g <- c(0,unlist(thetas[gammas]),Inf)
+
+	phi.arg <- t(apply(-1*(X%*%b),1,"+",g))
+	ps <- (pnorm(phi.arg)[,-1])-(pnorm(phi.arg)[,-length(phi.arg[1,])])
+	ps <- cbind(1-rowSums(ps),ps)
+
+	#this is how MCMCoprobit orders levels
+	Y.lev <- levels(factor(model.response(model.frame(model,data=data),"numeric"), ordered = TRUE))
+	draws <- Y.lev[apply(ps,1,function(x) return(which(rmultinom(1,1,x)==1)))]
+	return(list(probs = ps, lev = Y.lev))
+}
+
+
+
+###########End of Rolando's earlier version, for use with GQ disclosure avoidance.
+
+
+
+
 #' Estimate a GAM (generalized additive  model) on the given data
 #' The function takes one argument, an environment.  The following are
 #' the elements expected in the environment
