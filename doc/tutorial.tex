@@ -216,6 +216,17 @@ are provided that do the work of running the underlying C-based procedures.
 Binding them all together, we can have a system that is friendly to interact with, effectively handles Census-sized data sets, and does the processing quickly, even with relatively sophisticated methods.
 
 
+\comment
+{	
+	DV: I think there should be some kind of overview of the flow of the spec file 
+	in this section (or in section 3). From the perspective of someone getting used to the 
+	layout and flow of the spec file who may be unfamiliar with how everything 
+	is implemented in the system (yours truly), I think it would make the proceeding 
+	information more coherent. Maybe we could include some kind of figure as we did on 
+	page 2 of the tutorial (where we give an overview of the survey processing imputation 
+	procedure)?
+}
+
 \subsection{The spec file} \label{specsec}
 The full specification of the various steps, from input of data to final production of
 output tables, is specified in a single file, herein the {\em spec file}. There are
@@ -298,6 +309,8 @@ file.
 
 
 \section{The specification setup}\label{specsyntax}
+%  DV: By the configuration system we mean the spec file, correct?
+%      If so we should specify that so as not to confuse the user.
 The configuration system is a major part---perhaps in some senses, all---of the
 user interface. 
 
@@ -343,6 +356,10 @@ values associated with a single line of data, and even subkeys. For example, her
 a spec file with a variety of key/subkey/value combinations. The computer will ignore
 everything after a {\tt \#}, so those lines are comments for your fellow humans.
 
+%  DV: Again, some of this could be made more accessible to the reader by 
+%  first explaining how checks, input, etc get used. Although much of the 
+%  syntax in the spec is SQLite stuff that the reader is told to learn it 
+%  would give the code context to explain what's happening.
 \begin{lstlisting}[language=]
 #As above, if you have a key with one value, you can use a colon
 database: ourstudy.db
@@ -515,8 +532,18 @@ pipe that SQLite uses to indicate concatenation.
 We use an SQL {\tt view} to generate these variables. A view is a sort of virtual table
 whose values are generated when requested, not on initialization. So the view takes up
 almost no new space on disk, needs almost zero time to generate, and if the base data is
-changed later queries will still get correctly-updated values of the generated variables.
+changed later queries will still get correctly-updated values of the generated variables. 
+You will see that in the impute part of the spec file, the first key you specify is the 
+view table.
+%  DV: Where do you specify what view table to write to? Is it in the input section of 
+%  the spec file as the key "output table"? If so, does the outpu of the impute 
+%  functions get written to the view table as well or directly to the database?
 
+
+
+%  DV: By declaration list (line 550), do we mean the declaration of the variable type 
+%  in the database that we specified in the first line of the spec file or the declaration 
+%  type that we specify in field?
 In the consistency-checking section below, you will see that you need to declare the
 possible values of the variables on which consistency checks will be run. Recodes will
 be auto-declared for you. For cases like {\tt agecat} where you specified a list of
