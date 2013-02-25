@@ -2,7 +2,7 @@ database: demo.db
 id: SSN
 
 input {
-    input file: dc_pums_08.csv
+    input file: ss08pdc.csv
     overwrite: no
     output table: dc
 	types {
@@ -20,6 +20,7 @@ fields  {
           OH, OK, OR, PW, PA, PR, RI, SC, SD, TN, TX, UT, VT, VI, \
           VA, WA, WV, WI, WY, AE, AA, AE
     WAGP: real
+    SCHL: int 0-16
 }
 
 recodes  {
@@ -41,7 +42,27 @@ recodes  {
 checks {
 	AGEP+0.0 < 0 
 	AGEP+0.0 > 95 => AGEP = 95
+
+	SCHL < 0
+	SCHL > 16
 }
+
+
+impute{
+    input table: viewdc
+    min group size: 3
+    draw count: 3
+    seed:2332
+
+    categories {
+        CATAGE
+        SEX
+    }
+
+    method: hot deck
+	output vars: SCHL
+}
+
 
 impute{
     input table: viewdc
@@ -86,5 +107,5 @@ impute{
 
     method: ols
 	output vars: AGEP
-    input vars: WAGP
+    input vars: WAGP, SCHL
 }
