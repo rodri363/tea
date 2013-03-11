@@ -213,9 +213,11 @@ char * strip(const char *in){
     return out;
 }
 
+int transacting; //global var in bridge.c
 static void set_database(char *dbname){  //only on pass 0.
     if (!strcmp(dbname, "mem")) dbname=":memory:";
     if (verbose) printf("opening database %s.\n", dbname);
+    transacting=0; //reset the begin/commit counter.
     Apop_stopif(apop_db_open(dbname), return, 0, "failed to open database %s", dbname);
     database= strdup(dbname);
     apop_table_exists("keys", 'd');

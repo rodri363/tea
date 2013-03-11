@@ -194,9 +194,12 @@ void just_like_the_R_test(){
     char *d="data";
     impute(&d);
 
+    char *checkout = "checkout";
+    int zero =0;
+    check_out_impute(&d, &checkout, &zero, NULL, NULL);
 
     //this is not just like the R test:
-    checkData(apop_query_to_text("select * from data"));
+    checkData(apop_query_to_text("select * from %s", checkout));
     apop_db_close();
     foreach(s, "spec", "t.db", "indata"){ remove(*s); }
 }
@@ -238,9 +241,9 @@ void test_ols(gsl_rng *r){
     apop_data_prune_columns(observations, "norm", "fish"); //vector "y" always kept.
     sprintf(apop_opts.db_name_column, "id_col");
     apop_db_open("olsdb.db");
-    apop_query("begin");
+    begin_transaction();
     apop_data_print(observations, .output_file="olsdata", .output_type='d');
-    apop_query("commit");
+    commit_transaction();
     //apop_data_show(observations);
 
 
@@ -318,4 +321,6 @@ void tea_c_tests(){
     snowman_test();
 }
 
+#ifdef TESTING
 int main(){ tea_c_tests(); }
+#endif

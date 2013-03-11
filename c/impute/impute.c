@@ -122,7 +122,7 @@ typedef struct {
 	char * depvar, **allvars, *vartypes, *selectclause;
 	int position, allvars_ct, error;
 	apop_data *isnan, *notnan;
-    bool is_bounds_checkable, is_hotdeck, textdep, is_rake;
+    bool is_bounds_checkable, is_hotdeck, textdep, is_rake, is_regression;
 } impustruct;
 
 
@@ -203,29 +203,37 @@ apop_data *copy_by_name(apop_data *data, apop_data *form){
 
 /* We have raked output, and will soon be making draws from it. 
    So it needs to be a PMF of the right format to match the data point
-   we're trying to match.
- */
+   we're trying to match.  
+   
+   It may be that the row in the data has no match in the raked outout, due to structural
+   zeros and the inputs. E.g., if a person is married and has missing age, and everybody
+   else in the data set is under 15, and (age <15 && married) is an edit failure, there will
+   be no entries in the rake table with married status. In this case, blank out the existing married status.
+   
+   */
 apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector *orig){
     Apop_stopif(!raked, return NULL, 0, "NULL raking results.")
     Apop_stopif(isnan(apop_sum(raked->weights)), return NULL, 0, "NaNs in raking results.")
     Apop_stopif(!apop_sum(raked->weights), return NULL, 0, "No weights in raking results.")
     bool done=false;
     Apop_data_row(raked, 0, firstrow);
-    apop_data *cp = copy_by_name(fin, firstrow);
     while (!done) {
+        apop_data *cp = copy_by_name(fin, firstrow);
         apop_data_free_base(
             apop_map(raked, .fn_rp=cull, .param=cp) );
         done=apop_sum(raked->weights);
-        if (!done){//there are cases where we have no matches in the main table,
-                    //so we have to blank some not-NaN values and try again.
+        if (!done){
             gsl_vector_memcpy(raked->weights, orig);
-            for (int i=0; i< cp->matrix->size2; i++) 
-                if (!isnan(apop_data_get(cp, 0, i))) 
-                    {apop_data_set(cp, 0, i, NAN); break;}
+            for (int i=0; i< fin->matrix->size2; i++) 
+                if (!isnan(apop_data_get(fin, 0, i))) {
+                    apop_data_set(fin, 0, i, NAN);    //modify the input data.
+                    Apop_notify(1, "Blanking the %s field because I couldn't "
+                            "find a match otherwise.", fin->names->column[i]);
+                    break;
+                }
         }
-        //apop_data_rm_rows(drawfrom, .do_drop=cull_pmf, .drop_parameter=(cp ? cp: fin));
+        apop_data_free(cp);
     }
-    apop_data_free(cp);
     return apop_estimate(raked, apop_pmf);
 }
 
@@ -233,7 +241,7 @@ static void rake_to_completion(const char *datatab, const char *underlying,
         impustruct is, const int min_group_size, gsl_rng *r, 
         const int draw_count, char *catlist, 
         const apop_data *fingerprint_vars, const char *id_col, 
-        char const *weight_col, char *fill_tab){
+        char const *weight_col, char const *fill_tab, char const *margintab){
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
     char *varlist = apop_text_paste(&as_data, .between=", ");
     apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s", id_col, varlist, 
@@ -260,7 +268,7 @@ static void rake_to_completion(const char *datatab, const char *underlying,
 
     begin_transaction();
     apop_data *raked =
-        apop_rake(.margin_table=datatab,
+        apop_rake(.margin_table=margintab ? margintab : datatab,
                 .var_list=is.allvars, .var_ct=is.allvars_ct,
                 .contrasts=is.allvars, .contrast_ct=is.allvars_ct,
                 .count_col=weight_col, .init_table=notnan_tab_big_enough ? "notnan": NULL, 
@@ -364,7 +372,7 @@ static char *construct_a_query(char const *datatab, char const *underlying, char
 	}
 */
     char *q;
-    asprintf(&q, "select %s, %s from %s where ", id_col, varlist, datatab);
+    asprintf(&q, "select %s from %s where ", varlist, datatab);
     if (!category_matrix) return q;
     //else
     for (int i=0; i< category_matrix->textsize[0]; i++){
@@ -385,7 +393,7 @@ static char *construct_a_query_II(char const *id_col, const impustruct *is, apop
         if (!strcasecmp(fingerprint_vars->text[i][0], is->depvar))
             is_fprint++;
     if (is_fprint)
-        asprintf(&q2, "select  %s, %s from vflags where %s > 0", id_col, is->selectclause, is->depvar);
+        asprintf(&q2, "select %s from vflags where %s > 0", is->selectclause, is->depvar);
     return q2;
 }
 
@@ -477,7 +485,7 @@ static void get_nans_and_notnans(impustruct *is, int index, char const *datatab,
                 last_no_constraint = strdup(is->selectclause);
             }
         }//else, carry on:
-        asprintf(&q, "select %s, %s from %s where 1 and ", id_col, is->selectclause, datatab);
+        asprintf(&q, "select %s from %s where 1 and ", is->selectclause, datatab);
     } else
         q = construct_a_query(datatab, underlying, is->selectclause, category_matrix, id_col, index, is->depvar);
     q2 = construct_a_query_II(id_col, is, fingerprint_vars);
@@ -523,7 +531,7 @@ static void model_est(impustruct *is, int *model_id){
     //maybe check here for constant columns in regression estimations.
     if (notnan->text && !apop_data_get_page(notnan,"<categories"))
         for (int i=0; i< notnan->textsize[1]; i++){
-            if (is->textdep && strcmp(notnan->names->column[i], is->depvar) )
+            if (!is->is_hotdeck && is->textdep && strcmp(notnan->names->column[i], is->depvar) )
                 apop_data_to_dummies(notnan, i, .keep_first='y', .append='y');
             //the actual depvar got factor-ized in prep_for_draw.
 //            apop_data_to_dummies(is->isnan, i, .keep_first='y', .append='y'); //presumably has the same structure.
@@ -561,7 +569,9 @@ static void model_est(impustruct *is, int *model_id){
                     is->fitted_model->parameters->vector->data[i]);
         }
     apop_query("insert into model_log values(%i, 'subuniverse size', %i);"
-                    , *model_id, (int)is->fitted_model->data->matrix->size1);
+                    , *model_id, (int) (is->fitted_model->data->matrix 
+                                    ? is->fitted_model->data->matrix->size1
+                                    : *is->fitted_model->data->textsize));
     /*if (is->fitted_model->parameters->vector)
         assert(!isnan(apop_sum(is->fitted_model->parameters->vector)));*/
 }
@@ -742,7 +752,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
         do drew = onedraw(r, is, type, id_number, fail_id, 
                           model_id, full_record, col_of_interest);
         while (drew.is_fail && tryctr++ < 1000);
-        Apop_stopif(drew.is_fail, return, 0, "I just made a thousand attempts to find an "
+        Apop_stopif(drew.is_fail, , 0, "I just made a thousand attempts to find an "
             "imputed value that passes checks, and couldn't. "
             "Something's wrong that a computer can't fix.\n "
             "I'm at id %i.", id_number);
@@ -849,7 +859,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
     apop_name_free(clean_names);
 }
 
-apop_model tea_get_model_by_name(char *name){
+apop_model tea_get_model_by_name(char *name, impustruct *model){
     static get_am_from_registry_type *rapop_model_from_registry;
     static int is_inited=0;
     if (!is_inited && using_r)
@@ -862,19 +872,22 @@ apop_model tea_get_model_by_name(char *name){
 				? apop_multivariate_normal :
 			apop_strcmp(name, "lognormal")
 				? apop_lognormal :
+			apop_strcmp(name, "rake")
+		  ||apop_strcmp(name, "raking")
+				?  (model->is_rake = true, (apop_model){.name="null model"}) :
 			apop_strcmp(name, "hotdeck")
 		  ||apop_strcmp(name, "hot deck")
 	      ||apop_strcmp(name, "multinomial")
 		  ||apop_strcmp(name, "pmf")
-				? apop_pmf :
+				? (model->is_hotdeck=true, apop_pmf) :
 			apop_strcmp(name, "poisson")
-				? apop_poisson :
+				? (model->is_regression=true, apop_poisson) :
 			apop_strcmp(name, "ols")
-				? apop_ols :
+				? (model->is_regression=true, apop_ols) :
 			apop_strcmp(name, "logit")
-				? apop_logit :
+				? (model->is_regression=true, apop_logit) :
 			apop_strcmp(name, "probit")
-				? apop_probit :
+				? (model->is_regression=true, apop_probit) :
 			apop_strcmp(name, "kernel")
 	      ||apop_strcmp(name, "kernel density")
 				? apop_kernel_density 
@@ -887,6 +900,7 @@ apop_model tea_get_model_by_name(char *name){
 */
         Apop_stopif(!strcmp(out.name, "Null model"), return (apop_model){}, 0, "model selection fail.");
         Apop_model_add_group(&out, apop_parts_wanted, .predicted='y'); //no cov
+        if (!strcmp(out.name, "PDF or sparse matrix")) out.dsize=-2;
         return out;
 }
 
@@ -899,7 +913,7 @@ void prep_imputations(char *configbase, char *id_col, gsl_rng **r, char *filltab
         apop_query("create table model_log ('model_id', 'parameter', 'value')");
 }
 
-impustruct read_model_info(char const *configbase, char const *tag){
+impustruct read_model_info(char const *configbase, char const *tag, char const *id_col){
 	apop_data *vars=NULL, *indepvarlist=NULL;
     apop_regex(get_key_word_tagged(configbase, "output vars", tag),
                 " *([^,]*[^ ]) *(,|$) *", &vars); //split at the commas
@@ -907,38 +921,46 @@ impustruct read_model_info(char const *configbase, char const *tag){
                 " *([^,]*[^ ]) *(,|$) *", &indepvarlist); //same
     Apop_stopif(!vars, return (impustruct){.error=1}, 0, "I couldn't find an 'output vars' line in the %s segment", configbase);
 
-	impustruct model = (impustruct) {.position=-2, .vartypes=strdup("n")}; //zero out everything; posn to be filled in later.
+	impustruct model = (impustruct) {.position=-2, .vartypes=strdup("n")};
     model.depvar = strdup(**vars->text);
 
     //find the right model.
     char *model_name = get_key_word_tagged(configbase, "method", tag);
-    if (!strcmp(model_name, "rake")) {
-        model.is_rake = true;
-        model.base_model = (apop_model){.name="null model"};
-    } else model.base_model = tea_get_model_by_name(model_name);
-    Apop_stopif(!strlen(model.base_model.name), model.error=1; return model, 0, "model selection fail.");
+    model.base_model = tea_get_model_by_name(model_name, &model);
+    Apop_stopif(!strlen(model.base_model.name), model.error=1; return model, 0, "model selection fail; you requested %s.", model_name);
+  
+
+/* In this section, we construct the select clause that will produce the data we need for estimation. apop_query_to_mixed_data also requires a list of type elements, so get that too.
+
+Further, the text-to-factors function requires a spare column in the numeric part for each text element.
+
+Hot deck: needs no transformations at all.
+Raking: needs all the variables, in numeric format
+*/
+
     char *indep_vars = get_key_word_tagged(configbase, "input vars", tag);
     char coltype = get_coltype(model.depvar); // \0==not found.
-  
-    if (coltype=='c')     asprintf(&model.vartypes, "%smt", model.vartypes), model.textdep=true;
-    else if (coltype)     asprintf(&model.vartypes, "%sm", model.vartypes);
-    else /*assume text.*/ asprintf(&model.vartypes, "%smt", model.vartypes), model.textdep=true;
+    
+    int ict = indepvarlist ? *indepvarlist->textsize : 0;
+    int dct = vars ? *vars->textsize : 0;
+    model.allvars_ct = ict + dct;
+    Apop_stopif(!model.allvars_ct, model.error=1; return model, 0, "Neither 'output vars' nor 'input vars' in the raking segment of the spec.");
+
+    if (coltype=='r' || coltype=='i') 
+          asprintf(&model.vartypes, "%sm", model.vartypes);
+    else  asprintf(&model.vartypes, "%st", model.vartypes), model.textdep=true;
 
     if (model.is_rake){
         int i=0;
-        int ict = indepvarlist ? *indepvarlist->textsize : 0;
-        int dct = vars ? *vars->textsize : 0;
-        model.allvars_ct = ict + dct;
-        Apop_stopif(!model.allvars_ct, model.error=1; return model, 0, "Neither 'output vars' nor 'input vars' in the raking segment of the spec.");
         model.allvars = malloc(sizeof(char*)*model.allvars_ct);
         if (vars) for (; i< *vars->textsize; i++) model.allvars[i]= strdup(*vars->text[i]);
         if (indepvarlist) for (int j=0; j< *indepvarlist->textsize; j++) model.allvars[i+j]= strdup(*indepvarlist->text[j]);
     }
 
-    //if a text dependent var, set aside a column to be filled in with factors.
-    if (!model.is_rake)
-         asprintf(&model.selectclause, "%s%s", model.textdep ? "1, ": " ", model.depvar);	
-    else asprintf(&model.selectclause, "%s", model.depvar);	
+    //if a text dependent var & a regression, set aside a column to be filled in with factors.
+    if (model.is_regression)
+         asprintf(&model.selectclause, "%s, %s%s", id_col, model.textdep ? "1, ": " ", model.depvar);	
+    else asprintf(&model.selectclause, "%s, %s", id_col, model.depvar);	
     if (indep_vars){
         asprintf(&model.selectclause, "%s%c %s", 
                 XN(model.selectclause),model.selectclause ? ',' : ' ',
@@ -958,6 +980,7 @@ char *configbase = "impute";
   \key{impute/draw count} How many multiple imputations should we do? Default: 5.
   \key{impute/output table} Where the fill-ins will be written. You'll still need <tt>checkOutImpute</tt> to produce a completed table.
   \key{impute/earlier output table} If this imputaiton depends on a previous one, then give the fill-in table from the previous output here.
+  \key{impute/margin table} Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.
  */
 int do_impute(char **tag, char **idatatab){ 
     //This fn does nothing but read the config file and do appropriate setup.
@@ -984,8 +1007,7 @@ int do_impute(char **tag, char **idatatab){
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
     if (!out_tab) out_tab = "filled";
 
-    char *id_col = get_key_word_tagged(configbase, "id", *tag);
-    if (!id_col) id_col= get_key_word(NULL, "id");
+    char *id_col= get_key_word(NULL, "id");
     if (!id_col) {
         id_col=strdup("rowid");
         if (verbose) printf("I'm using the rowid as the unique identifier for the "
@@ -1007,7 +1029,7 @@ int do_impute(char **tag, char **idatatab){
                     out_tab, out_tab, out_tab, out_tab);
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
 
-    impustruct model = read_model_info(configbase, *tag);
+    impustruct model = read_model_info(configbase, *tag, id_col);
     Apop_stopif(model.error, return -1, 0, "Trouble reading in model info.");
 
     if (model.is_rake) {
@@ -1028,8 +1050,9 @@ int do_impute(char **tag, char **idatatab){
                     and = " and ";
                 }
             }
+            char *margintab = get_key_word_tagged(configbase, "margin table", *tag);
             rake_to_completion(*idatatab, underlying, model, min_group_size, 
-                        r, draw_count, wherecat, fingerprint_vars, id_col, weight_col, out_tab);
+                        r, draw_count, wherecat, fingerprint_vars, id_col, weight_col, out_tab, margintab);
         }
     }
     else impute_a_variable(*idatatab, underlying, &model, min_group_size, 

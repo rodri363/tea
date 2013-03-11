@@ -118,11 +118,17 @@ static char is_new_edit(apop_data *explicits, int current_row){
                     last_changed = -1;
                     return 's';  //diff in the wrong place. Start over.
                 }
-	}
+        }
 	return 'e';
 }
 
-/* At this point, we have a list of tables representing each edit.
+static void grow_grid(apop_data *edit_grid, int *em_i, int toc){
+    (*em_i)++;         //add a row to edit_grid->matrix.
+    edit_grid->vector = apop_vector_realloc(edit_grid->vector, *em_i);
+    edit_grid->matrix = apop_matrix_realloc(edit_grid->matrix, *em_i, toc);
+}
+
+/* At this point, we have a list of tables representing each edit, in ud_queries.
 
    This little machine will do one of these things:
    --Bump forward to start a new edit    = 's'
@@ -133,12 +139,6 @@ This replaces rdin3 in gen_ed52.f
 */
 void db_to_em(void){
     if (!ud_queries) return;
-
-	//This needs to be rewritten for ud_queries
-    /*if (!ud_explicits){
-        if (has_edits) printf("All edits gave null results, so I have no failed edits.\n");
-        return;
-    }*/
     int current_row = 0;
     int current_col = 0;
     int current_explicit = 0;
@@ -153,16 +153,7 @@ void db_to_em(void){
 	while(1){
         //d = ud_explicits[current_explicit];
         if (next_phase == 's'){ //starting a new edit
-			if (!d) d = apop_query_to_text("%s", ud_queries->text[current_explicit][0]);
-            Apop_stopif(d && d->error, return, 0, "query error setting up edit grid; edits after this one won't happen.");
-            em_i++;         //add a row to edit_grid->matrix.
             if (!edit_grid) edit_grid = apop_data_alloc();
-            edit_grid->vector = apop_vector_realloc(edit_grid->vector, em_i);
-            edit_grid->matrix = apop_matrix_realloc(edit_grid->matrix, em_i, total_option_ct);
-            Apop_row(edit_grid, em_i-1, a_row)
-            gsl_vector_set_all(a_row, -1); //first posn of a field==-1 ==> ignore.
-            if (verbose) printf("Next edit.\n");
-
             //We're only doing integer and text edits. If there's a real variable anywhere
             //along the row, then we'll use the sql-based edit system to make it work. 
             for (int i=0; i< edit_list[current_explicit].var_ct; i++)
@@ -170,10 +161,19 @@ void db_to_em(void){
                     apop_text_alloc(edit_grid, edit_grid->textsize[0]+1, GSL_MAX(1, edit_grid->textsize[1]));
                     apop_text_add(edit_grid, edit_grid->textsize[0]-1, 0, edit_list[current_explicit].clause);
                     next_phase='s';
+                    grow_grid(edit_grid, &em_i, total_option_ct);
                     gsl_vector_set(edit_grid->vector, em_i-1, 2); //2==use the SQL-based edit system
                     goto Edited; //a use of goto! This is where we've finished an edit and are stepping forward.
                 }
             //else, standard discrete-indexed matrix
+
+			if (!d) d = apop_query_to_text("%s", ud_queries->text[current_explicit][0]);
+            Apop_stopif(d && d->error, return, 0, "query error setting up edit grid; edits after this one won't happen.");
+            grow_grid(edit_grid, &em_i, total_option_ct);
+            Apop_row(edit_grid, em_i-1, a_row)
+            gsl_vector_set_all(a_row, -1); //first posn of a field==-1 ==> ignore.
+            if (verbose) printf("Next edit.\n");
+
             next_phase = 'd';
             current_col = 0;
             gsl_vector_set(edit_grid->vector, em_i-1, 1); //1==plain old discrete-valued constraint.
@@ -224,8 +224,8 @@ void db_to_em(void){
             }
             
             Edited:
-            current_col++;//bump forward by col, row, and/or table
-            if (!d || current_col == d->textsize[1]){ //the !d occurs when you jump from the above goto
+            current_col++; //bump forward by col, row, and/or table
+            if (!d || current_col == d->textsize[1]){ //the !d may occur when you jump from the above goto
                 current_col = 0;
                 current_row++;
                 if (!d || current_row == d->textsize[0]) {
@@ -235,15 +235,13 @@ void db_to_em(void){
                     next_phase = 's';
                     current_explicit ++;
                     if (current_explicit == explicit_ct) {
-                        if (verbose) 
-                            printf("Done.\n");
+                        if (verbose) printf("Done.\n");
                         edit_ct = em_i;
                         /*if (!apop_table_exists("edit_grid"))
                             apop_data_print(edit_grid, .output_file="edit_grid", .output_type='d');*/
                         return;
                     }
-                } else
-                    next_phase = is_new_edit(d, current_row);
+                } else next_phase = is_new_edit(d, current_row);
             } 
         }
     }
@@ -486,4 +484,3 @@ char get_coltype(char const* depvar){
         }
     return '\0';
 }
-
