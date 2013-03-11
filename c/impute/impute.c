@@ -12,6 +12,8 @@ char *strip (const char*); //peptalk.y
 #define XN(in) ((in) ? (in) : "")
 #define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
+apop_model relmodel; //impute/rel.c
+
 data_frame_from_apop_data_type *rapop_df_from_ad;//alloced in PEPedits.c:R_init_tea
 
 /* The imputation system is arguably the core of Tea; correspondingly, it is the
@@ -888,6 +890,8 @@ apop_model tea_get_model_by_name(char *name, impustruct *model){
 				? (model->is_regression=true, apop_logit) :
 			apop_strcmp(name, "probit")
 				? (model->is_regression=true, apop_probit) :
+			apop_strcmp(name, "rel")
+				? relmodel :
 			apop_strcmp(name, "kernel")
 	      ||apop_strcmp(name, "kernel density")
 				? apop_kernel_density 
