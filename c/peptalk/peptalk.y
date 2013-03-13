@@ -100,6 +100,7 @@ void store_right(char*);
 void add_check(char *);
 void moreblob(char **, char *, char *);
 char add_var_no_edit(char const *var, int is_recode, char type);
+int lineno;        /* current line number  */
 
 used_var_t *used_vars;
 edit_t *edit_list;
@@ -112,7 +113,6 @@ char  *nan_marker;
 %}
 //tokens delivered from lex
 %token SPACE NUMBER DTEXT THEN EOL TEXT ',' ':' OPENKEY CLOSEKEY '$' '-' '*' TYPE
-
 %%
 list: list item 
     | item
@@ -138,8 +138,8 @@ keylist_item: preedit
            | keyval
            | keygroup
            | EOL
-           | error   {Rf_warning("Trouble parsing an item [$1] in the list of fields", $1);}
-		   | blob { if (apop_strcmp(current_key, "checks")) {add_check($1);}
+           | error   {warning("Trouble parsing an item [%s] in the list of fields[%d]", $1, lineno);}
+	   | blob { if (apop_strcmp(current_key, "checks")) {add_check($1);}
                    else add_keyval(current_key, $1);}
            ;
 
@@ -168,7 +168,7 @@ num_item : NUMBER '-' NUMBER  {add_to_num_list_seq($1, $3);}
          | DTEXT               {add_to_num_list($1);}
          | '*'               {add_to_num_list("*");}
          |'$' NUMBER           {used_vars[total_var_ct-1].weight = atof($2);}
-         | error   			{Rf_warning("Error in list around [%s].", $1);}
+         | error   			{Rf_warning("Error in list around [%s] line [%d].", $1,lineno);}
          ;
 
 blob : blob blob_elmt {moreblob(&$$,$1,$2);}
@@ -365,6 +365,7 @@ void add_to_num_list_seq(char *min, char*max){
     if (pass !=0) return;
     Apop_assert_c(parsed_type!='r', , 1,
          "I ignore ranges for real variables. Please add limits in the check{} section.");
+    Apop_stopif(atoi(min)>=atoi(max),return,0,"Maximum value %s does not exceed Minimum values %s",max,min);
     for (int i = atoi(min); i<=atoi(max);i++){
         apop_query("insert into %s values (%i);", current_var, i);
 		optionct[total_var_ct-1]++;
