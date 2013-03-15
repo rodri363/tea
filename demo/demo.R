@@ -1,9 +1,10 @@
 library(tea)
+library(ggplot2)
 readSpec("demo.spec")
 doMImpute()
 
 
 
 source("rolando_plot")
-plotAge("age.")
-plotWage("wage.")
+plotAge("AGEP")
+plotWage("WAGP")

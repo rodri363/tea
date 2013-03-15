@@ -28,6 +28,7 @@ writeLines(c( "age|sex",
             "3|f",
             "83|f",
             "|f",
+	    "|NaN",
             "83|NaN"), g)
 close(g)
 
@@ -36,8 +37,8 @@ unlink(db)
 library(tea)
 readSpec("spec")
 doInput()
-stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where age is null") == 2)
-stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where sex is null") == 2)
+stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where age is null") == 3)
+stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where sex is null") == 3)
 doMImpute()
 
 unlink(f)

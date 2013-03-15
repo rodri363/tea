@@ -361,15 +361,15 @@ void start_over(){ //Reset everything in case this wasn't the first call
     used_vars = NULL;
     fname = "-stdin-";
     lineno = 1;
-    pass =
-    nflds =
-    edit_ct =
-    query_ct =
-    has_edits =
-    file_read =
-    errorcount =
-    explicit_ct =
-    total_var_ct =
+    pass = 0;
+    nflds = 0;
+    edit_ct = 0;
+    query_ct = 0;
+    has_edits = 0;
+    file_read = 0;
+    errorcount = 0;
+    explicit_ct = 0;
+    total_var_ct = 0;
     impute_is_prepped = 0;
 }
 
@@ -399,7 +399,7 @@ void init_edit_list(){
     }
 }
 
-void verbosity(){ verbose = 1-verbose;}
+void verbosity(int *verbosityLevel){ verbose = *verbosityLevel;}
 
 void read_spec(char **infile, char **dbname_out){
     start_over();
@@ -434,6 +434,7 @@ void read_spec(char **infile, char **dbname_out){
 	dbname_out[0] = strdup(database);
     join_tables();
     commit_transaction();
+
 }
 
 void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *is_sub){
@@ -460,14 +461,24 @@ void get_key_text_for_R(char **group, char **key, char **tag, char **out, int *i
 
 int transacting;
 void begin_transaction(){
-    if (!transacting) apop_query("begin;");
+    if (transacting == 0)
+    {
+    apop_query("begin;");
     transacting++;
+    } else { 
+    printf("You must commit the transaction you began before you can begin a new one.\n");
+    }
 }
 
 void commit_transaction(){
     bool started_in_transaction = (transacting > 0);
     if (transacting > 0) transacting--;
-    if (transacting==0 && started_in_transaction) apop_query("commit;");
+    if (transacting==0 && started_in_transaction)
+    {
+	apop_query("commit;");
+    } else {
+	printf("I skipped a commit.\n"); 
+    }
 }
 
 

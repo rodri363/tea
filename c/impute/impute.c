@@ -43,7 +43,7 @@ currently trying to fill in. Here is the detailed procedure.
 
 	--Donors need to be complete in all of the explanatory variables specified
 		by the user as inputs to the model. If there is only one dependent variable
-		(most casese) then I'll use records flagged for disclosure problems as donors.
+		(most cases) then I'll use records flagged for disclosure problems as donors.
 		If multiple variables are to be filled in at once, I won't. 
 
 	--If disclosure avoidance was done (the fingerprinting routine), check whether
@@ -472,7 +472,7 @@ void verify(impustruct is){
 static void get_nans_and_notnans(impustruct *is, int index, char const *datatab, 
         char const *underlying, int min_group_size, apop_data const *category_matrix, 
         apop_data const *fingerprint_vars, char const *id_col){
-	is->isnan = NULL;
+    is->isnan = NULL;
     char *q, *q2;
     if (!category_matrix || *category_matrix->textsize == 0){
         if (nans_no_constraints){//maybe recycle what we have.
@@ -726,7 +726,6 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         //copy the new impute to full_record, for re-testing
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
         int size_as_int =*full_record->textsize;
-//printf("Gut says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round, out.is_fail);
         consistency_check((char *const *)(full_record->names->text ? full_record->names->text : full_record->names->column),
                           (char *const *)full_record->text[0],
                           &size_as_int,
@@ -735,7 +734,6 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
                           &out.is_fail,
                           NULL);//record_fails);
     }
-//printf("Out says: textx=%s; preround=%g, is_fail=%i\n", out.textx, out.pre_round, out.is_fail);
     return out;
 }
 
@@ -758,9 +756,14 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
             "imputed value that passes checks, and couldn't. "
             "Something's wrong that a computer can't fix.\n "
             "I'm at id %i.", id_number);
+
         char * final_value = (type=='c') 
+				//Get external value from row ID
                                 ? ext_from_ri(is->depvar, drew.pre_round+1)
                                 : strdup(drew.textx); //I should save the numeric val.
+
+	Apop_stopif(isnan(atof(final_value)), return, 0, "I drew a blank from the imputed column when I shouldn't have for record %i.", id_number);
+
         apop_query("insert into %s values(%i, '%s', '%s', '%s');",
                        filltab,  draw, final_value, is->isnan->names->row[rowindex], is->depvar);
         free(final_value);

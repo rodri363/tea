@@ -60,7 +60,9 @@ void check_for_all_vars(bool *usable_sql, char * const restrict*record_name_in, 
 /** Check each edit for a failure, meaning every T in the record matches a T in the edit (i.e.
   a row in the em matrix).
 
-  Once we find a record T that matches an edit F, we know that edit passes; move on to the next.
+   Once we find a record T that matches an edit F (we verify that the record does 
+not have the same value as the edit in that column), we know that the record 
+passes the edit; move on to the next.
 
   If the input array failures is NULL, then we're in brief mode: first time we find a
   failed edit, then exit reporting non-passing.
@@ -145,6 +147,7 @@ static int check_a_record(int const * restrict row,  int * failures,
     if (has_c_edits){
         bool usable_sql[edit_grid->vector->size];
         check_for_all_vars(usable_sql, record_name_in, record_in_size);
+	Apop_stopif(*data_as_query==NULL, return, 0, "*data_as_query is null. Should be a string of data.");
         apop_query("%s", *data_as_query);
         char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
                   .before= "select count(*) from tea_test where (", .prune=prune_edits, .prune_parameter=usable_sql);
