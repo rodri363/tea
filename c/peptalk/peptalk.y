@@ -370,7 +370,7 @@ void add_to_num_list(char *v){
 void add_to_num_list_seq(char *min, char*max){
     if (pass !=0) return;
     Apop_assert_c(parsed_type!='r', , 1,
-         "TEA ignore ranges for real variables. Please add limits in the check{} section.");
+         "TEA ignores ranges for real variables. Please add limits in the check{} section.");
     Apop_stopif(atoi(min)>=atoi(max),return,0,"Maximum value %s does not exceed Minimum values %s",max,min);
     for (int i = atoi(min); i<=atoi(max);i++){
         apop_query("insert into %s values (%i);", current_var, i);
