@@ -361,10 +361,16 @@ void add_to_num_list(char *v){
 	free(vs);
 }
 
+// Specifies range for integer variable.  For example 0-16.  Ranges do not apply for real variables.
+//
+// The edited table is defined for each element of the range in the database.
+//
+// A check is preformed to make sure the range is not backwards like 16-0 or not a range like 4-4.  Variables should be variable.
+
 void add_to_num_list_seq(char *min, char*max){
     if (pass !=0) return;
     Apop_assert_c(parsed_type!='r', , 1,
-         "I ignore ranges for real variables. Please add limits in the check{} section.");
+         "TEA ignore ranges for real variables. Please add limits in the check{} section.");
     Apop_stopif(atoi(min)>=atoi(max),return,0,"Maximum value %s does not exceed Minimum values %s",max,min);
     for (int i = atoi(min); i<=atoi(max);i++){
         apop_query("insert into %s values (%i);", current_var, i);
