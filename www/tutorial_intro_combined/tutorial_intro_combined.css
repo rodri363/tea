@@ -1,0 +1,63 @@
+BODY {
+/*font-family: "Lucida Grande", "Lucida Sans Unicode", "Verdana", "Geneva", sans-serif;*/
+/*font:12px verdana, arial, helvetica, sans-serif;*/
+font-family: Georgia, "Times New Roman", Times, Serif;
+/*background-color: #c5d8eF; 
+background-color: #f4f4bc; 
+background-color:#e5e5db;*/
+background-color:#f5f5eb;*/
+
+}
+body{padding:10px;  margin-left: 10% ; margin-right: 10% }
+
+h5:after { content:": "} 
+h6:after { content:": "} 
+h6{ display: inline; font-size:100%; font-style:italic;  color:#0B0B61;}
+h5{ display: inline; font-size:100%;  color:#0B0B61;}
+h4{ display: inline;  }
+h1{ font-size:120%;  color:#0B0B61;}
+h2{ font-size:110%;  color:#0B0B61;}
+h3{ font-size:105%;  color:#0B0B61;}
+
+.digression{ display: inline; font-size:80%; color:#696969; }
+.airq{ display: inline; font-style:italic; }
+.bordered {border: ridge 3px;
+-moz-border-radius: 8px;
+-webkit-border-radius: 8px;
+}
+
+ul{line-height: 135%}
+
+.spec { border : solid 1px;color:#0B0B61;
+-moz-border-radius: 8px;
+-webkit-border-radius: 2px;
+padding-left: 3px;
+margin-top: 3px;
+margin-bottom: 3px;
+}
+
+.rcode { border : solid 1px;color:#8A0808;
+-moz-border-radius: 8px;
+-webkit-border-radius: 2px;
+padding-left: 3px;
+margin-top: 3px;
+margin-bottom: 3px;
+}
+
+.dkblue {/* Oh, regret. It's not blue anymore.
+		background-color:  #c9d8f9; */
+		/* yellow
+		background-color: #ececae; 
+		*/
+		background-color: #ececde; 
+		}
+.ltblue {
+		/*background-color:  #d5e4ff; */
+		/* yellow
+		background-color: #ffff90;
+		*/
+		background-color: #eeeee0; 
+		}
+
+#list li { list-style-type: circle; }
+
