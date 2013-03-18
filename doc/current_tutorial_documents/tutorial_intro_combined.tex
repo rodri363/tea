@@ -90,7 +90,7 @@
 
 
 \begin{document}
-\author{Center for Statistical Research and Methodology Division\\U.S. Census Bureau}
+\author{U.S. Census Bureau\\Center for Statistical Research and Methodology Division}
 \title{TEA for survey processing}
 \maketitle
 %just an idea: put silhouettes on the front cover
@@ -302,9 +302,9 @@ input/output table  dataset
 
 Observe that the subkeys are turned into a slash-separated list. It is 
 worth getting familiar with this internal form, because when you've made a 
-mistake in your {\tt spec} file, the error message that gets printed in {\tt R} 
+mistake in your {\tt spec} file, the error message that gets printed in \textbf{R} 
 will display your keys in the above form. We will discuss this more later in the 
-tutorial when we talk about running your {\tt spec} file in {\tt R}.
+tutorial when we talk about running your {\tt spec} file in \textbf{R}.
 Here is a succint summation of the syntax rules for keys:
 
 \begin{itemize}
@@ -338,7 +338,7 @@ into the output table.
 
 If this all seems confusing, do not fret. The layout of the {\tt spec} file will make more sense 
 as we continue to explain its various features. Again, more information about these keys can be 
-found in the appendix.
+found in the appendix.\\
 
 We now discuss the {\tt fields} key in more detail.
 
@@ -361,8 +361,9 @@ fields {
 \end{lstlisting}
 
 In the above code, we've declared four variables: age, sex, hh\_type, and income and we've 
-declared those four variables in different and valid ways. By doing this, the edit-checking system 
-knows what to expect for each of these variables. You can see that the list of values may be text 
+declared those four variables in different and valid ways. Declaring variable types for your 
+field is necessary because the edit-checking system will know what to expect when performing 
+its consistency checks later on. You can see that the list of values may be text 
 or numeric, and the range 0--100 will be converted into the full sequence 0, 1, 2, \dots, 100. 
 By declaring our variables with a type and range, we can pass the information to the edit-checking system 
 so that it knows what to verify when running its checks for each of these variables. 
@@ -375,6 +376,14 @@ that numeric entries get converted to text categories, like {\tt "1"}, {\tt "2"}
 that if you declare the incorrect type for a field that the edit-checking system may not correctly 
 verify the values of that field in your data set.
 
+As a final note, we warn the user against creating fields with an overly large range of integer 
+values. For a field with a range of possible integer values, the edit-checking system will verify 
+that each data point falls into one of the possible values specified in the range. This can be a 
+problem for a field with an excessively large range of integer values because each data point will 
+have to be compared against all of the possible values in the range. Though this is easily doable for 
+smaller ranges such as 0-100 or even 0-1000, it becomes extremely time consuming for larger ranges such 
+as 0-600000. Instead, we recommend assigning a field with a large range as a real variable.
+
 \paragraph{Auto-detect} If your field list consists of a single star, {\tt *} (the wild-card character 
 in SQL that represents all possible inputs), then the data set will be queried for the list of values 
 used in the input data. All values the variable takes on will be valid; all values not used 
@@ -382,7 +391,7 @@ by the variable will not be valid. Keep in mind that this can present problems i
 in your input data set.
 In any case, using {\tt *} may be useful when quickly assembling a first draft of a spec, but we recommend
 giving an explicit set of values for production. You may precede the {\tt *}
-with a type designation, like {\tt age: real *}.
+with a type designation, like {\tt age: real *}.\\
 
 
 As you know, it is often necessary to impute data points in separate categories given 
@@ -414,7 +423,8 @@ will learn about some of its more advanced features later. For now, however, we 
 our walkthrough of the {\tt spec} file by discussing the {\tt checks} key.
 
 \subsection{Checks}
-The conistency-checking system is complex for efficiency purposes: there are typically a
+The conistency-checking system is rather complex. Ironically, this complexity is what 
+makes the system efficient and reliable: there are typically a
 few dozen to a few hundred checks that every observation must pass, from sanity checks
 like {\em fail if age < 0} to real-world constraints like {\em fail if age < 16 and
 status='married'}. Further, every time a change is made (such as by the imputation system)
@@ -441,9 +451,11 @@ that age > 95 we've also included the line 'age = 95' to indicate that when an a
 a value higher than 95 that we should simply top-code it as 95. We haven't included an auto-declaration 
 for age < 0 because if a data-point has a negative age value than it's indicative of a real error rather 
 that should be properly imputed. It is up to you to decide when it is appropriate to utilize the 
-auto-declaration feature.
+auto-declaration feature.\\
 
-We've now introduced the keys that precede the {\tt impute} key; and describe its functions below.
+We've now introduced the keys that precede the {\tt impute} key. Up to this point, all of the {\tt keys} 
+we've discussed have served the purpose of preparing the data in some way to be imputed in the 
+{\tt impute} key. We now describe its functions below.
 
 
 \subsection{Imputation} \label{imputesec}
@@ -459,7 +471,7 @@ impute {
     input table: viewdc
     min group size: 3
     draw count: 3
-    seed:2332
+    seed: 2332
 
     categories {
         CATAGE
@@ -480,30 +492,29 @@ above and see what they're doing:
 where you will write your recode variables. Recall that a view table is a digital SQL table 
 that takes up very little memory and is very quick to render. In our example, we've indicated 
 that the name of the view table to where our {\tt recode} variables will be written is 
-called 'viewdc'. We'll be able to access this view table from R later when we actually 
+called `viewdc'. We'll be able to access this view table from R later when we actually 
 compile our {\tt spec} file.\\
 \item \ {\tt min group size}\ indicates the minimum number of known data points that can be 
 used to impute any unknown data points. For instance, it wouldn't make much sense to use a single 
 data point to impute five other data points as they would all end up being the same value. To 
 prevent this, we set {\tt min group size: 3}.\\
 \item \ {\tt draw count}\ determines the number of multiple imputations that should be performed. 
-Because imputation is often done using stochastic models, it is often beneficial to obtain multiple 
-imputed data sets. This will be explained in more detail later. For now, just know that the {\tt draw count} 
-sub-key determines the number of multiple imputations that are performed.\\
+Because imputation can be done using stochastic models, it is often beneficial to obtain multiple 
+imputations of the same data set. This will be explained in more detail later. For now, just know 
+that the {\tt draw count} sub-key determines the number of multiple imputations that are performed.\\
 \item \ {\tt seed}\ specifies the pseudo-random number generator seed that is used to obtain 
 random numbers for stochastic imputation models. Keeping this seed the same will ensure that multiple imputations of the same data set will return the same outputs. Be sure to record the seeds you choose for your 
 imputations so that other analysts can reference your data and replicate your imputations if necessary.\\
 \item \ {\tt categories}\  specifies which recodes will be used to impute the data set for 
 the given variable. For example, if CATAGE is listed in the {\tt categories} key then the 
 data points that correspond to each of the three possible CATAGE values will be imputed 
-separately. While it's not an absolute requirement that the {\tt categories} key be implemented, because data 
-sets are typically imputed by categories you will most likely be using this key for almost all 
-of your imputations.\\
+separately. While it's not an absolute requirement that the {\tt categories} key be implemented, most data 
+sets are imputed by categories so you will be using this key for almost all of your imputations.\\
 \item \ {\tt method}\ specifies the type of model that is used to impute your data points. 
 Choosing this model is itself a non-trivial task and is discussed more thoroughly later on 
 in the tutorial.\\
 \item \ {\tt output vars}\ specifies the variable whose data points are to be imputed. For this reason 
-you could consider {\tt output vars} as both the 'input' variable as well as the 'output' variable 
+you could consider {\tt output vars} as both the `input' variable as well as the 'output' variable 
 to the model specified in {\tt method}.\\
 \end{itemize}
 More can be found on each of the above keys in the appendix.
@@ -512,7 +523,7 @@ More can be found on each of the above keys in the appendix.
 This concludes our walkthrough of a typical {\tt spec} file. By now you should have a basic idea of 
 how a {\tt spec} file is implemented within TEA. Before we continue on to explaining more about imputation, 
 the models available in TEA, and other features that are available within the TEA framework, we will mention 
-two more features of the {\tt spec} file.
+four more features of the {\tt spec} file.
 
 % Group recodes paragraph is incomplete and needs to be updated before being published.
 
@@ -562,12 +573,12 @@ subsidiary files to be included in the main spec file. Doing so allows you to ea
 subsidiary files into one project through which all of TEA's routines will run.
 
 The syntax for including is quite simple. To include a subsidiary file at a certain point in the {\tt spec} 
-file, simply insert the key {\tt include: \textit{subsidiary\_file\_name}} at the line in the {\tt spec} 
+file, simply insert the key {\tt include: }\textit{subsidiary\_file\_name} at the line in the {\tt spec} 
 file where you would like the contents of the subsidiary file to be inserted. For example, if you have 
 written the consistency checks in a file named {\tt consistency}, and the entire rank swapping 
 configuration was in a file named {\tt swap}, then you could use this parent spec file:
 
-\begin{verbatim}
+\begin{lstlisting}[language=]
 database: test.db
 
 include: swap
@@ -575,10 +586,103 @@ include: swap
 checks {
     include: consistency
 }
-\end{verbatim}
+\end{lstlisting}
 
 Note that any subsidiary files that you choose to include in your {\tt spec} file must be in the same 
 directory as the {\tt spec} file or it will not be able to find them.
+
+\paragraph{Flagging for disclosure} For a given crosstab, there may be cells with a small number of 
+people, perhaps only one. This feature of TEA allows us to flag those cells for later handling.
+
+Any combination of variables could be a crosstab to be checked, but flagging
+typically focuses on only a few sensetive sets of variables. Here is the section
+of the spec file describing the flagging. The {\tt key} list gives the variables
+that will be crossed together. With {\tt combinations: 3}, every set of three
+variables in the list will be tried. The {\tt frequency} variable indicates that
+cells with two or fewer observations will be marked.
+
+We are calling this specific form of disclosure avoidance {\em fingerprinting}, so after
+this segment of the spec file is in place, call {\em doFingerprinting()} from \textbf{R} to run the
+procedure. The output is currently in a database table named {\em vflags}.
+
+\begin{lstlisting}[language=]
+fingerprint {
+        key{
+                CATAGE
+                SEX
+                PUMA
+                HISPF
+                ESR
+                PWGTP
+        }
+        frequency: 2
+        combinations: 3
+}
+\end{lstlisting}
+
+\paragraph{Raking} Each record in a data set might have several data items which require imputation for
+different reasons:
+\begin{itemize}
+\item a record could have several inconsistent items that we must replace
+\item an otherwise consistent record could have a blank item that we wish to impute.
+\item a record could have a combination of consistent items that could lead to personal identif
+ication
+\end{itemize}
+Each scenario implies slightly different knowledge about the data, and thus each scenario
+might require a different imputation method to properly use this knowledge.
+
+An overlay is a secondary data table (or set of tables) that gives information regarding
+the \emph{reason} for imputation.  Using missing data as an example, a simple overlay
+could have an entry for each item in the data, indicating if that item is missing or not.
+A more complicated overlay could delineate the type of non-response for each data item.
+
+Raking is a method of producing a consistent table of individual cells beginning
+with just the column and row totals. For this tutorial, we will use it as a
+disclosure-avoidance technique for crosstabs. The column sums
+and row sums are guaranteed to not change; all individual cells are
+recalculated. Thus, provided the column totals have passed inspection for
+avoiding disclosure, the full table passes.
+
+The key inputs are the set of fields that are going to appear in the final
+crosstab, and a list of sets of fields whose column totals (and cross-totals)
+must not change.
+
+In the {\tt spec} file, you will see a specification for a three-way crosstab between
+the {\tt PUMA}, {\tt rac1p}, and {\tt catage} variables. All pairwise crosstabs
+must not change, but any other details are free to be changed for the raking.
+
+\begin{lstlisting}[language=]
+raking {
+        all_vars: puma|catage | rac1p
+
+        contrasts{
+                   catage | rac1p
+                         puma | rac1p
+                         puma | catage
+        }
+}
+\end{lstlisting}
+
+As you have seen a few times to this point, once you have the spec file in place you can
+call the procedure with one \textbf{R} function, which in this case is {\tt doRaking()}. But there
+are several ways to change the settings as you go, so that you can experiment and adjust.
+
+The first is to simply change the spec file and re-run. To do this, you will have to call
+{\tt read\_spec} again:
+\begin{lstlisting}[language=]
+> read_spec("demo.spec"); doRaking()    #Run two commands on a line by ending the first with a semicolon
+> read_spec("demo.spec"); doRaking()    #Hit the up-arrow to call up the previous line.
+\end{lstlisting}
+
+Everything you can put in a {\tt spec} file you can put on the command line. The help system
+will give you the list of inputs (which will also help with writing a {\tt spec} file), and you
+can use those to tweak settings on the command line:
+\begin{lstlisting}[language=]
+> ?doRaking                   #What settings are available?
+> doRaking(max_iterations=2)  #What happens when the algorithm doesn't have time to
+> converge?
+\end{lstlisting}
+
 
 This concludes our discussion of the {\tt spec} file layout and syntax. At this point, you should be 
 able to implement a basic {\tt spec} file to impute any data set. More information about the keys 
@@ -705,7 +809,8 @@ remainder of the overall routine would not need to be rewritten across surveys.
 
 We now discuss each of the models that are available in TEA.
 
-\subsection{Models} This section describes the models available for use in imputing
+\comment{DV: We need to add rel to this list.}
+\subsection{Models of TEA} This section describes the models available for use in imputing
 missing data.
 
 \paragraph{Hot deck} This is randomized hot deck. Missing values are filled in by
@@ -821,56 +926,8 @@ few values into a continuous distribution.
 
 Invoke this model using either {\tt method: kernel} or {\tt method: kernel density}.
 
-\section{Overlaying}
-Each record in a data set might have several data items which require imputation for
-different reasons:
-\begin{itemize}
-\item a record could have several inconsistent items that we must replace
-\item an otherwise consistent record could have a blank item that we wish to impute.
-\item a record could have a combination of consistent items that could lead to personal identif
-ication
-\end{itemize}
-Each scenario implies slightly different knowledge about the data, and thus each scenario
-might require a different imputation method to properly use this knowledge.
-
-An overlay is a secondary data table (or set of tables) that gives information regarding
-the \emph{reason} for imputation.  Using missing data as an example, a simple overlay
-could have an entry for each item in the data, indicating if that item is missing or not.
-A more complicated overlay could delineate the type of non-response for each data item.
-
 \todo{We have written but not incorporated an HTML viewer for data using overlay
 information.}
-
-\section{Raking}
-Raking fills in a table where the totals for each column or row are known, but
-individual cell values may vary. It can be shown to find the optimum given a
-log-linear model on certain contrasts (i.e., a series of sets of dimensions).
-
-The contrasts indicate which values are to remain fixed (while others may vary).
-To give an example,
-let us say that our data set is (age $\times$ se$\times$ $\times$ race $\times$ block), but
-our log linear model is over the (race $\times$ block) contrast. A sample data set:
-
-\begin{tabular}{rrrr}
-age &sex &race &block\\
-10  &M   &A    &1\\
-20  &F   &A    &2\\
-30  &M   &B    &3\\
-40  &F   &B    &3
-\end{tabular}
-
-The raking algorithm would never be able to fill in a value in the cell (40, F, C, 3), for example, because
-there are no Cs in block 3, and the (race X block) contrast guarantees that the counts of
-each (race, block) total won't change. But that's our only assurance: (50, M, B, 3) is
-possible, because age and sex totals could be raked into any value.
-
-For this example, the set of cells that could have a value are:\\
-(any age) $\times$ (M, F) $\times$ A $\times$ 1\\
-(any age) $\times$ (M, F) $\times$ A $\times$ 2\\
-(any age) $\times$ (M, F) $\times$ B $\times$ 3\\
-
-The algorithm takes in the location of a data table in the database and a set of
-contrasts, then rakes the data to fit the given contrasts.
 
 \paragraph{Internals}
 The Census Bureau often deals with tables that would have 1.5 million cells if written
@@ -1072,20 +1129,175 @@ d.
 \else \fi
 
 
-{Interactive R}
+\section{Interactive R}
 The specification file described to this point does nothing by itself, but provides
-information to procedures written in R that do the work. The analyst would therefore write
-a script that calls the needed procedures in sequence. For example, this script loads the
-TEA library into R's memory, reads the spec file, fixes inconsistencies, and imputes
-missing values.
+information to procedures written in \textbf{R} that do the work. In fact, TEA is simply 
+called as a library in \textbf{R}, and the {\tt spec} file itself is instantiated by 
+issuing commands from the \textbf{R} command prompt described below.
+
+\subsection{Loading TEA in R}
+When you start R (from the directory where the data is located), you are left at a
+simple command prompt, >, waiting for your input. TEA extends R via a library of
+functions for survey processing, but you will first need to load the library, with:
+\begin{lstlisting}[language=]
+> library(tea)
+\end{lstlisting}
+
+[You can cut crimson-bordered code blocks and paste them directly onto the \textbf{R}
+command line, while blue-bordered blocks are spec file samples and
+would be meaningless typed out at the R command prompt.]
+
+Now you have all of the usual commands from \textbf{R}, plus those from TEA. You only
+need to load the library once per \textbf{R} session, but it's harmless if you run
+{\tt library(tea)} several times.
+
+After loading the library by running {\tt > library(tea)}, you would then need to 
+tell \textbf{R} to read your {\tt spec} file, perform the checks, perform the imputations, 
+and then finally check out the imputations to an \textbf{R} data structure so that you 
+can view them. Observe the following code:
 
 \begin{lstlisting}[language=]
-library("tea")
-read_spec("spec")
+> library(tea)
+> read_spec("spec")
+> doChecks()
+> doMImpute()
+> checkOutImpute()
+\end{lstlisting}
+
+These commands could be entered in a script file as easily as they're entered on R's command line.
+You always have the option of creating a {\tt .R} file that has each of the above commands listed 
+sequentually. Observe the following example of a {\tt .R} file:
+
+\begin{lstlisting}[language=]
+library(tea)
+library(ggplot2)
+readSpec("demo.spec")
 doChecks()
 doMImpute()
 checkOutImpute()
 \end{lstlisting}
+
+If we assume that the file above is named {\tt demo.R} then we could run the following command 
+from \textbf{R}'s command line:
+
+\begin{lstlisting}[language=]
+> source("demo.R")
+\end{lstlisting}
+
+Then \textbf{R} would automatically run each of the scripts specified in {\tt demo.R} and would 
+accomplish the exact same thing as running each command separately through \textbf{R}'s command line.
+Though running {\tt > source("your\_file.")} is often quicker and more convenient than entering 
+each command separately on the command line, entering the commands separately can often aid in 
+verifying the results of the consistency-checking step, verifying the results of the imputation, 
+et cetera.\\
+
+In either case, once your {\tt spec} file has been correctly implemented, your data will be 
+imputed and available for viewing through an \textbf{R} data-frame.
+We examine how this is done in the next subsection.
+
+\subsection{Showing the data}
+Data is stored in two places: the database, and R data frames. Database tables
+live on the hard drive and can easily be sent to colleagues or stored in
+backups. R data frames are kept in R's memory, and so are easy to manipulate and
+view, but are not to be considered permanent. Database tables can be as large as
+the disk drive can hold; R data frames are held in memory and can clog up memory if
+they are especially large.
+
+You can use TEA's {\tt show\_db\_table} function to pull a part of a database table into
+an R data frame. You probably don't want to see the whole table, so there are
+various options to limit what you get. Some examples:
+\begin{lstlisting}[language=]
+> teaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
+> teaTable("dc", cols="AGEP, PUMA", limit=30, offset=100)
+\end{lstlisting}
+
+The first example pulls two columns, but only where {\tt PUMA=104}. The second
+example pulls 30 rows, but with an offset of 100 down from the top of the
+table. You will probably be using the {\tt limit} often; the {\tt offset} allows
+you to check the middle of the table, if you suspect that the top of the table
+is not representative.
+
+In fact, there are still more options. Rather than listing them all here, you can get them
+via R's help system:
+\begin{lstlisting}[language=]
+> ?teaTable
+\end{lstlisting}
+
+This {\tt ?name} form should give you a help page for any function, including TEA
+functions like {\tt ?doRaking} or {\tt ?doMImpute}. (Yes, TEA function documentation is still a
+little hit-and-miss.) Depending on R's setup, this may start a paging program that lets 
+you use the arrow keys and page up/page down keys to read what could be a long document. 
+Quit the pager with {\tt q}.
+
+The {\tt show\_db\_table} function creates an R data frame, and, because the examples above didn't do
+anything else with it, displays the frame to the screen and then throws it out. Alternatively, you can
+save the frame and give it a name. R does assignment via {\tt $<$-}, so name the output
+with:
+
+\begin{lstlisting}[language=]
+> p104 <- teaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
+\end{lstlisting}
+
+To display the data frame as is, just give its name at the command line.
+
+\begin{lstlisting}[language=]
+> p104
+\end{lstlisting}
+
+But you may want to restrict it further, and R gives you rather extensive control over
+which rows and columns you would like to see.
+
+Another piece of R and spec file syntax: the {\tt \#} indicates a comment to the human
+reader, and R will ignore everything from a {\tt \#} to the end of the line.
+
+\begin{lstlisting}[language=]
+> p104[1,1]          #The upper-left element
+> p104[1,"AGEP"]     #The upper-left element, using the column name
+> p104[ ,"AGEP"]     #With no restriction on the rows, give all rows---the full AGEP vector
+> p104[17, ]         #All of row 17
+
+> minors <- p104[, "AGEP"] < 18
+> minors             #A true/false vector showing which rows are under 18.
+> p104[minors, ]     #You can use that list of true/falses to pick rows. This gives all rows under 18yo.
+\end{lstlisting}
+
+These commands could be entered on R's command line as easily as in a script file, so an
+analyst who needs to verify the results of the consistency-checking step could copy and
+paste the first three lines of the script onto the R command prompt, where they will run and
+then return the analyst to the command prompt, where he or she could print subsections of
+the output tables, check values, modify the spec files and re-run, continue to the
+imputation step, et cetera.
+
+
+\section{Conclusion}
+This concludes our tutorial. If you have any questions or comments please feel free to contact 
+us at xxxxxxxxx@email.gov. Also, check out the R-Forge Website at 
+\url{https://r-forge.r-project.org/projects/tea/} for updates to both the TEA software as well 
+as this tutorial document.
+
+\section*{Appendix: keys}
+
+This is a reference list of all of the available keys that could appear in a spec file.
+As a reference, descriptions are brief and assume you already know the narrative of the
+relevant procedures, in the main text.
+
+Keys are listed using the {\tt group/key/value} notation described in Section \ref{specsec}. As described there, one could write a key as either
+\begin{lstlisting}[language=]
+group {
+    key : value
+}
+
+#or as
+group {
+    key {
+        value
+    }
+}
+\end{lstlisting}
+
+Here are the keys, in alphabetical order.
+
+\input keys.tex
 
 %\bibliographystyle{harvard}
 %\bibliographystyle{plainnat}
