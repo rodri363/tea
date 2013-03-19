@@ -106,17 +106,17 @@ digraph {
 	impute -> output_vars [color=purple];
 	output_vars [label="output vars"];
 	
-	output_vars -> recode1 [label="(1) output vars\nsorted into\nspecified recode categories"];
-	output_vars -> recode2;
+	output_vars -> recode1 [label="(1) output vars\nsorted into\nspecified recode categories", color=red, style=dashed];
+	output_vars -> recode2 [color=red, style=dashed];
 
-	parameter1 -> input_table [style=dashed]; 
-	parameter2 -> input_table [style=dashed];
-	input_table -> method [label="(2) After categorization\nsend input vars\nto method"];
+	parameter1 -> input_table [color=red, style=dashed]; 
+	parameter2 -> input_table [color=red, style=dashed];
+	input_table -> method [label="(2) After categorization\nsend input vars\nto method", style=dashed, color=red];
 
-	method -> output_vars [label="(3) impute data and\n send results back\nto output vars"];
-	output_vars -> checks [label="(4) output_vars checked\nfor inconsistencies"];	
+	method -> output_vars [label="(3) impute data and\n send results back\nto output vars", style=dashed, color=red];
+	output_vars -> checks [label="(4) output_vars checked\nfor inconsistencies", style=dashed, color=red];	
 
-	output_vars -> database [label="(5) if output_vars\npasses checks\nwrite to database"];
+	output_vars -> database [label="(5) if output_vars\npasses checks\nwrite to database", style=dashed, color=red];
 
 
 	/* Finally, database values get sent to output table and output table gets sent to R */
