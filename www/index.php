@@ -48,7 +48,7 @@ where to find it-->
 <p> Welcome to the homepage of the TEA for survey processing project. Here, you can find 
 anything you need related to TEA, including:
 <ul>
-	<li>Documentation concerning the usage of TEA in pdf format here: <a href="">TEA Tutorial</a></li> <!-- put link to tutorial.pdf-->
+	<li>Documentation concerning the usage of TEA in pdf format here: <a href="/tutorial_intro_combined/tutorial_intro_combined.html"><b>TEA Tutorial</b></a></li> <!-- put link to tutorial.pdf-->
 	<li>A source from which to download TEA as well as the R packages on which TEA is dependent</li>
 	<li>The source code for TEA</li>
 	<li>The TEA developers' contact information for any questions or suggestions about the TEA project or the website.</li>
@@ -56,7 +56,7 @@ anything you need related to TEA, including:
 </p>
 
 
-<p> You can find all of the above information at the <strong>project summary page</strong> <a href="/tutorial_intro_combined/tutorial_intro_combined.html"><strong>here</strong></a>. </p>
+<p> You can find all of the above information at the <strong>project summary page</strong> <a href="https://r-forge.r-project.org/projects/tea/"><strong>here</strong></a>. </p>
 
 </body>
 </html>

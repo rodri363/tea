@@ -7,7 +7,7 @@ original version by:  Nikos Drakos, CBLU, University of Leeds
   Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
 <HTML>
 <HEAD>
-<TITLE>tutorial_intro_combined</TITLE>
+<TITLE>TEA Tutorial</TITLE>
 <META NAME="description" CONTENT="tutorial_intro_combined">
 <META NAME="keywords" CONTENT="tutorial_intro_combined">
 <META NAME="resource-type" CONTENT="document">
@@ -41,7 +41,7 @@ original version by:  Nikos Drakos, CBLU, University of Leeds
 par
 - DV -->
 <h2>U.S. Census Bureau</h2>
-<BR>
+<br>
 <h2>Center for Statistical Research and Methodology Division</h2>
 <h1>TEA for survey processing</h1>
 
@@ -91,16 +91,16 @@ herein called the <tt>spec</tt> file. Based on your inputs to the <tt>spec</tt> 
 (which we will explain later as to what those inputs are/can be), you then run 
 a script in a user-friendly statistical computing framework called bf R. This is 
 where the computing (editing, imputation, etc) takes place. We will explain this in 
-more detail later as well. For now, let's look closer at the <tt>spec</tt>file</tt>:</p>
+more detail later as well. For now, let's look closer at the <tt>spec</tt> file</tt>:</p>
 
-<h5>The spec</tt>file</h5>
+<h5>The <tt>spec</tt> file</h5>
 <p>The full specification of the various steps of TEA, from input of data to final 
 production of output tables, that are performed during your implementation of TEA 
-is specified in a single file, the em spec</tt>file. There are several intents to 
+is specified in a single file, the em <tt>spec</tt> file. There are several intents to 
 this setup. First, because the <tt>spec</tt> file is separate from programming
 languages like <b>R</b> or <b>SAS</b>, it is a simpler grammar that is easier to write, and so 
 analysts can write technical specifications without the assistance of a programmer or
-a full training in a new programming language. In other words, the spec</tt>file allows 
+a full training in a new programming language. In other words, the <tt>spec</tt> file allows 
 users whose areas of expertise are not in programming to customize and use TEA in a 
 standardized and acccessible environment. To see why this is the case, observe the 
 following script that is taken from the <tt>demo.spec</tt> file (which you can open using 
@@ -152,7 +152,7 @@ of roughly 5,000 lines of <b>R</b> and <b>C</b> code.</p>
 <p><b>R</b> is a relatively user-friendly system that makes it easy to interact with data
 sets and write quick scripts to glue together segments of the survey-processing pipeline.
 <b>R</b> is therefore the interactive front-end for TEA. Users will want to get familiar with the basics of
-<b>R</b>.  As with <b>SQL</b>, users well-versed in R can use their additional knowledge to perform
+<b>R</b>.  As with <b>SQL</b>, users well-versed in <b>R</b> can use their additional knowledge to perform
 analysis beyond the tools provided by the TEA system.</p>
 
 <p><b>C</b> is the fastest human-usable system available for manipulating matrices, making
@@ -163,16 +163,16 @@ are provided that do the work of running the underlying <b>C</b>-based procedure
 <p>Now that we have a better idea of the environments in which TEA is run, let's take a look  
 at an example of a full <tt>spec</tt> file: <tt>demo.spec</tt>:
 <!--
-DV:  I thought it would be a good idea to include a full spec</tt>file for the reader to 
+DV:  I thought it would be a good idea to include a full <tt>spec</tt> file for the reader to 
 reference while reading through the tutorial. If you guys disagree we can take it out.
 Also, as we know there are problems with demo.spec</tt>so we'll have to fix those eventually 
 before including it in the final draft of the tutorial.
 -->
 
-<!-- We still need to figure out how to include the entire demo.spec</tt>file without pasting the entire thing in here!-->
+<!-- We still need to figure out how to include the entire demo.spec</tt> file without pasting the entire thing in here!-->
 
 <!-- caption for demo.spec</tt>(when it finally gets included:
-captionA sample <tt>spec</tt>file that imputes an AGEP variable using WAGP, SEX, 
+captionA sample <tt>spec</tt> file that imputes an AGEP variable using WAGP, SEX, 
 and the <tt>hot deck and <tt>ols imputation models. The contents of this <tt>spec</tt>
 file are explained below
 endfigure
@@ -266,9 +266,9 @@ input/output table  dataset
 
 <p>Observe that the subkeys are turned into a slash-separated list. It is 
 worth getting familiar with this internal form, because when you've made a 
-mistake in your <tt>spec</tt> file, the error message that gets printed in textbfR 
+mistake in your <tt>spec</tt> file, the error message that gets printed in <b>R</b> 
 will display your keys in the above form. We will discuss this more later in the 
-tutorial when we talk about running your <tt>spec</tt> file in textbfR.
+tutorial when we talk about running your <tt>spec</tt> file in <b>R</b>.
 Here is a succint summation of the syntax rules for keys:</p>
 
 <ul>
@@ -276,7 +276,7 @@ Here is a succint summation of the syntax rules for keys:</p>
 	<li>If there is a subkey, then its name is merged with the parent key via a slash;
 you can have as many levels of sub-sub-sub-keys as you wish.</li>
 	<li>As a shortcut, you can replace <tt>key {single value}</tt> with <tt>key:single value</tt>.</li>
-	<li>Each key takes up exactly one line (unless you explicitly combine lines; see below). Otherwise, white space is irrelevant to the parser. Because humans will also read the spec</tt>file, you are strongly encouraged to use indentation to indicate what is a member of what group.</li>
+	<li>Each key takes up exactly one line (unless you explicitly combine lines; see below). Otherwise, white space is irrelevant to the parser. Because humans will also read the <tt>spec</tt> file, you are strongly encouraged to use indentation to indicate what is a member of what group.</li>
 	<li>If you need to continue a value over several lines, put a backslash at the end of each line that continues to the next; the backslash/newline will be replaced with a single space.</li>
 </ul>
 
@@ -569,7 +569,7 @@ variables in the list will be tried. The <tt>frequency</tt> variable indicates t
 cells with two or fewer observations will be marked.</p>
 
 <p>We are calling this specific form of disclosure avoidance <tt>fingerprinting</tt>, so after
-this segment of the <tt>spec</tt> file is in place, call <tt>doFingerprinting()</tt> from <tt>textbfR</tt> to run the procedure. The output is currently in a database table named <tt>vflags</tt>.</p>
+this segment of the <tt>spec</tt> file is in place, call <tt>doFingerprinting()</tt> from <tt><b>R</b></tt> to run the procedure. The output is currently in a database table named <tt>vflags</tt>.</p>
 
 <div class="spec">
 fingerprint { 
@@ -647,7 +647,7 @@ contrasts {
 </div>
 
 <p>As you have seen a few times to this point, once you have the <tt>spec</tt> file in place you can
-call the procedure with one <tt>textbfR</tt> function, which in this case is <tt>doRaking()</tt>. But there
+call the procedure with one <tt><b>R</b></tt> function, which in this case is <tt>doRaking()</tt>. But there
 are several ways to change the settings as you go, so that you can experiment and adjust.</p>
 
 <p>The first is to simply change the <tt>spec</tt> file and re-run. To do this, you will have to call <tt>read_spec</tt> again:</p>
@@ -929,7 +929,7 @@ across-imputation variance.</p>
 remains open. The more extensive option would be to provide multiple data sets; the less
 extensive option would be to simply provide a variance measure for each data point that
 is not a direct observation.</p>
-
+<!-- DV: This stuff needs to be updated and properly formatted before we include it in the html file:
 <p>Interface Figure refsippconfig shows a (slightly abbreviated) configuration file describing the hot deck process for a variable in the SIPP. It is intended to be reasonably readable, and maintainable by an analyst who is a statistician but not a programmer.</p>
 
 <p>Lines 11-18 of the configuration specify the categories used for step (1) above: draws are made from the universe of records with an age in the same age category as the record to be filled in and <tt>num_sipp_jobs_2008</tt> in the same category as well.</p>
@@ -938,7 +938,7 @@ is not a direct observation.</p>
 
 <p>Line eight indicates that five imputations are to be done for each missing value. Those with extensive experience with multiple imputation often advise that a handful of imputations are sufficient for most purposes.</p>
 
-The sample from
+<p>The sample from
         Figure refsippconfig focused on the determination of categories in which to
         do imputation. Figure refacsconfig focuses on regression models that go
         beyond the simple randomized hot deck of Figure refsippconfig. Lines 5-8
@@ -949,7 +949,7 @@ The sample from
         using only around four or five.
 par
 paragraphEdits The system as written includes a component that checks consistency
-        against a sequence of edits. In line three of the sample spec</tt>file of Figure
+        against a sequence of edits. In line three of the sample <tt>spec</tt> file of Figure
         refsippconfig, the <tt>flagearn variable is declared to have possible values of 0,
         1, 3, or 4, but line four specifies that if an imputation returns 4, then it is rejecte
 d.
@@ -1014,486 +1014,291 @@ endlstlisting
         and a polytomous regression is fit for disability status (DIS). 
         labelacsconfig
         endfigure
-else fi
-par
-sectionInteractive R
-The specification file described to this point does nothing by itself, but provides
-information to procedures written in textbfR that do the work. In fact, TEA is simply 
-called as a library in textbfR, and the <tt>spec</tt>file itself is instantiated by 
-issuing commands from the textbfR command prompt described below.
-par
-subsectionLoading TEA in R
-When you start R (from the directory where the data is located), you are left at a
-simple command prompt, &gt;, waiting for your input. TEA extends R via a library of
-functions for survey processing, but you will first need to load the library, with:
-beginlstlisting[language=]
+			-->
+
+<h3>Interactive R</h3>
+<p>The specification file described to this point does nothing by itself, but provides
+information to procedures written in <b>R</b> that do the work. In fact, TEA is simply 
+called as a library in <b>R</b>, and the <tt>spec</tt> file itself is instantiated by 
+issuing commands from the <b>R</b> command prompt described below.</p>
+
+<h4>Loading TEA in R</h4>
+<p>When you start <b>R</b> (from the directory where the data is located), you are left at a
+simple command prompt, &gt;, waiting for your input. TEA extends <b>R</b> via a library of
+functions for survey processing, but you will first need to load the library, with:</p>
+
+<div class="rcode">
 &gt; library(tea)
-endlstlisting
-par
-[You can cut crimson-bordered code blocks and paste them directly onto the textbfR
-command line, while blue-bordered blocks are spec</tt>file samples and
-would be meaningless typed out at the R command prompt.]
-par
-Now you have all of the usual commands from textbfR, plus those from TEA. You only
-need to load the library once per textbfR session, but it's harmless if you run
-<tt>library(tea) several times.
-par
-After loading the library by running <tt>&gt; library(tea), you would then need to 
-tell textbfR to read your <tt>spec</tt>file, perform the checks, perform the imputations, 
-and then finally check out the imputations to an textbfR data structure so that you 
-can view them. Observe the following code:
-par
-beginlstlisting[language=]
+</div>
+
+<p>(You can cut crimson-bordered code blocks and paste them directly onto the <b>R</b> command line, while blue-bordered blocks are <tt>spec</tt> file samples and would be meaningless typed out at the <b>R</b> command prompt.)
+
+<p>Now you have all of the usual commands from <b>R</b>, plus those from TEA. You only need to load the library once per <b>R</b> session, but it's harmless if you run	<tt>library(tea)</tt> several times.</p>
+
+<p>After loading the library by running <tt>&gt; library(tea)</tt>, you would then need to tell <b>R</b> to read your <tt>spec</tt> file, perform the checks, perform the imputations, and then finally check out the imputations to an <b>R</b> data structure so that you can view them. Observe the following code:</p>
+
+<div class="rcode">
 &gt; library(tea)
+<br>
 &gt; read_spec("spec")
+<br>
 &gt; doChecks()
+<br>
 &gt; doMImpute()
+<br>
 &gt; checkOutImpute()
-endlstlisting
-par
-These commands could be entered in a script file as easily as they're entered on R's command line.
-You always have the option of creating a <tt>.R file that has each of the above commands listed 
-sequentually. Observe the following example of a <tt>.R file:
-par
-beginlstlisting[language=]
+</div>
+
+<p>These commands could be entered in a script file as easily as they're entered on <b>R</b>'s command line.
+You always have the option of creating a <tt>.R</tt> file that has each of the above commands listed sequentually. Observe the following example of a <tt>.R</tt> file:</p>
+
+<div class="spec">
 library(tea)
+<br>
 library(ggplot2)
+<br>
 readSpec("demo.spec")
+<br>
 doChecks()
+<br>
 doMImpute()
+<br>
 checkOutImpute()
-endlstlisting
-par
-If we assume that the file above is named <tt>demo.R then we could run the following command 
-from textbfR's command line:
-par
-beginlstlisting[language=]
+</div>
+
+<p>If we assume that the file above is named <tt>demo.R</tt> then we could run the following command from <b>R</b>'s command line:</p>
+
+<div class="rcode">
 &gt; source("demo.R")
-endlstlisting
-par
-Then textbfR would automatically run each of the scripts specified in <tt>demo.R and would 
-accomplish the exact same thing as running each command separately through textbfR's command line.
-Though running <tt>&gt; source("your_file.") is often quicker and more convenient than entering 
-each command separately on the command line, entering the commands separately can often aid in 
-verifying the results of the consistency-checking step, verifying the results of the imputation, 
-et cetera.
-<BR>
-par
-In either case, once your <tt>spec</tt>file has been correctly implemented, your data will be 
-imputed and available for viewing through an textbfR data-frame.
-We examine how this is done in the next subsection.
-par
-subsectionShowing the data
-Data is stored in two places: the database, and R data frames. Database tables
-live on the hard drive and can easily be sent to colleagues or stored in
-backups. R data frames are kept in R's memory, and so are easy to manipulate and
-view, but are not to be considered permanent. Database tables can be as large as
-the disk drive can hold; R data frames are held in memory and can clog up memory if
-they are especially large.
-par
-You can use TEA's <tt>show_db_table function to pull a part of a database table into
-an R data frame. You probably don't want to see the whole table, so there are
-various options to limit what you get. Some examples:
-beginlstlisting[language=]
+</div>
+
+<p>Then <b>R</b> would automatically run each of the scripts specified in <tt>demo.R</tt> and would accomplish the exact same thing as running each command separately through <b>R</b>'s command line. Though running <tt>&gt; source("your_file.")</tt> is often quicker and more convenient than entering each command separately on the command line, entering the commands separately can often aid in verifying the results of the consistency-checking step, verifying the results of the imputation, et cetera.</p>
+
+<p>In either case, once your <tt>spec</tt> file has been correctly implemented, your data will be imputed and available for viewing through an <b>R</b> data-frame. We examine how this is done in the next subsection.</p>
+
+<h4>Showing the data</h4>
+<p>Data is stored in two places: the database, and <b>R</b> data frames. Database tables live on the hard drive and can easily be sent to colleagues or stored in backups. <b>R</b> data frames are kept in <b>R</b>'s memory, and so are easy to manipulate and view, but are not to be considered permanent. Database tables can be as large as the disk drive can hold; <b>R</b> data frames are held in memory and can clog up memory if they are especially large.</p>
+
+<p>You can use TEA's <tt>show_db_table</tt> function to pull a part of a database table into an <b>R</b> data frame. You probably don't want to see the whole table, so there are various options to limit what you get. Some examples are:</p>
+
+<div class="rcode">
 &gt; teaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
+<br>
 &gt; teaTable("dc", cols="AGEP, PUMA", limit=30, offset=100)
-endlstlisting
-par
-The first example pulls two columns, but only where <tt>PUMA=104. The second
-example pulls 30 rows, but with an offset of 100 down from the top of the
-table. You will probably be using the <tt>limit often; the <tt>offset allows
-you to check the middle of the table, if you suspect that the top of the table
-is not representative.
-par
-In fact, there are still more options. Rather than listing them all here, you can get them
-via R's help system:
-beginlstlisting[language=]
+</div>
+
+<p>The first example pulls two columns, but only where <tt>PUMA=104</tt>. The second example pulls 30 rows, but with an offset of 100 down from the top of the table. You will probably be using the <b>SQL</b> command <tt>limit</tt> fairly often. The <tt>offset</tt> allows you to check the middle of the table, if you suspect that the top of the table is not relevant or representative of the data you need to analyze.</p>
+
+<p>There are, of course many more options than those listed here. Rather than listing them all here, you can get them via <b>R</b>'s help system as such:</p>
+
+<div class="rcode">
 &gt; ?teaTable
-endlstlisting
-par
-This <tt>?name form should give you a help page for any function, including TEA
-functions like <tt>?doRaking or <tt>?doMImpute. (Yes, TEA function documentation is still a
-little hit-and-miss.) Depending on R's setup, this may start a paging program that lets 
-you use the arrow keys and page up/page down keys to read what could be a long document. 
-Quit the pager with <tt>q.
-par
-The <tt>show_db_table function creates an R data frame, and, because the examples above didn't do
-anything else with it, displays the frame to the screen and then throws it out. Alternatively, you can
-save the frame and give it a name. R does assignment via <tt><IMG
- WIDTH="173" HEIGHT="27" ALIGN="MIDDLE" BORDER="0"
- SRC="img7.png"
- ALT="$&lt;$">-, so name the output
-with:
-par
-beginlstlisting[language=]
+</div>
+
+<p>This <tt>?name</tt> form should give you a help page for any function, including TEA	functions like <tt>?doRaking</tt> or <tt>?doMImpute</tt>. (Yes, TEA function documentation is still a little hit-and-miss.) Depending on <b>R</b>'s setup, this may start a paging program that lets you use the arrow keys and page up/page down keys to read what could be a long document. Quit the pager with <tt>q</tt>.</p>
+
+<p>The <tt>show_db_table</tt> function creates an <b>R</b> data frame, and, because the examples above didn't do anything else with it, displays the frame to the screen and then throws it out. Alternatively, you can	save the frame and give it a name. <b>R</b> does assignment via <tt><IMG WIDTH="173" HEIGHT="27" ALIGN="MIDDLE" BORDER="0" SRC="img7.png" ALT="$&lt;$"></tt>, so name the output with:</p>
+
+<div class="rcode">
 &gt; p104 &lt;- teaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
-endlstlisting
-par
-To display the data frame as is, just give its name at the command line.
-par
-beginlstlisting[language=]
+</div>
+
+<p>To display the data frame as is, just give its name at the command line.</p>
+
+<div class="rcode">
 &gt; p104
-endlstlisting
-par
-But you may want to restrict it further, and R gives you rather extensive control over
-which rows and columns you would like to see.
-par
-Another piece of R and spec</tt>file syntax: the <tt># indicates a comment to the human
-reader, and R will ignore everything from a <tt># to the end of the line.
-par
-beginlstlisting[language=]
+</div>
+
+<p>But you may want to restrict it further, and <b>R</b> gives you rather extensive control over which rows and columns you would like to see.</p>
+
+<p>Another piece of <b>R</b> and <tt>spec</tt> file syntax: the <tt>#</tt> indicates a comment to the human reader, and <b>R</b> will ignore everything from a <tt>#</tt> to the end of the line.</p>
+
+<div class="rcode">
+<br>
 &gt; p104[1,1]          #The upper-left element
+<br>
 &gt; p104[1,"AGEP"]     #The upper-left element, using the column name
+<br>
 &gt; p104[ ,"AGEP"]     #With no restriction on the rows, give all rows--the full AGEP vector
+<br>
 &gt; p104[17, ]         #All of row 17
-par
+<br>
+<br>
 &gt; minors &lt;- p104[, "AGEP"] &lt; 18
+<br>
 &gt; minors             #A true/false vector showing which rows are under 18.
+<br>
 &gt; p104[minors, ]     #You can use that list of true/falses to pick rows. This gives all rows under 18yo.
-endlstlisting
-par
-These commands could be entered on R's command line as easily as in a script file, so an
-analyst who needs to verify the results of the consistency-checking step could copy and
-paste the first three lines of the script onto the R command prompt, where they will run and
-then return the analyst to the command prompt, where he or she could print subsections of
-the output tables, check values, modify the spec</tt>files and re-run, continue to the
-imputation step, et cetera.
-par
-sectionConclusion
-This concludes our tutorial. If you have any questions or comments please feel free to contact 
-us at xxxxxxxxx@email.gov. Also, check out the R-Forge Website at 
-urlhttps://r-forge.r-project.org/projects/tea/ for updates to both the TEA software as well 
-as this tutorial document.
-par
-section*Appendix: keys
-par
-This is a reference list of all of the available keys that could appear in a spec</tt>file.
-As a reference, descriptions are brief and assume you already know the narrative of the
-relevant procedures, in the main text.
-par
-Keys are listed using the <tt>group/key/value notation described in Section refspecsec. As described there, one could write a key as either
-beginlstlisting[language=]
-group 
-    key : value
+</div>
 
-par
-#or as
-group 
-    key 
-        value
-    
+<p>These commands could be entered on <b>R</b>'s command line as easily as in a script file, so an analyst who needs to verify the results of the consistency-checking step could copy and paste the first three lines of the script onto the <b>R</b> command prompt, where they will run and then return the analyst to the command prompt, where he or she could print subsections of the output tables, check values, modify the <tt>spec</tt> files and re-run, continue to the imputation step, et cetera.</p>
 
-endlstlisting
-par
-Here are the keys, in alphabetical order.
-par
- setlengthparsep0pt hspace-0.5cm textbfraking/thread count:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- You can thread either on the R side among several tables,
-     or interally to one table raking. To thread a single raking process, set this to the
-     number of desired threads. 
-par
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfinput/primary key:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- A list of variables to use as the primary key for the output table.
-In SQLite, if there is only one variable in the list as it is defined as an integer,
-this will create an integer primary key and will thus be identical to the auto-generated
-ROWID variable.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfgroup recodes/recodes:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- A set of recodes like the main set, but each calculation of the recode will be grouped by the group id, so you can use things like <tt>max(age) or <tt>sum(income).
-Returns 0 on OK, 1 on error.
-par
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbf    raking/tolerance:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
-     If the max(change in cell value) from one step to the next
-       is smaller than this value, stop. 
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfinput/types:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- A list of emphkeys of the form:
-var: type
-where var is the name of a variable (column) in the output table and type is a valid
-database type or affinity.  The default is to read in all variables as character
-columns.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfid:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- Provides a column in the data set that provides a unique identifier for each
-observation.
-Some procedures need such a column; e.g., multiple imputation will store imputations in a
-table separate from the main dataset, and will require a means of putting imputations in
-their proper place. Other elements of TEA, like flagging for disclosure avoidance, use the
-same identifier.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfrankSwap/max change:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- maximal absolute change in value of x allowed.
-That is, if the swap value for <IMG
- WIDTH="14" HEIGHT="22" ALIGN="MIDDLE" BORDER="0"
- SRC="img8.png"
- ALT="$x_i$"> is <IMG
- WIDTH="52" HEIGHT="27" ALIGN="MIDDLE" BORDER="0"
- SRC="img4.png"
- ALT="$y$">, if <IMG
- WIDTH="16" HEIGHT="18" ALIGN="MIDDLE" BORDER="0"
- SRC="img9.png"
- ALT="$\vert y - x_i\vert &gt;$"> maxchange,
-then the swap is rejected
-par
-default = 1
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbf    raking/all vars:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
-     The full list of variables that will be involved in the
-       raking. All others are ignored. 
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbf  impute/draw count:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
-   How many multiple imputations should we do? Default: 5.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfrankSwap/seed:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- The random number generator seed for the rank swapping setup.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbf  impute/earlier output table:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
-   If this imputaiton depends on a previous one, then give the fill-in table from the previous output here.
-par
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfimpute/input table:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- The table holding the base data, with missing values. 
-  Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called <tt>doInput() in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one. 
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbf  impute/output table:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
-   Where the fill-ins will be written. You'll still need <tt>checkOutImpute to produce a completed table.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbf  impute/seed:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
-   The RNG seed
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfraking/contrasts:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- The sets of dimensions whose column/row/cross totals must be kept constant. One contrast to a row; pipes separating variables on one row.
-beginlstlisting
-raking
-    contrasts
-        age | sex | race
-        age | block
-    
+<h3>Conclusion</h3>
+<p>This concludes our tutorial. If you have any questions or comments please feel free to contact any of the developers (our emails are listed on the right side of the page <a href="https://r-forge.r-project.org/projects/tea/">here</a>). To return to the TEA home-page, click here: <a href="/cenhome/verne301/tea/www/index.php">Main Page</a>.</p>
 
-endlstlisting 
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfinput/indices:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The <tt>id column you specified at the head of your spec</tt>file is always indexed, so listing it here has no effect.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfrankSwap/swap range:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- proportion of ranks to use for swapping interval, that is
-if current rank is r, swap possible from r+1 to r+floor(swaprange*length(x))
-par
-default = 0.5
-par
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbf    raking/count col:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
-     If this key is not present take each row to be a
-		single observation, and count them up to produce the cell counts to which the
-		system will be raking. If this key is present, then this column in the data set
-		will be used as the cell count.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfinput/input file:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- The text file from which to read the data set. This should be in
-the usal comma-separated format with the first row listng column names.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfrecodes:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- New variables that are deterministic functions of the existing data sets.
-There are two forms, one aimed at recodes that indicate a list of categories, and one
-aimed at recodes that are a direct calculation from the existing fields.
-For example (using a popular rule that you shouldn't date anybody who is younger than
-(your age)/2 +7),
-beginlstlisting[language=]
-recodes  
-    pants 
-        yes | leg_count = 2
-        no  |                   #Always include one blank default category at the end.
-    
-    youngest_date 
-        age/2 + 7
-    
+<h3>Appendix: keys</h3>
 
-endlstlisting
-You may chain recode groups, meaning that recodes may be based on previous recodes. Tagged
-recode groups are done in the sequence in which they appear in the file. [Because the
-order of the file determines order of execution, the tags you assign are irrelevant, but
-I still need distinct tags to keep the groups distinct in my bookkeeping.]
-beginlstlisting
-recodes [first] 
-    youngest_date: (age/7) +7        #for one-line expressions, you can use a colon.
-    oldest_date: (age -7) *2
+<p>This is a reference list of all of the available keys that could appear in a <tt>spec</tt> file. As a reference, descriptions are brief and assume you already know the narrative of the relevant procedures, in the main text.</p>
 
-recodes [second] 
-    age_gap 
-        yes | spouse_age &gt; youngest_date &amp;&amp; spouse_age &lt; oldest_date
-        no  | 
-    
+<p>Keys are listed using the <tt>group/key/value</tt> notation described in the introduction above. As described there, one could write a key as either:</p>
 
-endlstlisting
-If you have edits based on a formula, then I'm not smart enough to set up the edit table
-from just the recode formula. Please add the new field and its valid values in the c
-fields section, as with the usual variables.
-If you have edits based on category-style recodes, I auto-declare those, because the
-recode can only take on the values that you wrote down here.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfraking/input table:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- The table to be raked. 
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfinput/missing marker:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.
-par
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbftimeout:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- Once it has been established that a record has failed a consistency
-   check, the search for alternatives begins. Say that variables one, two, and three each have 100
-    options; then there are 1,000,000 options to check against possibly thousands
-    of checks. If a timeout is present in the spec</tt>(outside of all groups), then the
-    alternative search halts and returns what it has after the given number of seconds
-    have passed.
-par
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbf    raking/max iterations:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
-     If convergence to the desired tolerance isn't 
-       achieved by this many iterations, stop with a warning. 
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfinput/output table:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- The name of the table in the database to which to write the data read in.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfdatabase:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- The database to use for all of this. It must be the first thing on your line.
-I need it to know where to write all the keys to come.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbf    raking/run number:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
-     If running several raking processes simultaneously via
-        threading on the R side, specify a separate run_number for each. If
-        single-threading (or if not sure), ignore this.
-par
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfinput/overwrite:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- If <tt>n or <tt>no, I will skip the input step if the output table already exists. This makes it easy to re-run a script and only sit through the input step the first time.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfgroup recodes:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- Much like recodes (qv), but for variables set within a group, like
-eldest in household.
-For example,
-beginlstlisting[language=]
-group recodes  
+<div class="spec">
+	group {
+<br>
+	    key : value
+<br>
+}	
+<br>
+	#or as
+<br>
+	group { 
+<br>
+	    key {
+<br>
+		value
+<br>
+	}
+<br>
+}
+</div>	    
+
+<p>Here is an alphabetical list and a short description of all of the keys available for use in your <tt>spec</tt> file:</p>
+
+
+<p><b>raking/thread count</b>: You can thread either on the <b>R</b> side among several tables, or interally to one table raking. To thread a single raking process, set this to the number of desired threads.</p>
+
+<p><b>input/primary key</b>: A list of variables to use as the primary key for the output table. In SQLite, if there is only one variable in the list as it is defined as an integer, this will create an integer primary key and will thus be identical to the auto-generated <tt>ROWID</tt> variable.</p>
+
+<p><b>group recodes/recodes</b>: A set of recodes like the main set, but each calculation of the recode will be grouped by the group id, so you can use things like <tt>max(age)</tt> or <tt>sum(income)</tt>. Returns 0 on OK, 1 on error.</p>
+
+<p><b>raking/tolerance</b>: If the max(change in cell value) from one step to the next is smaller than this value, stop.</p>
+	 
+<p><b>input/types</b>: A list of <i>keys</i> of the form: <tt>var: type</tt> where <tt>var</tt> is the name of a variable (column) in the output table and <tt>type</tt> is a valid database type or affinity.  The default is to read in all variables as character columns.</p>
+
+<p><b>id</b>: Provides a column in the data set that provides a unique identifier for each observation.	Some procedures need such a column; e.g., multiple imputation will store imputations in a table separate from the main dataset, and will require a means of putting imputations in their proper place. Other elements of TEA, like flagging for disclosure avoidance, use the same identifier.</p>
+
+<p><b>rankSwap/max change</b>: Maximal absolute change in value of <i>x</i> allowed. That is, if the swap value for <IMG WIDTH="14" HEIGHT="22" ALIGN="MIDDLE" BORDER="0" SRC="img8.png" ALT="$x_i$"> is <IMG WIDTH="52" HEIGHT="27" ALIGN="MIDDLE" BORDER="0" SRC="img4.png" ALT="$y$">, if <IMG WIDTH="16" HEIGHT="18" ALIGN="MIDDLE" BORDER="0" SRC="img9.png" ALT="$\vert y - x_i\vert &gt;$"> <tt>maxchange</tt>, then the swap is rejected.</p>
+
+<p><b>raking/all vars</b>: The full list of variables that will be involved in the raking. All others are ignored.</p>
+<p><b>impute/draw count</b>: How many multiple imputations should we do? Default: 5.</p>
+
+<p><b>rankSwap/seed</b>: The random number generator seed for the rank swapping setup.</p>
+
+<p><b>impute/earlier output table</b>: If this imputaiton depends on a previous one, then give the fill-in table from the previous output here.</p>
+
+<p><b>impute/input table</b>: The table holding the base data, with missing values. Giving a value for this key is optional, and if it's not given, then TEA automatically relies on the sytem having an active table already recorded. For example, if you've already called <tt>doInput()</tt> in <b>R</b>, TEA will consider the output from that routine (which may be a view, not the table itself) as the input table for the <tt>impute</tt> group.</p>
+	 
+<p><b>impute/output table</b>: Where the fill-ins will be written. You'll still need <tt>checkOutImpute</tt> to produce a completed table.</p>
+<p><b>impute/seed</b>: The RNG seed</p>
+	 
+<p><b>raking/contrasts</b>: The sets of dimensions whose column/row/cross totals must be kept constant. One contrast to a row; pipes separating variables on one row. The syntax for this is as follows:</p>
+
+<div class="spec">
+	raking {
+<br>
+	    contrasts
+<br>
+		age | sex | race
+<br>
+		age | block
+</div>
+
+<p><b>input/indices</b>: Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The <tt>id</tt> column you specified at the head of your <tt>spec</tt> file is always indexed, so listing it here has no effect.</p>
+
+<p><b>rankSwap/swap range</b>: Proportion of ranks to use for swapping interval, that is if current rank is r, swap possible from <tt>r+1</tt> to <tt>r+floor(swaprange*length(x))</tt>.</p>
+
+<p><b>raking/count col</b>: If this key is not present take each row to be a single observation, and count them up to produce the cell counts to which the system will be raking. If this key is present, then this column in the data set will be used as the cell count.</p>
+
+<p><b>input/input file</b>: The text file from which to read the data set. This should be in the usal comma-separated format with the first row listng column names.</p>
+
+<p><b>recodes</b>: New variables that are deterministic functions of the existing data sets. There are two forms, one aimed at recodes that indicate a list of categories, and one aimed at recodes that are a direct calculation from the existing fields. For example (using a popular rule that you shouldn't date anybody who is younger than <tt>(your age)/2 +7)</tt>.</p>
+
+<div class="spec">
+	recodes { 
+<br>
+	    pants {
+<br>
+		yes | leg_count = 2
+<br>
+		no  |                   #Always include one blank default category at the end.
+		}
+<br>
+	    youngest_date {
+<br>
+		age/2 + 7
+<br>
+	}
+<br>
+}
+</div>
+
+<p>You may chain recode groups, meaning that recodes may be based on previous recodes. Tagged recode groups are done in the sequence in which they appear in the file. (Because the order of the file determines order of execution, the tags you assign are irrelevant, but I still need distinct tags to keep the groups distinct in my bookkeeping.)</p>
+
+<div class="spec">
+	recodes [first] {
+<br>
+	    youngest_date: (age/7) +7        #for one-line expressions, you can use a colon.
+<br>
+	    oldest_date: (age -7) *2
+<br>
+}
+<br>
+	recodes [second] {
+<br>
+	    age_gap 
+<br>
+		yes | spouse_age &gt; youngest_date &amp;&amp; spouse_age &lt; oldest_date
+<br>
+		no  | 
+<br>
+}
+</div>
+
+<p>If you have edits based on a formula, then I'm not smart enough to set up the edit table from just the recode formula. Please add the new field and its valid values in the fields section, as with the usual variables. If you have edits based on category-style recodes, I auto-declare those, because the recode can only take on the values that you wrote down here.</p>
+
+<p><b>raking/input table</b>: The table to be raked.</p>
+<p><b>input/missing marker</b>: How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.</p>
+
+<p><b>timeout</b>: Once it has been established that a record has failed a consistency check, the search for alternatives begins. Say that variables one, two, and three each have 100 options; then there are 1,000,000 options to check against possibly thousands of checks. If a timeout is present in the <tt>spec</tt> (outside of all groups), then the alternative search halts and returns what it has after the given number of seconds have passed.</p>
+
+<p><b>raking/max iterations</b>: If convergence to the desired tolerance isn't achieved by this many iterations, stop with a warning.</p>
+
+<p><b>input/output table</b>: The name of the table in the database to which to write the data read in.</p>
+
+<b><p>database</b>: The database to use for all of this. It must be the first thing on your line. I need it to know where to write all the keys to come.</p>
+ 
+<p><b>raking/run number</b>: If running several raking processes simultaneously via threading on the <b>R</b> side, specify a separate run_number for each. If single-threading (or if not sure), ignore this.</p>
+
+<p><b>input/overwrite</b>: If <tt>n</tt> or <tt>no</tt>, TEA will skip the input step if the output table already exists. This makes it easy to re-run a script and only sit through the input step the first time.</p>
+
+<p><b>group recodes</b>: Much like recodes (qv), but for variables set within a group, like eldest in household. For example:</p>
+
+<div class="spec">
+group recodes {
+<br>
     group id : hh_id
+<br>
     eldest: max(age)
+<br>
     youngest: min(age)
+<br>
     household_size: count(*)
+<br>
     total_income: sum(income)
+<br>
     mean_income: avg(income)
+<br>
+}
+</div>
 
-endlstlisting
-par
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfraking/structural zeros:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- A list of cells that must always be zero, 
-     in the form of SQL statements. 
-par
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfinput/primarky key:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.
-endkey
-par
- setlengthparsep0pt hspace-0.5cm textbfgroup recodes/group id:
-<BR>
-setlengthparindent0pt setlengthparsep3pt 
- The column with a unique ID for each group (e.g., household number).
-endkey
-par
-enddocument
-<BR><HR>
+<p><b>raking/structural zeros</b>: A list of cells that must always be zero, in the form of <b>SQL</b> statements.</p>
+
+<p><b>input/primarky key</b>: The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.</p>
+
+<p><b>group recodes/group id</b>: The column with a unique ID for each group (e.g., household number).</p>
+
+
+<HR>
 <!--Table of Child-Links-->
 <A NAME="CHILD_LINKS"></A>
 
