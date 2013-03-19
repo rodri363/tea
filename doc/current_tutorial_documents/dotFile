@@ -1,22 +1,23 @@
 digraph {
 	/* Setting size to 8 by 8 */
-	size = "8, 8";
 
 	/* Starting with input key */
-	input [shape=box, style=filled, color=lightblue];
+	input [shape=box, style=filled, color=purple];
 	node [fontsize=10];
+	edge [fontsize=8];
 	database;
 	id;
-	input -> input_file;
+	input -> input_file [color=purple];
 	input_file [label="input file"];
-	input -> overwrite;
+	input -> overwrite [color=purple];
 	overwrite -> yes;
 	overwrite -> no;
 	
-	yes -> database [style=dotted, label="Write new csv file to database", fontsize=8];
+	yes -> input_file [label="If overwrite\nis yes..."];
+	input_file -> database [color=lightblue, style=dashed, label="Then write new\ncsv file to database"];
 
-	input -> output_table;
-	input -> types;
+	input -> output_table [color=purple];
+	input -> types [color=purple];
 	output_table [label="output table"];
 	
 	types -> output_variable_1;
@@ -25,25 +26,27 @@ digraph {
 	output_variable_1 [label="Out Var 1"];
 	output_variable_2 [label="Out Var 2"];
 
-	output_variable_1 -> output_table [style=dotted];
-	output_variable_2 -> output_table [style=dotted];
+	output_variable_1 -> output_variable_2 [label="Variables to\nimpute"];
+	output_variable_2 -> output_variable_1;
 
 
 	/* Fields */
-	fields [shape=box, style=filled, color=red, fontsize=14];
-	fields -> edit_var1;
-	fields -> edit_var2;
-	fields -> edit_var3;
+	fields [shape=box, style=filled, color=purple, fontsize=14];
+	fields -> edit_var1 [color=purple];
+	fields -> edit_var2 [color=purple];
+	fields -> edit_var3 [color=purple];
 	
 	edit_var1 [label="Var1: type range"];
 	edit_var2 [label="Var2: type range"];
 	edit_var3 [label="Var3: type range"];
 
 
+	id -> fields [label="Unique identifier\nfor rows\nof database"];
+
 	/* Recodes */	
 	recodes [fontsize=14, style=filled, color=purple, shape=box];
-	recodes -> recode1;
-	recodes -> recode2;
+	recodes -> recode1 [color=purple];
+	recodes -> recode2 [color=purple];
 
 	recode1 [label="recode 1"];
 	recode2 [label="recode 2"];
@@ -52,21 +55,82 @@ digraph {
 	recode2 -> parameter2;
 
 	parameter1 [label="Parameter 1\nParameter 2", fontsize = 8];
-	parameter2 [label="Parameter 2\nParameter 2\nParameter 3", fontsize = 8];
+	parameter2 [label="Parameter 1\nParameter 2\nParameter 3", fontsize = 8];
 
 	
 	/* Checks */
 	checks [fontsize=14, style=filled, color=purple, shape=box];
 
-	checks -> checks_var_1;
-	checks -> checks_var_2;
-	checks -> checks_var_3;
+	checks -> checks_var_1 [color=purple];
+	checks -> checks_var_2 [color=purple];
+	checks -> checks_var_3 [color=purple];
 
-	checks_var_1 [label = "Var1 Check Parameters"];	
-	checks_var_2 [label = "Var2 Check Parameters"];	
-	checks_var_3 [label = "Var3 Check Parameters"];	
+	checks_var_1 [label = "Var1\nCheck Parameters"];	
+	checks_var_2 [label = "Var2\nCheck Parameters"];	
+	checks_var_3 [label = "Var3\nCheck Parameters"];	
 
-	checks_var_1 -> edit_var1 [color=blue, label="Checks for Var1"];
-	checks_var_2 -> edit_var2 [color=blue, label="Checks for Var2"];
-	checks_var_3 -> edit_var3 [color=blue, label="Checks for Var3"];
+	/* Impute */
+	impute [fontsize=14, style=filled, color=purple, shape=box];		
+
+	/* We will have the recode variables point to input_table
+	 * with dashed edges to indicate that they get written 
+	 * to the view table during impute.
+	 */
+	impute -> input_table [color=purple];
+	input_table [label="input table"];	
+
+	impute -> min_group_size [color=purple];
+	min_group_size [label="min group size"];
+	
+	impute -> draw_count [color=purple];
+	draw_count [label="draw count"];
+	
+	impute -> seed [color=purple];
+
+	impute -> categories [label="By what recodes\nshould TEA impute\nthe input variables?", color=purple];
+	categories -> output_vars [label="Send to\noutput vars"];
+
+	/* Should we consider making large node that lists 
+	 * all models available and is pointed to by method?
+	 */
+	impute -> method [color=purple];
+
+	/* We will have output_vars point to parameter1 and 
+	 * parameter2 with a dashed line and then have both 
+	 * parameter1 and parameter2 point back to output 
+	 * vars with a dashed line to indicate that output vars
+	 * gets imputed by categories specified in recodes and 
+	 * that the resulting imputations then get sent back to 
+	 * output vars which is then written to dc.
+	 */
+	impute -> output_vars [color=purple];
+	output_vars [label="output vars"];
+	
+	output_vars -> recode1 [label="(1) output vars\nsorted into\nspecified recode categories"];
+	output_vars -> recode2;
+
+	parameter1 -> input_table [style=dashed]; 
+	parameter2 -> input_table [style=dashed];
+	input_table -> method [label="(2) After categorization\nsend input vars\nto method"];
+
+	method -> output_vars [label="(3) impute data and\n send results back\nto output vars"];
+	output_vars -> checks [label="(4) output_vars checked\nfor inconsistencies"];	
+
+	output_vars -> database [label="(5) if output_vars\npasses checks\nwrite to database"];
+
+
+	/* Finally, database values get sent to output table and output table gets sent to R */
+	database -> output_table [color = red, style=dashed];
+	output_table -> R [color=red, style=dashed];
 }
+
+
+
+
+
+
+
+
+
+
+
