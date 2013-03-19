@@ -1,0 +1,72 @@
+digraph {
+	/* Setting size to 8 by 8 */
+	size = "8, 8";
+
+	/* Starting with input key */
+	input [shape=box, style=filled, color=lightblue];
+	node [fontsize=10];
+	database;
+	id;
+	input -> input_file;
+	input_file [label="input file"];
+	input -> overwrite;
+	overwrite -> yes;
+	overwrite -> no;
+	
+	yes -> database [style=dotted, label="Write new csv file to database", fontsize=8];
+
+	input -> output_table;
+	input -> types;
+	output_table [label="output table"];
+	
+	types -> output_variable_1;
+	types -> output_variable_2;
+
+	output_variable_1 [label="Out Var 1"];
+	output_variable_2 [label="Out Var 2"];
+
+	output_variable_1 -> output_table [style=dotted];
+	output_variable_2 -> output_table [style=dotted];
+
+
+	/* Fields */
+	fields [shape=box, style=filled, color=red, fontsize=14];
+	fields -> edit_var1;
+	fields -> edit_var2;
+	fields -> edit_var3;
+	
+	edit_var1 [label="Var1: type range"];
+	edit_var2 [label="Var2: type range"];
+	edit_var3 [label="Var3: type range"];
+
+
+	/* Recodes */	
+	recodes [fontsize=14, style=filled, color=purple, shape=box];
+	recodes -> recode1;
+	recodes -> recode2;
+
+	recode1 [label="recode 1"];
+	recode2 [label="recode 2"];
+
+	recode1 -> parameter1;
+	recode2 -> parameter2;
+
+	parameter1 [label="Parameter 1\nParameter 2", fontsize = 8];
+	parameter2 [label="Parameter 2\nParameter 2\nParameter 3", fontsize = 8];
+
+	
+	/* Checks */
+	checks [fontsize=14, style=filled, color=purple, shape=box];
+
+	checks -> checks_var_1;
+	checks -> checks_var_2;
+	checks -> checks_var_3;
+
+	checks_var_1 [label = "Var1 Check Parameters"];	
+	checks_var_2 [label = "Var2 Check Parameters"];	
+	checks_var_3 [label = "Var3 Check Parameters"];	
+
+	checks_var_1 -> edit_var1 [color=blue, label="Checks for Var1"];
+	checks_var_2 -> edit_var2 [color=blue, label="Checks for Var2"];
+	checks_var_3 -> edit_var3 [color=blue, label="Checks for Var3"];
+}
