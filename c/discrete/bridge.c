@@ -461,26 +461,16 @@ void get_key_text_for_R(char **group, char **key, char **tag, char **out, int *i
 
 int transacting;
 void begin_transaction(){
-    if (transacting == 0)
-    {
-    apop_query("begin;");
+    if (transacting == 0) apop_query("begin;");
     transacting++;
-    } else { 
-    printf("You must commit the transaction you began before you can begin a new one.\n");
-    }
 }
 
 void commit_transaction(){
     bool started_in_transaction = (transacting > 0);
     if (transacting > 0) transacting--;
     if (transacting==0 && started_in_transaction)
-    {
-	apop_query("commit;");
-    } else {
-	printf("I skipped a commit.\n"); 
-    }
+        apop_query("commit;");
 }
-
 
 
 //Do we need to use the edit check interface, and if so, what is the column type?

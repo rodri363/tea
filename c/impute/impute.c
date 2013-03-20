@@ -239,6 +239,16 @@ apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector *orig){
     return apop_estimate(raked, apop_pmf);
 }
 
+//An edit that uses variables not in our current raking table
+//will cause SQL failures.
+bool vars_in_edit_are_in_rake_table(used_var_t* vars_used, size_t ct,
+        apop_data rake_vars){
+    for (int i=0; i< ct; i++)
+        for (int j=0; j< rake_vars.textsize[1]; j++)
+            if (!strcmp(vars_used[i].name, rake_vars.text[0][j])) return true;
+    return false;
+}
+
 static void rake_to_completion(const char *datatab, const char *underlying, 
         impustruct is, const int min_group_size, gsl_rng *r, 
         const int draw_count, char *catlist, 
@@ -263,10 +273,12 @@ static void rake_to_completion(const char *datatab, const char *underlying,
     }
 
     char *zeros=NULL, *or="";
-    for (int i=0; edit_list[i].clause; i++){
-        asprintf(&zeros, "%s%s(%s)", XN(zeros), or, edit_list[i].clause);
-        or = " or ";
-    }
+    for (int i=0; edit_list[i].clause; i++)
+        if (vars_in_edit_are_in_rake_table(edit_list[i].vars_used,
+                edit_list[i].var_ct, as_data)){
+            asprintf(&zeros, "%s%s(%s)", XN(zeros), or, edit_list[i].clause);
+            or = " or ";
+        }
 
     begin_transaction();
     apop_data *raked =
