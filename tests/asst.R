@@ -39,6 +39,8 @@ readSpec("spec")
 doInput()
 stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where age is null") == 3)
 stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where sex is null") == 3)
+stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where sex is null") == 2)
+stopifnot(dbGetQuery(teaenv$con, "select count(*) from data") == 8)
 doMImpute()
 
 unlink(f)
