@@ -18,20 +18,26 @@ apop_data *make_type_table(){
     return types;
 }
 
-void generate_indices(char const *tablename){
+void generate_indices(char const *tag){
+
+    char const *table_holder = get_key_word_tagged("input", "output table", tag);
+    char *table_out;
+
+    asprintf(&table_out, "view%s", table_holder);
+     
     apop_data *indices = get_key_text("input", "indices");
     char *id_column = get_key_word(NULL, "id");
    if (id_column){
        apop_query("create index IDX_%s_%s on %s(%s)"
-                            , tablename, id_column
-                            , tablename, id_column);
+                            , table_out, id_column
+                            , table_out, id_column);
    } else id_column = "rowid"; //SQLite-specific.
     if (indices)
         for (int i = 0; i< indices->textsize[0]; i++){
             if (apop_strcmp(indices->text[i][0], id_column)) continue;
             apop_query("create index IDX_%s_%s on %s(%s)"
-                             , tablename, indices->text[i][0]
-                             , tablename, indices->text[i][0]);
+                             , table_out, indices->text[i][0]
+                             , table_out, indices->text[i][0]);
         }
 }
 
@@ -64,14 +70,13 @@ int join_tables(){
 
 
 /* \key{input/input file} The text file from which to read the data set. This should be in
-the usal comma-separated format with the first row listng column names.
+the usual comma-separated format with the first row listng column names.
 \key{input/output table} The name of the table in the database to which to write the data read in.
 \key input/overwrite If {\tt n} or {\tt no}, I will skip the input step if the output table already exists. This makes it easy to re-run a script and only sit through the input step the first time.
-\key{input/primarky key} The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.
-\key input/indices Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect.
+\key{input/primary key} The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.
+\key input/indices Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect. Remark, however, that we've moved the function generate_indices(table_out) to bridge.c:428 to after the recodes.
 \key{input/missing marker} How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.
 */
-
 static int text_in_by_tag(char const *tag){
     char *file_in   = get_key_word_tagged("input", "input file", tag);
     char *table_out = get_key_word_tagged("input", "output table", tag);
@@ -113,7 +118,7 @@ static int text_in_by_tag(char const *tag){
     apop_text_to_db(.text_file=file_in,  .tabname=table_out, 
                     .field_params=types, .table_params=table_key);
     commit_transaction();
-	generate_indices(table_out);
+    //We've moved generate_indices(table_out) to after recodes at bridge.c:428
     file_read ++;
     apop_data_free(types);
     return 0;
@@ -134,10 +139,10 @@ I need it to know where to write all the keys to come.
 
 \key id Provides a column in the data set that provides a unique identifier for each
 observation.
-Some procedure need such a column; e.g., multiple imputation will store imputations in a
+Some procedures need such a column; e.g., multiple imputation will store imputations in a
 table separate from the main dataset, and will require a means of putting imputations in
 their proper place. Other elements of TEA, like flagging for disclosure avoidance, use the
-same identifier.
+same identifier. The function that creates an index for the key in the specified \key output table is located at bridge.c:428
 
 
 \key recodes New variables that are deterministic functions of the existing data sets.

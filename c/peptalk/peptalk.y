@@ -227,14 +227,26 @@ static void set_database(char *dbname){  //only on pass 0.
 }
 
 void add_keyval(char *key, char *val){ 
-    if (pass != 0) return;
+    if (pass) return;
 	char *skey = strip(key);
 	char *sval = strip(val);
     if (!sval) return;
-	if (pass==0 && apop_strcmp(skey, "database"))
+	if (apop_strcmp(skey, "database"))
 		set_database(sval);
-	Apop_stopif(!database, return, 0, "The first item in your config file needs to be \"database:db_file_name.db\".");
+	Apop_stopif(!database, return, 0, "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".");
 	apop_query("insert into keys values (\"%s\", \"%s\", %i, \"%s\")", skey, XN(tag), ++val_count, sval);
+        // paste in macro code by selecting lines from the database
+        if (apop_strcmp(skey,"paste in")) {
+	  // select from keys what was stored in the macro where tag = skey
+            apop_data *pastein = apop_query_to_text("select * from keys where (tag = %s)",skey);
+            Apop_stopif(pastein->error,return, 0,"SQL: %s not in keys table\n",skey);
+            for (int j = 0;j < pastein->textsize[0];j++) 
+	  // insert full code into keys
+  	      apop_query ("insert into keys values " 
+                          "(\"%s\", \"%s\", %i, \"%s\")",
+                          pastein->text[j][0],
+                          XN(tag), ++val_count, sval) ;
+        }
 	free(skey); free(sval);
 }
 
@@ -370,7 +382,7 @@ void add_to_num_list(char *v){
 void add_to_num_list_seq(char *min, char*max){
     if (pass !=0) return;
     Apop_assert_c(parsed_type!='r', , 1,
-         "TEA ignores ranges for real variables. Please add limits in the check{} section.");
+         "TEA ignores ranges for real variables. Pleas	e add limits in the check{} section.");
     Apop_stopif(atoi(min)>=atoi(max),return,0,"Maximum value %s does not exceed Minimum values %s",max,min);
     for (int i = atoi(min); i<=atoi(max);i++){
         apop_query("insert into %s values (%i);", current_var, i);

@@ -1,4 +1,11 @@
 database: demo.db
+
+catagesex{
+	categories {
+		...
+	}	
+}
+
 id: SSN
 
 input {
@@ -65,10 +72,7 @@ impute{
     draw count: 3
     seed:2332
 
-    categories {
-        CATAGE
-        SEX
-    }
+	catagesex
 
     method: hot deck
 	output vars: SCHL

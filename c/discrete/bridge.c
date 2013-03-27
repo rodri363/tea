@@ -15,6 +15,8 @@ As of 4 May 2010, the main() function has been removed---it works only via PEP's
 #include "tea.h"
 #include "internal.h"
 
+void generate_indices(char const *);
+
 int edit_ct, nflds, errorcount, verbose, run_number, explicit_ct;
 int *find_b, *find_e;
 FILE *yyin;
@@ -309,7 +311,7 @@ char* get_key_word(char const *part1, char const *part2){
 }
 
 char* get_key_word_tagged(char const *part1, char const *part2, char const *tag){
-    if (!tag || !strlen(tag)) return get_key_word(part1,part2);
+    if (!tag || !strlen(tag)) return get_key_word(part1, part2);
     apop_data* almost_out = get_key_text_tagged(part1, part2, tag);
     char *out=NULL;
     if (almost_out) out = strdup (almost_out->text[0][0]);
@@ -424,6 +426,15 @@ void read_spec(char **infile, char **dbname_out){
         }
         apop_data_free(recode_tags);
     }
+
+     //Generating indices for ID
+     apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key "
+					      "like 'input/%' order by count");
+    if (!tags) return;
+    for (int i=0; i< *tags->textsize;i++)
+        generate_indices(*tags->text[i]);
+    apop_data_free(tags);
+
 
     pass++;
     rewind(yyin); //go back to position zero in the config file
