@@ -403,6 +403,35 @@ void init_edit_list(){
 
 void verbosity(int *verbosityLevel){ verbose = *verbosityLevel;}
 
+static void do_recodes(){
+    char *goalname; 
+    asprintf(&goalname, "view%s", get_key_word("input", "output table"));
+    char *overwrite = get_key_word("input", "overwrite");
+    if (!overwrite || !strcasecmp(overwrite,"n")
+                || !strcasecmp(overwrite,"no")
+                || !strcasecmp(overwrite,"0") )
+        {free(overwrite), overwrite = NULL;}
+    if (!overwrite && apop_table_exists(goalname)){
+        Apop_notify(1, "Recode view %s exists and input/overwrite tells me to not recreate it.", goalname);
+    } else{
+        apop_data *recode_tags = apop_query_to_text("select distinct tag from keys "
+                " where key like 'recode%%' or key like 'group recodes%%' order by count");
+        if (recode_tags){
+            if (recode_tags->textsize[0]==1) make_recode_view(NULL, (char*[]){"both"});
+            else for (int i=0; i< *recode_tags->textsize; i++){
+                Apop_stopif(!(
+                        !make_recode_view(recode_tags->text[i], //pointer to list of char*s.
+                            ( (i==0) ? (char*[]){"first"}
+                            : (i==*recode_tags->textsize-1) ? (char*[]){"last"}
+                            : (char*[]){"middle"}))
+                        ), return, 0, "Error in recode production.");
+            }
+            apop_data_free(recode_tags);
+        }
+    }
+    free(goalname);
+}
+
 void read_spec(char **infile, char **dbname_out){
     start_over();
     fname = strdup(*infile);
@@ -411,30 +440,15 @@ void read_spec(char **infile, char **dbname_out){
     pass=0;
     begin_transaction();
     yyparse();  //fill keys table
-
-    apop_data *recode_tags = apop_query_to_text("select distinct tag from keys "
-            " where key like 'recode%%' or key like 'group recodes%%' order by count");
-    if (recode_tags){
-        if (recode_tags->textsize[0]==1) make_recode_view(NULL, (char*[]){"both"});
-        else for (int i=0; i< *recode_tags->textsize; i++){
-            Apop_stopif(!(
-                    !make_recode_view(recode_tags->text[i], //pointer to list of char*s.
-                        ( (i==0) ? (char*[]){"first"}
-                        : (i==*recode_tags->textsize-1) ? (char*[]){"last"}
-                        : (char*[]){"middle"}))
-                    ), return, 0, "Error in recode production.");
-        }
-        apop_data_free(recode_tags);
-    }
+    do_recodes();
 
      //Generating indices for ID
-     apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key "
+    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key "
 					      "like 'input/%' order by count");
     if (!tags) return;
     for (int i=0; i< *tags->textsize;i++)
         generate_indices(*tags->text[i]);
     apop_data_free(tags);
-
 
     pass++;
     rewind(yyin); //go back to position zero in the config file

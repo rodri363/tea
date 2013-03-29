@@ -361,7 +361,7 @@ void add_to_num_list(char *v){
 			if (parsed_type != 'i' || *tail != '\0'){ //then this can't be parsed cleanly as a number
 				apop_query("insert into %s values ('%s');", current_var, vs);
                 if (parsed_type == 'i' && *tail != '\0')
-                    Apop_notify(0, "The variable %s is set to integer type, but I can't "
+                    Apop_notify(0, "The variable %s is set to integer type, but Tea can't "
                                 "cleanly parse %s as a number. Please fix the value or add"
                                 "a type specifier of 'cat'.", current_var, vs);
             } else
@@ -382,7 +382,7 @@ void add_to_num_list(char *v){
 void add_to_num_list_seq(char *min, char*max){
     if (pass !=0) return;
     Apop_assert_c(parsed_type!='r', , 1,
-         "TEA ignores ranges for real variables. Pleas	e add limits in the check{} section.");
+         "Tea ignores ranges for real variables. Please add limits in the check{} section.");
     Apop_stopif(atoi(min)>=atoi(max),return,0,"Maximum value %s does not exceed Minimum values %s",max,min);
     for (int i = atoi(min); i<=atoi(max);i++){
         apop_query("insert into %s values (%i);", current_var, i);
@@ -461,7 +461,7 @@ void moreblob(char **out, char* so_far, char *more){
             else           asprintf(&var_list, "%s, %s", more, var_list);
             if (!isreal){
                 if (!datatab) datatab = get_key_word("input","output table");
-                Apop_stopif(!datatab, return, 0, "I need the name of the data table so I can set up the recodes."
+                Apop_stopif(!datatab, return, 0, "I need the name of the data table so Tea can set up the recodes."
                                      "Put an 'output table' key in the input segment of the spec.");
                 if (!apop_table_exists(more))
                     apop_query( "create table %s as "

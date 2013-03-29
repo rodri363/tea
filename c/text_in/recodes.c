@@ -124,7 +124,7 @@ void get_in_out_tabs(char const *first_or_last, char **intab, char **out_name){
     }
 }
 
-apop_data* get_vars_to_impute(void){
+static apop_data* get_vars_to_impute(void){
     apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
     char *v = NULL;
     for (int i=0; i< *tags->textsize; i++)
@@ -195,7 +195,6 @@ int make_recode_view(char **tag, char **first_or_last){
     //first_or_last may be "first", "last", "both", or "middle"
     if (tag && !test_for_recodes(*tag)) return 0;
 
-    text_in();
     if (!file_read && get_key_word("input", "input file")) text_in();
 
     static char *intab =NULL;
@@ -204,13 +203,6 @@ int make_recode_view(char **tag, char **first_or_last){
     Apop_stopif(!out_name, return -1, 0, "Error setting recode table name.");
 
     char *recodestr=NULL, *group_recodestr=NULL;
-    char *overwrite = get_key_word("input", "overwrite");
-    if (!overwrite || !strcasecmp(overwrite,"n") 
-                || !strcasecmp(overwrite,"no") 
-                || !strcasecmp(overwrite,"0") )
-        {free(overwrite), overwrite = NULL;}
-    Apop_stopif (!overwrite && apop_table_exists(out_name) && (!(strcmp(*first_or_last, "last")||!strcmp(*first_or_last, "both"))), return 0, 1,
-                    "Recode view %s exists and input/overwrite tells me to not recreate it.", out_name);
     apop_table_exists(out_name, 'd');
     char *rgroup="recodes", *grgroup="group recodes";
     recodes(&rgroup, tag, &recodestr, &intab);      //will query there for whether any recodes exist.

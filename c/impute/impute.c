@@ -253,7 +253,8 @@ static void rake_to_completion(const char *datatab, const char *underlying,
         impustruct is, const int min_group_size, gsl_rng *r, 
         const int draw_count, char *catlist, 
         const apop_data *fingerprint_vars, const char *id_col, 
-        char const *weight_col, char const *fill_tab, char const *margintab){
+        char const *weight_col, char const *fill_tab, char const *margintab,
+        apop_data *contrasts){
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
     char *varlist = apop_text_paste(&as_data, .between=", ");
     apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s", id_col, varlist, 
@@ -284,7 +285,8 @@ static void rake_to_completion(const char *datatab, const char *underlying,
     apop_data *raked =
         apop_rake(.margin_table=margintab ? margintab : datatab,
                 .var_list=is.allvars, .var_ct=is.allvars_ct,
-                .contrasts=is.allvars, .contrast_ct=is.allvars_ct,
+                .contrasts=contrasts? *contrasts->text : is.allvars, 
+                .contrast_ct=contrasts? contrasts->textsize[1] : is.allvars_ct,
                 .count_col=weight_col, .init_table=notnan_tab_big_enough ? "notnan": NULL, 
                 .structural_zeros=zeros,
                 .init_count_col=notnan_tab_big_enough ? weight_col: NULL);
@@ -293,7 +295,6 @@ static void rake_to_completion(const char *datatab, const char *underlying,
                 0, "Raking returned a blank table. This shouldn't happen.");
     Apop_stopif(raked->error, return,
                 0, "Error (%c) in raking.", raked->error);
-    apop_data_pmf_compress(raked); //probably a no-op, but just in case.
 
     int batch_size=1000; //just in case...
     gsl_vector *original_weights=apop_vector_copy(raked->weights);
@@ -354,7 +355,7 @@ static void lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
 }
 
 static char *construct_a_query(char const *datatab, char const *underlying, char const *varlist, 
-                                apop_data const *category_matrix, char const *id_col, int ego_id, char *depvar){
+                                apop_data const *category_matrix, char const *id_col, char const* ego_id, char *depvar){
 /* Find out which constraints fit the given record, then join them into a query.
    The query ends in "and", because get_constrained_page will add one last condition.  */
 
@@ -392,7 +393,7 @@ static char *construct_a_query(char const *datatab, char const *underlying, char
     for (int i=0; i< category_matrix->textsize[0]; i++){
         char *n = *category_matrix->text[i]; //short name
         if (strcmp(n, depvar)) //if n==depvar, you're categorizing by the missing var.
-            qxprintf(&q, "%s (%s) = (select %s from %s where %s = %i) and\n",  
+            qxprintf(&q, "%s (%s) = (select %s from %s where %s = %s) and\n",  
                            q,  n,           n,  datatab, id_col, ego_id);
     }
     return q;
@@ -481,7 +482,7 @@ void verify(impustruct is){
 	version (probably most versions) goes one var. at a time --> leans toward one
 	var over the others.
 */
-static void get_nans_and_notnans(impustruct *is, int index, char const *datatab, 
+static void get_nans_and_notnans(impustruct *is, char const* index, char const *datatab, 
         char const *underlying, int min_group_size, apop_data const *category_matrix, 
         apop_data const *fingerprint_vars, char const *id_col){
     is->isnan = NULL;
@@ -510,11 +511,6 @@ static void get_nans_and_notnans(impustruct *is, int index, char const *datatab,
                  apop_query_to_mixed_data(is->vartypes, "%s %s is not null except %s", q, is->depvar, q2)
                : apop_query_to_mixed_data(is->vartypes, "%s %s is not null", q, is->depvar);
     apop_data_listwise_delete(is->notnan, .inplace='y');
-    if (verbose){
-        printf("-------------- Not NaN:");
-        apop_data_show(is->notnan);
-        printf("--------------");
-    }
     if (!strcmp(is->vartypes, "all numeric")){
          is->isnan = q2 ? 
               apop_query_to_data("%s %s is null union %s", q, is->depvar, q2)
@@ -536,12 +532,6 @@ static void get_nans_and_notnans(impustruct *is, int index, char const *datatab,
 static void model_est(impustruct *is, int *model_id){
     apop_data *notnan = is->notnan; //just an alias.
     assert(notnan);
-    /*for(int i=0; i< notnan->textsize[1]; i++){
-        notnan->matrix=apop_matrix_realloc(notnan->matrix, 
-                            notnan->matrix ? notnan->matrix->size1   : *notnan->textsize, 
-                            notnan->matrix ? notnan->matrix->size2+1 : 1);
-        apop_data_to_factors(notnan, .incol=i, .outcol=notnan->matrix->size2-1);
-    }*/
     //maybe check here for constant columns in regression estimations.
     if (notnan->text && !apop_data_get_page(notnan,"<categories"))
         for (int i=0; i< notnan->textsize[1]; i++){
@@ -831,7 +821,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         do {
             for (int i=0; i < nanvals->names->rowct; i++){ //see notes above.
                 if (apop_strcmp(nanvals->names->row[i], ".")) continue; //already got this person.
-                get_nans_and_notnans(is, atoi(nanvals->names->row[i]) /*ego_id*/, 
+                get_nans_and_notnans(is, nanvals->names->row[i] /*ego_id*/, 
                         dt, underlying, min_group_size, category_matrix, fingerprint_vars, id_col);
 
                 if (!is->isnan) goto bail; //because that first guy should've been missing.
@@ -1052,6 +1042,9 @@ int do_impute(char **tag, char **idatatab){
     Apop_stopif(model.error, return -1, 0, "Trouble reading in model info.");
 
     if (model.is_rake) {
+        apop_data *precontrasts = get_key_text_tagged(configbase, "contrasts", *tag);
+        apop_data *contrasts = apop_data_transpose(precontrasts);
+        apop_data_free(precontrasts);
         apop_data *catlist=NULL;
         if (category_matrix){
             char *cats= apop_text_paste(category_matrix, .between=", ");
@@ -1071,8 +1064,9 @@ int do_impute(char **tag, char **idatatab){
             }
             char *margintab = get_key_word_tagged(configbase, "margin table", *tag);
             rake_to_completion(*idatatab, underlying, model, min_group_size, 
-                        r, draw_count, wherecat, fingerprint_vars, id_col, weight_col, out_tab, margintab);
+                        r, draw_count, wherecat, fingerprint_vars, id_col, weight_col, out_tab, margintab, contrasts);
         }
+        apop_data_free(contrasts);
     }
     else impute_a_variable(*idatatab, underlying, &model, min_group_size, 
                 r, draw_count, category_matrix, fingerprint_vars, id_col, out_tab,

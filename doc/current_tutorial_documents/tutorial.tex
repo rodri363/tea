@@ -3,7 +3,7 @@
 \long\def\comment#1{}
 \long\def\todo#1{}
 \comment{
-    This document is a combination of "A Tutorial Introduction to PEP" and "TEA for survey processing". Both documents have important information regarding the usage of TEA and this document is meant to combine that information into one source. Clean up and correct as you see fit.
+    This document is a combination of "A Tutorial Introduction to PEP" and "Tea for survey processing". Both documents have important information regarding the usage of Tea and this document is meant to combine that information into one source. Clean up and correct as you see fit.
 
 -- DV
 }
@@ -96,12 +96,12 @@
 
 \begin{document}
 \author{U.S. Census Bureau\\Center for Statistical Research and Methodology Division}
-\title{TEA for survey processing}
+\title{Tea for survey processing}
 \maketitle
 %just an idea: put silhouettes on the front cover
 
 \begin{abstract}
-TEA is a system designed to unify and streamline survey processing, from raw data to
+Tea is a system designed to unify and streamline survey processing, from raw data to
 editing to imputation to dissemination of output. Its primary focus is in finding 
 observations that are missing data, fail consistency checks, or risk the disclosure of
 sensitive information, and then using a unified imputation process to fix all of these
@@ -120,18 +120,18 @@ to maintain.
 Raw data is often rife with missing items, logical errors, and sensitive information. 
 To ignore these issues risks alienating respondents and data users alike, and so data 
 modification is a necessary part of the production of quality survey and census data. 
-TEA is a statistical library designed to eradicate these errors by creating a framework 
+Tea is a statistical library designed to eradicate these errors by creating a framework 
 that is friendly to interact with, effectively handles Census-sized data sets, and does 
 the processing quickly even with relatively sophisticated methods.
 
-This paper gives a detailed overview of the TEA system, its components, and how they're 
-used. If you have this tutorial you should also have a working installation of TEA and 
+This paper gives a detailed overview of the Tea system, its components, and how they're 
+used. If you have this tutorial you should also have a working installation of Tea and 
 a sample directory including {\tt demo.spec, demo.R}, and {\tt dc\_pums\_08.csv}. 
 Basic versions of all of the steps described below are already implemented and running,
 though the system will evolve and grow as it is applied in new surveys and environments.
 
 \section{System basics}
-TEA implements a two step process for addressing issues with raw data. The first is to
+Tea implements a two step process for addressing issues with raw data. The first is to
 identify those failures listed above (missing data, logical errors, or sensitive
 information), and then, having identified problem data, impute new values
 to replace the old ones. Although the term {\em imputation} is typically used only to 
@@ -139,35 +139,34 @@ describe filling in missing data, we use it broadly to mean any modification of 
 data item that involves choosing among alternatives, regardless of which of the 
 above failures prompted the fill-in. 
 
-In terms of how TEA is implemented, we break the process into two parts: the 
+In terms of how Tea is implemented, we break the process into two parts: the 
 specification of variable details---such as which file to read in, what values should 
 be top-coded, or the full description of the model used for filling in missing 
-data---and the actual prodecure to be run by the computer based on those inputs. 
+data---and the actual procedure to be run by the computer based on those inputs. 
 The specification of details as mentioned above will go into a plain text file, 
-herein called the {\tt spec} file. Based on your inputs to the {\tt spec} file 
-(which we will explain later as to what those inputs are/can be), you then run 
+herein called the {\em spec file}. Based on your inputs to the spec file 
+(which we will explain later as to what those inputs can be), you then run 
 a script in a user-friendly statistical computing framework called {\bf R}. This is 
 where the computing (editing, imputation, etc) takes place. We will explain this in 
-more detail later as well. For now, let's look closer at the {\tt spec} file: 
+more detail later as well. For now, let's look closer at the spec file: 
 
 \subsection{The spec file}\label{specsec}
-The full specification of the various steps of TEA, from input of data to final 
-production of output tables, that are performed during your implementation of TEA 
+The full specification of the various steps of Tea's process, from input of data to final 
+production of output tables, 
 is specified in a single file, the {\em spec file}. There are several intents to 
-this setup. First, because the spec file is separate from programming
-languages like \textbf{R} or SAS, it is a simpler grammar that is easier to write, and so 
-analysts can write technical specifications without the assistance of a programmer or
-a full training in a new programming language. In other words, the spec file allows 
-users whose areas of expertise are not in programming to customize and use TEA in a 
-standardized and acccessible environment. To see why this is the case, observe the 
-following script that is taken from the {\tt demo.spec} file (which you can open using 
-Vi or any other text editor):
+this setup. First, because the spec file is separate from programming languages like
+\textbf{R} or SAS, it is a simpler grammar that is easier to write, and so analysts
+whose areas of expertise are not in programming can customize Tea and write technical
+specifications without the assistance of a programmer or a full training in a new
+programming language. To see why this is the case, observe the following script that
+is taken from the {\tt demo.spec} file (which you can open using Kate or any other
+text editor):
 
 \begin{verbatim}
 database: test.db
 
 input {
-        input_file :dc_pums_08.csv
+        input_file: dc_pums_08.csv
         output_table: dc_pums
 }
 \end{verbatim}
@@ -175,13 +174,13 @@ input {
 In this snippet of the {\tt demo.spec} file, we specified a database to use, an input 
 file to be parsed, and an output table to write our imputations to. Behind the scenes, 
 SQL scripts and C functions are being executed. As we will see, other scripts that are 
-run from the {\tt spec} file perform more complicated behind-the-scenes algorithms. 
-However, before we go through an example of a full {\tt spec} file, let's take a look at 
-the environment and underlying systems in which TEA runs to gain a better understanding 
-of the processes taking place in the {\tt spec} file:
+run from the spec file perform more complicated behind-the-scenes algorithms. 
+However, before we go through an example of a full spec file, let's take a look at 
+the environment and underlying systems in which Tea runs to gain a better understanding 
+of the processes taking place in the spec file.
 
 \subsection{Environment and underlying systems}
-TEA is based on three systems: C, R, and SQL.\comment{\footnote{C is the successor to B, which
+Tea is based on three systems: C, R, and SQL.\comment{\footnote{C is the successor to B, which
 was the successor to BCPL: basic combined programming language. R, a successor to S,
 is named after its authors, Robert Gentleman and Ross Ihaka. SQL stands for structured
 query language.}} Each provides facilities that complement the others:
@@ -193,9 +192,9 @@ users unfamiliar with it can probably learn the necessary SQL in a few
 minutes---in fact, a reader who claims to know no SQL will probably already be able
 to read and modify the SQL-language conditions in the {\tt checks} sections below.
 
-The TEA system stores data using an SQL database. The system queries the database as
+Tea stores data using an SQL database. The system queries the database as
 needed to provide input to the statistical/mathematical components (R, C function libraries, etc.).
-Currently, TEA is written to support SQLite as its database interface; however it would
+Currently, Tea is written to support SQLite as its database interface; however it would
 be possible to implement other interfaces such as Oracle or MySQL.
 
 Output at each step is also to the database, to be read as input into the next
@@ -203,43 +202,38 @@ step. Therefore, the state of the data is recorded at each step in the process, 
 suspect changes may be audited.
 
 Outside the database, to control what happens and
-do the modeling, the TEA package consists of roughly 5,000 lines of \textbf{R} and C code.
+do the modeling, the Tea package consists of roughly 5,000 lines of \textbf{R} and C code.
 
 {\bf R} is a relatively user-friendly system that makes it easy to interact with data
 sets and write quick scripts to glue together segments of the survey-processing pipeline.
-R is therefore the interactive front-end for TEA. Users will want to get familiar with the basics of
-R.  As with SQL, users well-versed in \textbf{R} can use their additional knowledge to perform
-analysis beyond the tools provided by the TEA system.
+R is therefore the interactive front-end for Tea. Users will want to get familiar with
+the basics of R.  As with SQL, users well-versed in \textbf{R} can use their additional
+knowledge to perform analysis beyond the tools provided by Tea.
 
 {\bf C} is the fastest human-usable system available for manipulating matrices, making
 draws from distributions, and other basic model manipulations. Most of the numerical
 work will be in C. The user is not expected to know any C at all, because \textbf{R} procedures
 are provided that do the work of running the underlying C-based procedures.
 
-Now that we have a better idea of the environments in which TEA is run, let's take a look  
-at an example of a full {\tt spec} file: {\tt demo.spec}:
+Now that we have a better idea of the environments in which Tea is run, let's take a look  
+at an example of a full spec file: {\tt demo.spec}:
 
-\comment{
-DV:  I thought it would be a good idea to include a full spec file for the reader to 
-reference while reading through the tutorial. If you guys disagree we can take it out.
-Also, as we know there are problems with demo.spec so we'll have to fix those eventually 
-before including it in the final draft of the tutorial.
 
 \begin{figure}
 \lstset{columns=fullflexible}
-\lstinputlsting{demo.spec}
-\caption{A sample {\tt spec} file that imputes an AGEP variable using WAGP, SEX, 
-and the {\tt hot deck} and {\tt ols} imputation models. The contents of this {\tt spec} 
+\lstinputlisting{../../demo/demo.spec}
+\caption{A sample spec file that imputes an AGEP variable using WAGP, SEX, 
+and the {\tt hot deck} and {\tt ols} imputation models. The contents of this spec 
 file are explained below}
 \end{figure}
-}
-The configuration system (spec file) is a major part of the user interface with TEA. As is evident 
-from {\tt demo.spec}, there are many components of the {\tt spec} file that all perform certain functions. 
-We begin by explaining the concept of \textit{keys:}
+
+The configuration system (spec file) is a major part of the user interface with Tea. As is evident 
+from {\tt demo.spec}, there are many components of the spec file that all perform certain functions. 
+We begin by explaining the concept of \textit{keys}.
 
 \subsection{Keys}
-Everything in the {\tt spec} file is a key/value pair (or, as may be more familiar to 
-you, a tag: data definition). Each key in the {\tt spec} file has a specific purpose and 
+Everything in the spec file is a key/value pair (or, as may be more familiar to 
+you, a tag: data definition). Each key in the spec file has a specific purpose and 
 will be outlined in this tutorial.
 To begin, we start in the header of {\tt demo.spec}:
 
@@ -249,14 +243,14 @@ id: SSN
 \end{lstlisting}
 
 Here, {\tt database: demo.db} and {\tt id: SSN} are examples of key: value pairs.
-As is the case in {\tt demo.spec}, you will always need to begin your {\tt spec} file by declaring the 
+As is the case in {\tt demo.spec}, you will always need to begin your spec file by declaring the 
 database ({\tt database:your\_database.db}) key and the unique identifier 
 ({\tt id:your\_unique\_identifier}) key. The {\tt database:} key identifies 
-the relational database where all of your data will be manipulated during the various processes of TEA. 
+the relational database where all of your data will be manipulated during the various processes of Tea. 
 The {\tt id} key provides a column in the database table that serves as the unique identifier for 
 each set of data points in your data set. Though the {\tt id} key is not strictly necessary, 
-we strongly advise that you include one in your {\tt spec} file to prevent any unnecessary frustration 
-as most of TEA's routines require its use. More information on both of these keys can be found in 
+we strongly advise that you include one in your spec file to prevent any unnecessary frustration 
+as most of Tea's routines require its use. More information on both of these keys can be found in 
 the appendix of this tutorial.\\
 
 You may have noticed that keys are assigned values with the following syntax:\\
@@ -286,10 +280,6 @@ input {
     overwrite: no
     output table: dc
 	#However, with curly braces we can associate multiple values with a single key
-        types {
-                AGEP: integer
-                CATAGE: integer
-        }
 }
 \end{lstlisting}
 
@@ -298,27 +288,24 @@ input {
 
 In the database, here is what the above will look like:
 \begin{verbatim}
-database            ourstudy.db
-checks              age > 100 => age = 100
-checks              status = 'married' and  age < 16
-input/input file    text_in.csv
-input/output table  dataset
+database            demo.db
+id                  SSN
+input/input file    ss08pdc.csv
+input/overwrite     no
+input/output table  dc
 \end{verbatim}
 
 Observe that the subkeys are turned into a slash-separated list. It is 
 worth getting familiar with this internal form, because when you've made a 
-mistake in your {\tt spec} file, the error message that gets printed in \textbf{R} 
+mistake in your spec file, the error message that gets printed in \textbf{R} 
 will display your keys in the above form. We will discuss this more later in the 
-tutorial when we talk about running your {\tt spec} file in \textbf{R}.
-Here is a succint summation of the syntax rules for keys:
+tutorial when we talk about running your spec file in \textbf{R}.
+Here is a succinct summation of the syntax rules for keys:
 
 \begin{itemize}
 \item You can have several values in curly braces, each on a separate line, which are added to the key/value list. Order is preserved.
-\item If there is a subkey, then its name is merged with the parent key via a slash;
-you can have as many levels of sub-sub-sub-keys as you wish.
-%\item You will almost certainly
-%need to use this group/key format to get most values. Some functions still call for
-%a group and key separately, but they'll just get merged with a slash anyway.
+\item You can have as many levels of sub-sub-sub-keys as you wish.
+\item If there is a subkey, then its name is merged with the parent key via a slash.
 \item As a shortcut, you can replace {\tt key \{single value\}} with {\tt key:single value}.
 \item Each key takes up exactly one line (unless you explicitly combine lines; see below). Otherwise, white
 space is irrelevant to the parser. Because humans will also read the spec file, you
@@ -327,13 +314,14 @@ are strongly encouraged to use indentation to indicate what is a member of what 
 each line that continues to the next; the backslash/newline will be replaced with a single space.
 \end{itemize}
 
-We now continue through our {\tt spec} file to the {\tt input} key:
 
 \subsection{Input declarations}
-The {\tt input} key is an important key in your {\tt spec} file that specifies:
+We now continue through our spec file to the {\tt input} key.
+
+The {\tt input} key is an important key in your spec file that specifies:
 \begin{enumerate}
 \item The {\tt csv} file from which you will draw your data.
-\item The option to \textit{overwrite} the csv file currently written into the specified database with 
+\item The option to \texttt{overwrite} the csv file currently written into the specified database with 
 a new csv file that you have specified.
 \item The {\tt output table} key that specifies the table where you would like to 
 write the data that is read in from the {\tt csv} file.
@@ -359,41 +347,41 @@ of every variable that has an associated edit. If a variable does not have an as
 edit, there is no need to declare its range.
 
 The declaration of the edit variables contained in the {\tt fields} key consists of the field name, 
-an optional type ({\tt int}, {\tt text}, or 
-{\tt real}) to be discussed further below, and a list of valid values. Here is a typical example:
+a type ({\tt int}, {\tt cat}, or 
+{\tt real}) to be discussed further below, and a list of valid values for integer and categorical variables. Here is a typical example:
 
 \begin{lstlisting}[language=]
 fields {
-    age: 0-100
-    sex: M, F
+    age: int 0-100
+    sex: cat M, F
     hh_type: int 1, 2, 4, 8
     income: real
 }
 \end{lstlisting}
 
-In the above code, we've declared four variables: age, sex, hh\_type, and income and we've 
-declared those four variables in different and valid ways. Declaring variable types for your 
-field is necessary because the edit-checking system will know what to expect when performing 
-its consistency checks later on. You can see that the list of values may be text 
-or numeric, and the range 0--100 will be converted into the full sequence 0, 1, 2, \dots, 100. 
+The above code declared four variables: {\tt age}, {\tt sex}, {\tt hh\_type}, and {\tt income} and we've 
+declared those four variables in different and valid ways.
 By declaring our variables with a type and range, we can pass the information to the edit-checking system 
 so that it knows what to verify when running its checks for each of these variables. 
+You can see that the list of values may be text categories
+or numeric values, and the range 0--100 will be converted into the full sequence 0, 1, 2, \dots, 100. 
 
-When declaring a variable, the first word following the {\tt :} may be a type. For instance, 
+When declaring a variable, the first word following the {\tt :} must be a type. For instance, 
 for the {\tt hh\_type: int 1, 2, 4, 8} field above, we used the word 'int' to indicate that 
-the data values of the field were of type integer. Notice as well that a type does not necessarily 
-need to be declared; in which case the default action is to treat the entry as plain text (which means
-that numeric entries get converted to text categories, like {\tt "1"}, {\tt "2"}, \dots). Keep in mind 
+the data values of the field were of type integer. If leading zeros are relevant (e.g.,
+a category like {\tt 01}), specify the field as a text category to prevent the leading
+zero from being removed.  Keep in mind 
 that if you declare the incorrect type for a field that the edit-checking system may not correctly 
 verify the values of that field in your data set.
 
 As a final note, we warn the user against creating fields with an overly large range of integer 
 values. For a field with a range of possible integer values, the edit-checking system will verify 
-that each data point falls into one of the possible values specified in the range. This can be a 
-problem for a field with an excessively large range of integer values because each data point will 
-have to be compared against all of the possible values in the range. Though this is easily doable for 
-smaller ranges such as 0-100 or even 0-1000, it becomes extremely time consuming for larger ranges such 
-as 0-600000. Instead, we recommend assigning a field with a large range as a real variable.
+that each data point falls into one of the possible values specified in the range. Though
+this is easily doable for smaller ranges such as 0-100 or even 0-1000, it becomes
+extremely time consuming for larger ranges such as 0-600000. Instead, we recommend
+assigning a field with a large range as a real variable.
+
+{\comment BK: Did we delete this feature?}
 
 \paragraph{Auto-detect} If your field list consists of a single star, {\tt *} (the wild-card character 
 in SQL that represents all possible inputs), then the data set will be queried for the list of values 
@@ -404,15 +392,14 @@ In any case, using {\tt *} may be useful when quickly assembling a first draft o
 giving an explicit set of values for production. You may precede the {\tt *}
 with a type designation, like {\tt age: real *}.\\
 
-
 As you know, it is often necessary to impute data points in separate categories given 
 the distribution of the data. For this, we use the {\tt recodes} key.
 
 \subsection{Recodes}
 In short, {\tt recode} keys are just new variables that are deterministic functions of 
-existing data sets based on parameters given by you, the analyst. Based on the variables specified in the 
-{\tt fields} key, you can "recode" those fields into other variables (which can be thought of as categories) 
-based on paramters given in a certain syntax. This is often necessary to ensure that you are imputing 
+existing fields. Based on the variables specified in the 
+{\tt fields} key, you can "recode" those fields into other fields
+based on parameters given in a certain syntax. This is often necessary to ensure that you are imputing 
 your data over an accurate distribution. Observe the following typical example of a {\tt recodes} key:
 
 \begin{lstlisting}[language=]
@@ -425,23 +412,23 @@ recodes {
 }
 \end{lstlisting}
 
-Here, we have declared a new variable CATAGE whose data points are based off of a 
+Here, we have declared a new variable CATAGE whose data points are based on a 
 deterministic function of the variable AGEP. As we will see later, this recode will be called 
 in the {\tt categories} key during imputation so that the data points we are attempting to 
 impute will be imputed in categories based on their recode values rather than collectively 
 as a single set of data points. The {\tt recodes} key is fairly straightforward, although we 
 will learn about some of its more advanced features later. For now, however, we continue 
-our walkthrough of the {\tt spec} file by discussing the {\tt checks} key.
+our walkthrough of the spec file by discussing the {\tt checks} key.
 
 \subsection{Checks}
-The conistency-checking system is rather complex. Ironically, this complexity is what 
+The consistency-checking system is rather complex. Ironically, this complexity is what 
 makes the system efficient and reliable: there are typically a
 few dozen to a few hundred checks that every observation must pass, from sanity checks
 like {\em fail if age < 0} to real-world constraints like {\em fail if age < 16 and
 status='married'}. Further, every time a change is made (such as by the imputation system)
 we need to re-check that the new value does not fail checks. For example, an OLS imputation of age
 could easily generate negative age values, so the consistency checks are essential
-for verifying that the imputation process is giving us accurate and useable data points. In addition 
+for verifying that the imputation process is giving us accurate and usable data points. In addition 
 to error checking we can also use consistency checks for other purposes, such as setting 
 {\em structural zeros} for the raking procedure.
 
@@ -456,23 +443,23 @@ checks {
        }
 \end{lstlisting}
 
-In the above example, we've indicated that the consistency checking system should verify that 
+The above example indicated that the consistency checking system should verify that 
 age is not less than 0 and that age is not greater than 95. Notice as well that when specifying 
-that age > 95 we've also included the line 'age = 95' to indicate that when an age data point has 
+that age > 95 we also included the line 'age = 95' to indicate that when an age data point has 
 a value higher than 95 that we should simply top-code it as 95. We haven't included an auto-declaration 
 for age < 0 because if a data-point has a negative age value than it's indicative of a real error rather 
-that should be properly imputed. It is up to you to decide when it is appropriate to utilize the 
+that should be properly imputed. It is up to you to decide when it is appropriate to use the 
 auto-declaration feature.\\
 
-We've now introduced the keys that precede the {\tt impute} key. Up to this point, all of the {\tt keys} 
+Up to this point, all of the keys
 we've discussed have served the purpose of preparing the data in some way to be imputed in the 
 {\tt impute} key. We now describe its functions below.
 
 
 \subsection{Imputation} \label{imputesec}
-The {\tt impute} key is fairly comprehensive and has several sub-keys that fulfill various 
+The {\tt impute} key has several sub-keys that fulfill various 
 roles in the imputation process. Many of the values of these sub-keys are derived from values 
-found earlier in the {\tt spec} file; such as the fact that {\tt categories} is based off of 
+found earlier in the spec file; such as the fact that {\tt categories} is based off of 
 the variables declared in {\tt recodes}. Take a look at the following example of an {\tt impute} key 
 that is used to outline the imputation of the age variable described in the above keys:
 
@@ -500,11 +487,11 @@ As you can see, there is quite a bit going on here. Let's walk through each of t
 above and see what they're doing:
 \begin{itemize}
 \item The {\tt input table} sub-key specifies the name of a view table to 
-where you will write your recode variables. Recall that a view table is a digital SQL table 
+where you will write your recode variables. A view table is a virtual SQL table 
 that takes up very little memory and is very quick to render. In our example, we've indicated 
 that the name of the view table to where our {\tt recode} variables will be written is 
 called `viewdc'. We'll be able to access this view table from \textbf{R} later when we actually 
-compile our {\tt spec} file.\\
+compile our spec file.\\
 \item \ {\tt min group size}\ indicates the minimum number of known data points that can be 
 used to impute any unknown data points. For instance, it wouldn't make much sense to use a single 
 data point to impute five other data points as they would all end up being the same value. To 
@@ -531,16 +518,16 @@ to the model specified in {\tt method}.\\
 More can be found on each of the above keys in the appendix.
 
 \subsection{More features}
-This concludes our walkthrough of a typical {\tt spec} file. By now you should have a basic idea of 
-how a {\tt spec} file is implemented within TEA. Before we continue on to explaining more about imputation, 
-the models available in TEA, and other features that are available within the TEA framework, we will mention 
-four more features of the {\tt spec} file.
+This concludes our walkthrough of a typical spec file. By now you should have a basic idea of 
+how a spec file is implemented within Tea. Before we continue on to explaining more about imputation, 
+the models available in Tea, and other features that are available within the Tea framework, we will mention 
+four more features of the spec file.
 
 % Group recodes paragraph is incomplete and needs to be updated before being published.
 
 \paragraph{Group recodes} The first feature that we'll mention is that of {\tt group recodes}. 
 Often in an imputation model, after declaring your {\tt recodes}, it is also necessary to declare 
-sub-recodes that are function of those earlier recodes. For example, suppose you had a {\tt spec} file 
+sub-recodes that are function of those earlier recodes. For example, suppose you had a spec file 
 in which you intended to impute data points for various members of households. Then to perform imputations 
 on 
 
@@ -558,17 +545,17 @@ recodes {
 }
 
 group recodes {
-    group id column: SERIALNO
+    group id: SERIALNO
     recodes {
-                NP: max(SPORDER)
+        NP: max(SPORDER)
         NHH: sum(RELP='00')
         NSP: sum(RELP='01')
         NUP: sum(RELP='15')
-                HHAGE: max(case RELP when '00' then AGEP end)
-                SPAGE: max(case RELP when '01' then AGEP end)
-                SPORD: max(case RELP when '01' then SPORDER end)
-                HHSEX: cast(round(avg(case RELP when '00' then SEX end)) as integer)
-                SPSEX: cast(round(avg(case RELP when '01' then SEX end)) as integer)
+        HHAGE: max(case RELP when '00' then AGEP end)
+        SPAGE: max(case RELP when '01' then AGEP end)
+        SPORD: max(case RELP when '01' then SPORDER end)
+        HHSEX: cast(round(avg(case RELP when '00' then SEX end)) as integer)
+        SPSEX: cast(round(avg(case RELP when '01' then SEX end)) as integer)
     }
 }
 
@@ -576,15 +563,15 @@ group recodes {
 
 \end{lstlisting}
 
-\paragraph{Including} Up to this point, we've constructed the entire {\tt spec} file in a single file. 
+\paragraph{Including} Up to this point, we've constructed the entire spec file in a single file. 
 Though this approach may 
 be appropriate in some scenarios, it's often the case that you and your colleagues would like to make 
-edits to the same {\tt spec} file and update or contruct it concurrently. To do this, you can simply mark 
+edits to the same spec file and update or construct it concurrently. To do this, you can simply mark 
 subsidiary files to be included in the main spec file. Doing so allows you to easily combine these 
-subsidiary files into one project through which all of TEA's routines will run.
+subsidiary files into one project through which all of Tea's routines will run.
 
-The syntax for including is quite simple. To include a subsidiary file at a certain point in the {\tt spec} 
-file, simply insert the key {\tt include: }\textit{subsidiary\_file\_name} at the line in the {\tt spec} 
+The syntax for including is quite simple. To include a subsidiary file at a certain point in the spec 
+file, simply insert the key {\tt include: }\textit{subsidiary\_file\_name} at the line in the spec 
 file where you would like the contents of the subsidiary file to be inserted. For example, if you have 
 written the consistency checks in a file named {\tt consistency}, and the entire rank swapping 
 configuration was in a file named {\tt swap}, then you could use this parent spec file:
@@ -599,14 +586,14 @@ checks {
 }
 \end{lstlisting}
 
-Note that any subsidiary files that you choose to include in your {\tt spec} file must be in the same 
-directory as the {\tt spec} file or it will not be able to find them.
+Note that any subsidiary files that you choose to include in your spec file must be in the same 
+directory as the spec file or it will not be able to find them.
 
 \paragraph{Flagging for disclosure} For a given crosstab, there may be cells with a small number of 
-people, perhaps only one. This feature of TEA allows us to flag those cells for later handling.
+people, perhaps only one. This feature of Tea allows us to flag those cells for later handling.
 
 Any combination of variables could be a crosstab to be checked, but flagging
-typically focuses on only a few sensetive sets of variables. Here is the section
+typically focuses on only a few sensitive sets of variables. Here is the section
 of the spec file describing the flagging. The {\tt key} list gives the variables
 that will be crossed together. With {\tt combinations: 3}, every set of three
 variables in the list will be tried. The {\tt frequency} variable indicates that
@@ -618,26 +605,26 @@ procedure. The output is currently in a database table named {\em vflags}.
 
 \begin{lstlisting}[language=]
 fingerprint {
-        key{
-                CATAGE
-                SEX
-                PUMA
-                HISPF
-                ESR
-                PWGTP
-        }
-        frequency: 2
-        combinations: 3
+    key{
+        CATAGE
+        SEX
+        PUMA
+        HISPF
+        ESR
+        PWGTP
+    }
+    frequency: 2
+    combinations: 3
 }
 \end{lstlisting}
 
+\comment{ %BK: All of raking is commented out. 
 \paragraph{Raking} Each record in a data set might have several data items which require imputation for
 different reasons:
 \begin{itemize}
 \item a record could have several inconsistent items that we must replace
 \item an otherwise consistent record could have a blank item that we wish to impute.
-\item a record could have a combination of consistent items that could lead to personal identif
-ication
+\item a record could have a combination of consistent items that could lead to personal identification
 \end{itemize}
 Each scenario implies slightly different knowledge about the data, and thus each scenario
 might require a different imputation method to properly use this knowledge.
@@ -658,19 +645,19 @@ The key inputs are the set of fields that are going to appear in the final
 crosstab, and a list of sets of fields whose column totals (and cross-totals)
 must not change.
 
-In the {\tt spec} file, you will see a specification for a three-way crosstab between
+In the spec file, you will see a specification for a three-way crosstab between
 the {\tt PUMA}, {\tt rac1p}, and {\tt catage} variables. All pairwise crosstabs
 must not change, but any other details are free to be changed for the raking.
 
 \begin{lstlisting}[language=]
 raking {
-        all_vars: puma|catage | rac1p
+    all_vars: puma|catage | rac1p
 
-        contrasts{
-                   catage | rac1p
-                         puma | rac1p
-                         puma | catage
-        }
+    contrasts{
+        catage | rac1p
+        puma | rac1p
+        puma | catage
+    }
 }
 \end{lstlisting}
 
@@ -685,18 +672,19 @@ The first is to simply change the spec file and re-run. To do this, you will hav
 > read_spec("demo.spec"); doRaking()    #Hit the up-arrow to call up the previous line.
 \end{lstlisting}
 
-Everything you can put in a {\tt spec} file you can put on the command line. The help system
-will give you the list of inputs (which will also help with writing a {\tt spec} file), and you
+Everything you can put in a spec file you can put on the command line. The help system
+will give you the list of inputs (which will also help with writing a spec file), and you
 can use those to tweak settings on the command line:
 \begin{lstlisting}[language=]
 > ?doRaking                   #What settings are available?
 > doRaking(max_iterations=2)  #What happens when the algorithm doesn't have time to
 > converge?
 \end{lstlisting}
+} %end commented-out raking section.
 
 
-This concludes our discussion of the {\tt spec} file layout and syntax. At this point, you should be 
-able to implement a basic {\tt spec} file to impute any data set. More information about the keys 
+This concludes our discussion of the spec file layout and syntax. At this point, you should be 
+able to implement a basic spec file to impute any data set. More information about the keys 
 discussed above and others that were not present in {\tt demo.spec} can be found in the appendix and 
 at the r-forge website.
 
@@ -709,11 +697,11 @@ or initially had no values. For the case of editing, the replacements would be f
 consistency checks; for the case of basic imputation, the replacements would be for elements that
 initially had no values. Recall that as we stipulated earlier in the tutorial, for our purposes we 
 consider a looser definition of imputation that includes the replacement of data points that both 
-intially had no value as well as those that fail consistency checks.
+initially had no value as well as those that fail consistency checks.
 
 In a similar vein, while single imputation gives us a single list of replacement values, any stochastic 
 imputation method could be repeated to produce multiple lists of replacement values. For instance, 
-we could utilize multiple imputation to calculate the variance of a given statistic, such as average 
+we could use multiple imputation to calculate the variance of a given statistic, such as average 
 income for a subgroup, as the sum of within-imputation variance and across-imputation variance.
 
 To give a concrete example, consider a randomized hot deck routine, where missing values are
@@ -762,8 +750,8 @@ This is true: people younger than 15 years of age cannot be married!  Thus in th
 system, any missing value of marital status in U1 can be set to ``never married'',
 and missing values in U2 can be allocated via the ACS hot-deck imputation system.
 
-Now that we are more familar with universes, we can discuss the various models that are 
-available in TEA and the methodology of choosing the one that is appropriate for the 
+Now that we are more familiar with universes, we can discuss the various models that are 
+available in Tea and the method of choosing the one that is appropriate for the 
 imputation being performed.
 
 
@@ -818,10 +806,10 @@ schemes and structured tests of the relative merits of each. Though different su
 are likely to use different models for step (2) of the above process, the
 remainder of the overall routine would not need to be rewritten across surveys.
 
-We now discuss each of the models that are available in TEA.
+We now discuss each of the models that are available in Tea.
 
 \comment{DV: We need to add rel to this list.}
-\subsection{Models of TEA} This section describes the models available for use in imputing
+\subsection{Models of Tea} This section describes the models available for use in imputing
 missing data.
 
 \paragraph{Hot deck} This is randomized hot deck. Missing values are filled in by
@@ -838,7 +826,6 @@ impute{
     min group size: 3
     draw count: 5
     id: serialno
-                                                                             905,1         76%
    categories {
         agecat
         sex
@@ -858,8 +845,7 @@ impute{
         sex
     }
     method: ols
-                                                                             923,1         78%
-utput vars: agep
+    output vars: agep
     input vars: rac1p, nativity||sex
 }
 \end{lstlisting}
@@ -872,6 +858,7 @@ used in the regression are not missing. For a point where $y$ is missing but $(x
 The variables may be specified via the usual SQL, with two exceptions to accommodate the
 fact that so many survey variables are categorical.
 
+\comment{%BK: Not sure how much of this still works.
 Unless otherwise noted, all dependent variables are taken to be categorical, and so are expanded to
 a set of dummies. The first category is taken to be the numeraire, and others are broken
 down into dummy variables that each have a separate term in the regression. The
@@ -885,7 +872,7 @@ An {\em interaction} term is the product of the variables, where for catgories {
 product} means the smaller subsets generated by the cross of the two variables, such as
 a sex-age cross of $(M, 0--18), (F, 0--18), (M, 18--35), (F, 18--35)$; for continuous
 variables {\em product} has its typical meaning.
-
+}
 
 \comment{
 Because every dependent variable must be complete for the regression to calculate the
@@ -930,7 +917,7 @@ in the category. Then fill in the missing data via random draws from the Normal
 distribution with the calculated parameters. You may use either {\tt method: normal} or
 {\tt method: gaussian}.
 
-For other situations, other distributions may be peferable. For example, income is
+For other situations, other distributions may be preferable. For example, income is
 typically modeled via {\tt method: lognormal}. Count data may best be modeled via {\tt
 method: poisson}.
 
@@ -1062,7 +1049,7 @@ is not a direct observation.
 	to be cleaned up. I got rid of the \listing{ ... } tags below that were around the 
 	\lstlisting{...} tags because they weren't getting compiled correctly but if you 
 	want to put them in the old code that originally had them can be found in 
-	/tea/doc/archived_tutorial_documents/tutorial.tex}
+	/Tea/doc/archived_tutorial_documents/tutorial.tex}
         \paragraph{Interface} Figure \ref{sippconfig} shows a (slightly abbreviated)
         configuration file describing the hot deck process for a variable in the SIPP.
         It is intended to be reasonably readable, and maintainable by an analyst who is
@@ -1093,8 +1080,7 @@ is not a direct observation.
      \paragraph{Edits} The system as written includes a component that checks consistency
         against a sequence of edits. In line three of the sample spec file of Figure
         \ref{sippconfig}, the {\tt flagearn} variable is declared to have possible values of 0,
-        1, 3, or 4, but line four specifies that if an imputation returns 4, then it is rejecte
-d.
+        1, 3, or 4, but line four specifies that if an imputation returns 4, then it is rejected.
         The imputation routine sketched above does not need to include any edit rules, because
         this edit step will take those into account; the separation of edits and imputations
         simplifies the routine.
@@ -1149,33 +1135,33 @@ d.
 
 \section{Interactive R}
 The specification file described to this point does nothing by itself, but provides
-information to procedures written in \textbf{R} that do the work. In fact, TEA is simply 
-called as a library in \textbf{R}, and the {\tt spec} file itself is instantiated by 
+information to procedures written in \textbf{R} that do the work. In fact, Tea is simply 
+called as a library in \textbf{R}, and the spec file itself is instantiated by 
 issuing commands from the \textbf{R} command prompt described below.
 
-\subsection{Loading TEA in R}
+\subsection{Loading Tea in R}
 When you start \textbf{R} (from the directory where the data is located), you are left at a
-simple command prompt, >, waiting for your input. TEA extends \textbf{R} via a library of
+simple command prompt, $>$, waiting for your input. Tea extends \textbf{R} via a library of
 functions for survey processing, but you will first need to load the library, with:
 \begin{lstlisting}[language=]
-> library(tea)
+> library(Tea)
 \end{lstlisting}
 
 [You can cut crimson-bordered code blocks and paste them directly onto the \textbf{R}
 command line, while blue-bordered blocks are spec file samples and
 would be meaningless typed out at the \textbf{R} command prompt.]
 
-Now you have all of the usual commands from \textbf{R}, plus those from TEA. You only
+Now you have all of the usual commands from \textbf{R}, plus those from Tea. You only
 need to load the library once per \textbf{R} session, but it's harmless if you run
-{\tt library(tea)} several times.
+{\tt library(Tea)} several times.
 
 After loading the library by running {\tt > library(tea)}, you would then need to 
-tell \textbf{R} to read your {\tt spec} file, perform the checks, perform the imputations, 
+tell \textbf{R} to read your spec file, perform the checks, perform the imputations, 
 and then finally check out the imputations to an \textbf{R} data structure so that you 
 can view them. Observe the following code:
 
 \begin{lstlisting}[language=]
-> library(tea)
+> library(Tea)
 > read_spec("spec")
 > doChecks()
 > doMImpute()
@@ -1184,10 +1170,10 @@ can view them. Observe the following code:
 
 These commands could be entered in a script file as easily as they're entered on R's command line.
 You always have the option of creating a {\tt .R} file that has each of the above commands listed 
-sequentually. Observe the following example of a {\tt .R} file:
+sequentially. Observe the following example of a {\tt .R} file:
 
 \begin{lstlisting}[language=]
-library(tea)
+library(Tea)
 library(ggplot2)
 readSpec("demo.spec")
 doChecks()
@@ -1209,7 +1195,7 @@ each command separately on the command line, entering the commands separately ca
 verifying the results of the consistency-checking step, verifying the results of the imputation, 
 et cetera.\\
 
-In either case, once your {\tt spec} file has been correctly implemented, your data will be 
+In either case, once your spec file has been correctly implemented, your data will be 
 imputed and available for viewing through an \textbf{R} data-frame.
 We examine how this is done in the next subsection.
 
@@ -1221,12 +1207,12 @@ view, but are not to be considered permanent. Database tables can be as large as
 the disk drive can hold; \textbf{R} data frames are held in memory and can clog up memory if
 they are especially large.
 
-You can use TEA's {\tt show\_db\_table} function to pull a part of a database table into
+You can use Tea's {\tt show\_db\_table} function to pull a part of a database table into
 an \textbf{R} data frame. You probably don't want to see the whole table, so there are
 various options to limit what you get. Some examples:
 \begin{lstlisting}[language=]
-> teaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
-> teaTable("dc", cols="AGEP, PUMA", limit=30, offset=100)
+> TeaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
+> TeaTable("dc", cols="AGEP, PUMA", limit=30, offset=100)
 \end{lstlisting}
 
 The first example pulls two columns, but only where {\tt PUMA=104}. The second
@@ -1237,11 +1223,11 @@ is not relevant or representative of the data need to analyze.
 
 There are, of course many more options than those listed here. If you'd like to see what other tools are available in manipulating \textbf{R} data, you can get them via \textbf{R}'s help system as such:
 \begin{lstlisting}[language=]
-> ?teaTable
+> ?TeaTable
 \end{lstlisting}
 
-This {\tt ?name} form should give you a help page for any function, including TEA
-functions like {\tt ?doRaking} or {\tt ?doMImpute}. (Yes, TEA function documentation is still a
+This {\tt ?name} form should give you a help page for any function, including Tea
+functions like {\tt ?doRaking} or {\tt ?doMImpute}. (Yes, Tea function documentation is still a
 little hit-and-miss.) Depending on R's setup, this may start a paging program that lets 
 you use the arrow keys and page up/page down keys to read what could be a long document. 
 Quit the pager with {\tt q}.
@@ -1252,7 +1238,7 @@ save the frame and give it a name. \textbf{R} does assignment via {\tt $<$-}, so
 with:
 
 \begin{lstlisting}[language=]
-> p104 <- teaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
+> p104 <- TeaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
 \end{lstlisting}
 
 To display the data frame as is, just give its name at the command line.
@@ -1289,7 +1275,7 @@ imputation step, et cetera.
 \section{Conclusion}
 This concludes our tutorial. If you have any questions or comments please feel free to contact 
 us at xxxxxxxxx@email.gov. Also, check out the R-Forge Website at 
-\url{https://r-forge.r-project.org/projects/tea/} for updates to both the TEA software as well 
+\url{https://r-forge.r-project.org/projects/Tea/} for updates to both the Tea software as well 
 as this tutorial document.
 
 \section*{Appendix: keys}
@@ -1318,5 +1304,5 @@ Here are the keys, in alphabetical order.
 
 %\bibliographystyle{harvard}
 %\bibliographystyle{plainnat}
-%\bibliography{tea}
+%\bibliography{Tea}
 \end{document}

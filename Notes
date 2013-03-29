@@ -27,4 +27,4 @@ A possibly overwhelming quantity of details about the state of the package (i.e.
 
 A good test includes assertions that will halt on failure. You can  produce a {yourtest}.Rout.save file, and the build system will then check the test output with that file for differences, but (1) this is chintzy because it just guarantees that the install machine made the same errors the package-generating machine had made, and (2) the R build system doesn't halt if there are differences, but just records a warning. 
 
---We have a demo. It may or may not be running right now. However, it certainly won't run via the demo() function in R.
+--We have a demo. If it isn't running right now, let us know. However, it certainly won't run via the demo() function in R.

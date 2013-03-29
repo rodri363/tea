@@ -1,0 +1,175 @@
+digraph {
+
+	/* Starting with input key */
+	input [shape=box, style=filled, color=purple];
+	node [fontsize=10];
+	edge [fontsize=8];
+	database;
+	id;
+	input -> input_file [color=purple];
+	input_file [label="input file"];
+	input -> overwrite [color=purple];
+	overwrite [shape=diamond];
+	overwrite -> yes;
+	overwrite -> no;
+	
+	yes -> input_file [label="If overwrite\nis yes..."];
+	input_file -> database [color=lightblue, style=dashed, label="Then write new\ncsv file to database"];
+
+	input -> output_table [color=purple];
+	input -> types [color=purple];
+	output_table [label="output table"];
+	
+	types -> output_variable_1 [label="Variables to\nimpute"];
+	types -> output_variable_2;
+
+	output_variable_1 [label="Out Var 1"];
+	output_variable_2 [label="Out Var 2"];
+
+
+	/* Fields */
+	fields [shape=box, style=filled, color=purple, fontsize=14];
+	fields -> edit_var1 [color=purple];
+	fields -> edit_var2 [color=purple];
+	fields -> edit_var3 [color=purple];
+	
+	//Database points to fields with bold red line
+	database -> fields [label="Specify what\nfields to use\nfrom database", style=bold, color=red];
+	
+	edit_var1 [label="Var1: type range"];
+	edit_var2 [label="Var2: type range"];
+	edit_var3 [label="Var3: type range"];
+
+	//edit_varx points to impute
+	edit_var1 -> impute [label="Send fields to\nbe imputed", style=bold, color=red];
+	edit_var2 -> impute [style=bold, color=red];
+	edit_var3 -> impute [style=bold, color=red];
+	
+
+	id -> fields [label="Unique identifier\nfor rows\nof database"];
+
+	/* Recodes */	
+	recodes [fontsize=14, style=filled, color=purple, shape=box];
+	recodes -> recode1 [color=purple];
+	recodes -> recode2 [color=purple];
+
+	recode1 [label="recode 1"];
+	recode2 [label="recode 2"];
+
+	recode1 -> parameter1;
+	recode2 -> parameter2;
+
+	parameter1 [label="Parameter 1\nParameter 2", fontsize = 8];
+	parameter2 [label="Parameter 1\nParameter 2\nParameter 3", fontsize = 8];
+
+	
+	/* Checks */
+	checks [fontsize=14, style=filled, color=purple, shape=box];
+
+	checks -> checks_var_1 [color=purple];
+	checks -> checks_var_2 [color=purple];
+	checks -> checks_var_3 [color=purple];
+
+	checks_var_1 [label = "Var1\nCheck Parameters"];	
+	checks_var_2 [label = "Var2\nCheck Parameters"];	
+	checks_var_3 [label = "Var3\nCheck Parameters"];	
+
+	/* Impute */
+	impute [fontsize=14, style=filled, color=purple, shape=box];		
+
+	/* We will have the recode variables point to input_table
+	 * with dashed edges to indicate that they get written 
+	 * to the view table during impute.
+	 */
+	impute -> input_table [color=purple];
+	input_table [label="input table"];	
+
+	impute -> min_group_size [color=purple];
+	min_group_size [label="min group size"];
+	
+	impute -> draw_count [color=purple];
+	draw_count [label="draw count"];
+	
+	impute -> seed [color=purple];
+
+	impute -> categories [color=purple]; 
+
+	/* Should we consider making large node that lists 
+	 * all models available and is pointed to by method?
+	 */
+	impute -> method [color=purple];
+
+	/* We will have output_vars point to parameter1 and 
+	 * parameter2 with a dashed line and then have both 
+	 * parameter1 and parameter2 point back to output 
+	 * vars with a dashed line to indicate that output vars
+	 * gets imputed by categories specified in recodes and 
+	 * that the resulting imputations then get sent back to 
+	 * output vars which is then written to dc.
+	 */
+	impute -> output_vars [color=purple];
+	impute -> output_vars [label="Write fields\nto output vars\nfor imputation", style=bold, color=red];
+	output_vars [label="output vars"];
+	
+	output_vars -> categories [label="(1) Sort output vars\nby categories", style=bold, color=red];
+
+	categories -> recode1 [label="(2) output vars\nsorted into\nspecified recodes", color=red, style=bold];
+	categories -> recode2 [color=red, style=bold];
+
+	parameter1 -> input_table [color=red, style=bold]; 
+	parameter2 -> input_table [color=red, style=bold];
+	input_table -> method [label="(3) After categorization\nsend input vars\nto method", style=bold, color=red];
+
+	method -> output_vars [label="(4) impute data and\n send results back\nto output vars", style=bold, color=red];
+	output_vars -> check_diamond [label="(5) Perform edit checks\non imputed data", style=bold, color=red];
+
+	checks_var_1 -> check_diamond [label = "Check parameters\nused in\nedit checks", style=dotted, color=blue];
+	checks_var_2 -> check_diamond [style=dotted, color=blue];
+	checks_var_3 -> check_diamond [style=dotted, color=blue];
+
+	check_diamond [label = "Pass checks?", shape=diamond];
+
+	check_diamond -> output_vars [label="(6) If output_vars\nfails checks\nrepeat imputation", style=dashed, color=red];
+
+	check_diamond -> database [label="If output vars\npasses checks \nalso write to database", style=dashed, color=lightblue];
+	check_diamond -> output_table [label="(7) If output_vars\npasses checks\nwrite to output_table", style=bold, color=red];
+
+
+	/* Finally, database values get sent to output table and output table gets sent to R */
+	output_table -> R [label="Write imputed\ndata into\nR data frame", color=red, style=bold];
+
+
+	/* Legends that indicates the meaning of the colors 
+	 * and edge styles used in the graph by means of
+	 * labeling/styling/coloring edges between invisible
+	 * nodes (except diamond which illustrates conditional node).
+	 */
+	subgraph legend	{ rank = sink;
+
+		conditional_diamond [shape=diamond, label="Conditional step\nin data flow"];
+
+		node [style=invisible]; //Makes all subsequent nodes invisible unless specified
+		red_bold1 -> red_bold2 [style=bold, color=red, label="Illustrates general\nflow of\nspec file"];
+
+		red_dash1 -> red_dash2 [style=dashed, color=red, label="Illustrates possible\ndiversion of\nflow in file"];	
+
+		lightblue_dash1 -> lightblue_dash2 [style=dashed, color=lightblue, label="Illustrates when a\ndatabase or table\nis written to"];	
+		
+
+		darkblue_dot1 -> darkblue_dot2 [style=dotted, color=blue, label="Indicates key whose\ndata values are\nused as inputs\n to another key"];
+		
+		purple1 -> purple2 [color=purple, label="Indicates a\nparent key -> sub key\nrelationship"];
+
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
