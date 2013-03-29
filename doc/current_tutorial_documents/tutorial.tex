@@ -31,7 +31,8 @@
 \def\Xuv{\underbar{\bf X}}
 
 %code listing:
-\lstset{columns=fullflexible, basicstyle=\small, emph={size_t,apop_data,apop_model,gsl_vector,gsl_matrix,gsl_rng,FILE},emphstyle=\bfseries}
+\lstset{columns=fullflexible, basicstyle=\small,
+    emph={size\_t,apop\_data,apop\_model,gsl\_vector,gsl\_matrix,gsl\_rng,FILE},emphstyle=\bfseries}
 \def\setlistdefaults{\lstset{ showstringspaces=false,%
  basicstyle=\small, language=C, breaklines=true,caption=,label=%
 ,xleftmargin=.34cm,%
@@ -55,8 +56,6 @@
 \usepackage{epsfig}
 \usepackage{latexsym}
 \usepackage{setspace}
-\usepackage{graphicx}
-\usepackage{graphvizzz}
 \usepackage{verbatim}
 
 
@@ -180,10 +179,10 @@ the environment and underlying systems in which Tea runs to gain a better unders
 of the processes taking place in the spec file.
 
 \subsection{Environment and underlying systems}
-Tea is based on three systems: C, R, and SQL.\comment{\footnote{C is the successor to B, which
+Tea is based on three systems: C, R, and SQL.\footnote{C is the successor to B, which
 was the successor to BCPL: basic combined programming language. R, a successor to S,
 is named after its authors, Robert Gentleman and Ross Ihaka. SQL stands for structured
-query language.}} Each provides facilities that complement the others:
+query language.} Each provides facilities that complement the others:
 
 {\bf SQL} is designed around making fast queries from databases, such as finding all
 observations within a given age range and income band. Any time we need a subset of the
@@ -216,20 +215,23 @@ work will be in C. The user is not expected to know any C at all, because \textb
 are provided that do the work of running the underlying C-based procedures.
 
 Now that we have a better idea of the environments in which Tea is run, let's take a look  
-at an example of a full spec file: {\tt demo.spec}:
+at an example of a full {\tt spec} file: {\tt demo.spec}:
 
+%\comment{DV: Taking this out for now until we get all the other syntax settled.
 
-\begin{figure}
-\lstset{columns=fullflexible}
-\lstinputlisting{../../demo/demo.spec}
-\caption{A sample spec file that imputes an AGEP variable using WAGP, SEX, 
-and the {\tt hot deck} and {\tt ols} imputation models. The contents of this spec 
-file are explained below}
-\end{figure}
+%\begin{figure}
+%\lstset{columns=fullflexible}
+%\lstinputlisting{../../demo/demo.spec}
+%\caption{A sample spec file that imputes an AGEP variable using WAGP, SEX, 
+%and the {\tt hot deck} and {\tt ols} imputation models. The contents of this spec 
+%file are explained below}
+%\end{figure}
 
-The configuration system (spec file) is a major part of the user interface with Tea. As is evident 
-from {\tt demo.spec}, there are many components of the spec file that all perform certain functions. 
-We begin by explaining the concept of \textit{keys}.
+%}
+
+The configuration system ({\tt spec} file) is a major part of the user interface with Tea. 
+As is evident from {\tt demo.spec}, there are many components of the spec file that all 
+perform certain functions. We begin by explaining the concept of \textit{keys}.
 
 \subsection{Keys}
 Everything in the spec file is a key/value pair (or, as may be more familiar to 
@@ -329,15 +331,11 @@ write the data that is read in from the {\tt csv} file.
 into the output table.
 \end{enumerate}
 
-A visual layout of the {\tt keys} file is shown below. If this all seems confusing, do not fret. The layout of the {\tt spec} file will make more sense as we continue to explain its various features. Again, 
-  more information about these keys can be found in the appendix.\\
+A visual layout of the {\tt keys} file is shown below. If this all seems confusing, do not fret. The layout of the {\tt spec} file will make more sense as we continue to explain its various features. Again, more information about these keys can be found in the appendix.\\
 
-  \digraph
-  [scale=1.0]{input key}
-{
-
-    \verbatiminput{dotInput}
-}
+\begin{center}
+\includegraphics[scale=.5]{dotInput.png}
+\end{center}
 
 We now discuss the {\tt fields} key in more detail.
 
@@ -375,13 +373,13 @@ that if you declare the incorrect type for a field that the edit-checking system
 verify the values of that field in your data set.
 
 As a final note, we warn the user against creating fields with an overly large range of integer 
-values. For a field with a range of possible integer values, the edit-checking system will verify 
-that each data point falls into one of the possible values specified in the range. Though
+values. For a field with a range of possible integer values, the edit-checking system will
+verify that each data point falls into one of the possible values specified in the range. Though
 this is easily doable for smaller ranges such as 0-100 or even 0-1000, it becomes
 extremely time consuming for larger ranges such as 0-600000. Instead, we recommend
 assigning a field with a large range as a real variable.
 
-{\comment BK: Did we delete this feature?}
+% BK: Did we delete this feature?
 
 \paragraph{Auto-detect} If your field list consists of a single star, {\tt *} (the wild-card character 
 in SQL that represents all possible inputs), then the data set will be queried for the list of values 
@@ -391,6 +389,12 @@ in your input data set.
 In any case, using {\tt *} may be useful when quickly assembling a first draft of a spec, but we recommend
 giving an explicit set of values for production. You may precede the {\tt *}
 with a type designation, like {\tt age: real *}.\\
+
+Here is a visual representation of the {\tt fields} key:
+
+\begin{center}
+\includegraphics[scale=.5]{dotFields.png}
+\end{center}
 
 As you know, it is often necessary to impute data points in separate categories given 
 the distribution of the data. For this, we use the {\tt recodes} key.
@@ -419,6 +423,11 @@ impute will be imputed in categories based on their recode values rather than co
 as a single set of data points. The {\tt recodes} key is fairly straightforward, although we 
 will learn about some of its more advanced features later. For now, however, we continue 
 our walkthrough of the spec file by discussing the {\tt checks} key.
+
+Here is a visual representation of the {\tt recodes} key:
+\begin{center}
+\includegraphics[scale=.5]{dotRecodes.png}
+\end{center}
 
 \subsection{Checks}
 The consistency-checking system is rather complex. Ironically, this complexity is what 
@@ -450,6 +459,11 @@ a value higher than 95 that we should simply top-code it as 95. We haven't inclu
 for age < 0 because if a data-point has a negative age value than it's indicative of a real error rather 
 that should be properly imputed. It is up to you to decide when it is appropriate to use the 
 auto-declaration feature.\\
+
+Here is a visual representation of the {\tt checks} key and all of its subkeys:
+\begin{center}
+\includegraphics[scale=.5]{dotChecks.png}
+\end{center}
 
 Up to this point, all of the keys
 we've discussed have served the purpose of preparing the data in some way to be imputed in the 
@@ -515,6 +529,12 @@ in the tutorial.\\
 you could consider {\tt output vars} as both the `input' variable as well as the 'output' variable 
 to the model specified in {\tt method}.\\
 \end{itemize}
+
+Here is a visual representation of the {\tt impute} key and all of its sub-keys:
+\begin{center}
+\includegraphics[scale=.5]{dotImpute.png}
+\end{center}
+
 More can be found on each of the above keys in the appendix.
 
 \subsection{More features}
