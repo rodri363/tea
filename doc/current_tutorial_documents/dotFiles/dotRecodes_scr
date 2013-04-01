@@ -1,8 +1,3 @@
-
-    /* Recodes */
-digraph {
-
-    node [shape=Mrecord];
     recodes [color=purple, label="{<recodes>recodes|<recode1>recode 1|<recode2>recode
 2|<dots>...|<recode_n>recode n}"];
 
@@ -32,5 +27,3 @@ recode\nparameters from\nrecodes key"];
     "checks":<var1> -> "var_1_checks":<var_header> [style = dotted, color = blue,
 label="Check paramters\nfor variables\nin types key"];
     "checks":<var2> -> "var_2_checks":<var_header> [style = dotted, color = blue];
-
-}

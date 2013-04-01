@@ -1,0 +1,13 @@
+     /* Checks */
+    checks [color=purple, label="{<checks>checks|<var1>Var 1\nChecks|<var2>Var
+2\nChecks|<dots>...|<var_n>Var n\nChecks}"];
+
+
+    var_1_checks [label="{<var_header>Var 1\nChecks|<param1>Parameter 1|<param2>Parameter
+2|<dots>...|<param_n>Parameter n}"];
+    var_2_checks [label="{<var_header>Var 2\nChecks|<param1>Parameter 1|<param2>Parameter
+2|<dots>...|<param_n>Parameter n}"];
+
+    "checks":<var1> -> "var_1_checks":<var_header> [style = dotted, color = blue,
+label="Check paramters\nfor variables\nin types key"];
+    "checks":<var2> -> "var_2_checks":<var_header> [style = dotted, color = blue];
