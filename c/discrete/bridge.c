@@ -23,7 +23,7 @@ FILE *yyin;
 int total_var_ct, *optionct;
 char *database;
 apop_data *settings_table, *ud_queries;
-
+int Max_ham_distance = 2;
 
 /* The implicit edit code has been removed---it never worked. The last edition that had it was 
 git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
@@ -440,6 +440,7 @@ void read_spec(char **infile, char **dbname_out){
     pass=0;
     begin_transaction();
     yyparse();  //fill keys table
+    check_hamming_distances();
     do_recodes();
 
      //Generating indices for ID
@@ -509,4 +510,84 @@ char get_coltype(char const* depvar){
             return type;
         }
     return '\0';
+}
+
+/** Function gets a list of all of the possible expected keys in the spec file and 
+  * calls hamming_distance to find the hamming distance for each of the keys in 
+  * userkeys in comparison with the list of acceptable keys. 
+  * If hamming_distance > 0 && < 3 then we alert user that they might have meant to 
+  * put in the correct key using Apop_stopif
+  */
+
+int check_hamming_distances(){
+    char * ok_keys[] = {"raking/thread count", "input/primary key", "group recodes/recodes", "raking/tolerance", "input/types", "id", "rankSwap/max change","raking/all vars", "impute/draw count", "rankSwap/seed","impute/earlier output table", "impute/input table", "impute/output table", "impute/seed","raking/contrasts", "input/indices", "rankSwap/swap range", "raking/count col", "input/input file", "recodes", "raking/input table", "input/missing marker", "timeout", "raking/max iterations", "input/output table","database", "raking/run number", "input/overwrite", "group recodes","raking/structural zeros", "input/primary key", "group recodes/group id", ""};
+    apop_data *userkeys = apop_query_to_text("select key from keys");
+        for (int i=0; i < *userkeys->textsize; i++){
+            for (char **keyptr=ok_keys; strlen(*keyptr); keyptr++){
+                int hd= hamming_distance(*keyptr, *userkeys->text[i]);
+                Apop_stopif(hd > 0 && hd <= Max_ham_distance, , 0, "%s and %s are TOO CLOSE, dude!", *keyptr, *userkeys->text[i])
+            }
+        }
+    return 0;
+}
+
+/** Computes hamming distance between two input strings. Used to check whether 
+ *  author of spec file possibly made a typo when typing out an accepted key
+ *  by checking whether a user's key is within Min_ham_distance of an accepted 
+ *  key.
+ *
+ *  If num_differences == 0 || num_differences > Max_ham_distance then Apop_stopif 
+ *  won't get executed above in check_hamming_distances. Otherwise, if the keys have at most
+ *  Min_hamming_distance differences then it will.
+ */
+int hamming_distance(char *ok_key, char *user_key){
+    int size_ok_key = strlen(ok_key);
+    int size_user_key = strlen(user_key);
+    int string_distance = fabs(size_ok_key - size_user_key);
+
+    /* If distance < Max_ham_distance then don't bother with the rest 
+     * of the function
+     */
+    if(string_distance > Max_ham_distance) return (Max_ham_distance + 1);
+    
+    int size_smaller_string = size_ok_key <= size_user_key ? size_ok_key : size_user_key;
+    int ok_string_larger = size_ok_key > size_user_key ? 1 : 0;
+
+    int num_differences = 0;
+
+
+    /* Iterate through loop for length of smaller string number of times and 
+     * compare both keys at each index. If num differences ever becomes >
+     * Max_ham_distance just exit loop and return (Max_ham_distance + 1).
+     */
+
+    for(int index = 0; index < size_smaller_string; index++){
+    /* Checks whether string is off by an index of at most Max_ham_distance. If so, user_key is 
+     * shifted by the appropriate amount before the main for loop is re-entered.
+     */
+    
+    if(string_distance > 0){
+        if(ok_string_larger){
+            while(*ok_key != *user_key){
+                ok_key++;
+                num_differences++;
+                if(num_differences > Max_ham_distance) return (Max_ham_distance + 1);
+            }
+        } else {
+            while(*ok_key != *user_key){
+                user_key++;
+                num_differences++;
+                if(num_differences > Max_ham_distance) return (Max_ham_distance + 1);
+        }
+
+    if(*ok_key != *user_key) num_differences++;
+    ok_key++;
+    user_key++;
+
+    if(num_differences > Max_ham_distance) return (Max_ham_distance + 1);
+    //Same reason as above
+    } 
+
+    return 0;
+    }
 }
