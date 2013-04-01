@@ -8,7 +8,7 @@
 -- DV
 }
 
-\usepackage{moreverb, epsfig,calc,amsfonts,natbib,url,xspace,listings,ifthen}
+\usepackage{moreverb, epsfig,calc,amsfonts,natbib,url,xspace,listings,ifthen, float}
 \newif\ifimputation
 \imputationfalse
 
@@ -333,9 +333,12 @@ into the output table.
 
 A visual layout of the {\tt keys} file is shown below. If this all seems confusing, do not fret. The layout of the {\tt spec} file will make more sense as we continue to explain its various features. Again, more information about these keys can be found in the appendix.\\
 
+\begin{figure}[H]
 \begin{center}
 \includegraphics[scale=.5]{dotInput.png}
+\caption{input \{ $\ldots$ \} flow chart}\label{afigure}
 \end{center}
+\end{figure}
 
 We now discuss the {\tt fields} key in more detail.
 
@@ -392,9 +395,12 @@ with a type designation, like {\tt age: real *}.\\
 
 Here is a visual representation of the {\tt fields} key:
 
+\begin{figure}[H]
 \begin{center}
 \includegraphics[scale=.5]{dotFields.png}
+\caption{fields \{ $\ldots$ \} key flow chart}\label{afigure}
 \end{center}
+\end{figure}
 
 As you know, it is often necessary to impute data points in separate categories given 
 the distribution of the data. For this, we use the {\tt recodes} key.
@@ -426,9 +432,12 @@ our walkthrough of the spec file by discussing the {\tt checks} key.
 
 Here is a visual representation of the {\tt recodes} key:
 
+\begin{figure}[H]
 \begin{center}
 \includegraphics[scale=.5]{dotRecodes.png}
+\caption{records \{ $\ldots$ \} flow chart}\label{afigure}
 \end{center}
+\end{figure}
 
 \subsection{Checks}
 The consistency-checking system is rather complex. Ironically, this complexity is what 
@@ -463,9 +472,12 @@ auto-declaration feature.\\
 
 Here is a visual representation of the {\tt checks} key and all of its subkeys:
 
+\begin{figure}[H]
 \begin{center}
 \includegraphics[scale=.5]{dotChecks.png}
+\caption{checks \{ ... \} key flow chart}
 \end{center}
+\end{figure}
 
 Up to this point, all of the keys
 we've discussed have served the purpose of preparing the data in some way to be imputed in the 
@@ -534,9 +546,12 @@ to the model specified in {\tt method}.\\
 
 Here is a visual representation of the {\tt impute} key and all of its sub-keys:
 
+\begin{figure}[H]
 \begin{center}
 \includegraphics[scale=.5]{dotImpute.png}
+\caption{impute \{ ... \} key flow chart.}\label{afigure}
 \end{center}
+\end{figure}
 
 More can be found on each of the above keys in the appendix.
 
