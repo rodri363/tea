@@ -7,7 +7,7 @@ apop_data *make_type_table(){
     //apop_data *types = get_key_text("input", "types");
     apop_data *types = apop_text_alloc(NULL, 1, 2);
     for (int i=0; used_vars && used_vars[i].name; i++){
-        apop_text_alloc(types, types->textsize[0]+1, types->textsize[1]);
+        apop_text_alloc(types, types->textsize[0]+1, 2);
         apop_text_add(types, types->textsize[0]-2, 0, used_vars[i].name);
         apop_text_add(types, types->textsize[0]-2, 1, 
         used_vars[i].type=='r' || used_vars[i].type=='i' ? "numeric" : "text");
@@ -41,6 +41,10 @@ void generate_indices(char const *tag){
         }
 }
 
+/* \key{join/host} The main data set to be merged with.
+\key{join/add} The set to be merged in to join/host.  Both data sets need to have a
+field with the id you gave at the top of the spec file.
+*/
 int join_tables(){
     char *jointo = get_key_word("join", "host");
     if (!jointo) return 0;
@@ -57,13 +61,11 @@ int join_tables(){
                 thistab, thistab, idcol,
                 jointo, jointo, idcol);
     return apop_query("create table tea_temptab as select * from "
-               "%s, %s "
-               "where %s.%s = %s.%s; \n"
+               "%s, %s join on %s;\n"
                "drop table %s;\n"
                "create table %s as select * from tea_temptab;\n"
                "drop table tea_temptab;",
-                thistab, jointo,
-                jointo, idcol, thistab, idcol,
+                thistab, jointo, idcol,
                 jointo,
                 jointo);
 }

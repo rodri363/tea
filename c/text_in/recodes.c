@@ -13,7 +13,7 @@ extern int file_read;
 or it could be
     age/2. + 7
 */
-char *one_recode_to_string(apop_data const *recode_list, int *is_formula, int *has_else, int doedits){
+static char *one_recode_to_string(apop_data const *recode_list, int *is_formula, int *has_else, int doedits){
     char *clauses=NULL;
     for (int j=0; j < *recode_list->textsize; j++){
         apop_data *one_rc = NULL;
@@ -102,7 +102,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
     apop_data_free(editcheck);
 }
 
-void get_in_out_tabs(char const *first_or_last, char **intab, char **out_name){
+static void get_in_out_tabs(char const *first_or_last, char **intab, char **out_name){
     //Names are a pain: the first input should be the intab,
     //the last output should be view[intab]
     //but in the middle, we may chain an arbitrary number of views together,
@@ -163,7 +163,7 @@ int set_up_triggers(char const * intab){
 }
 
 //Are there any recode keys for us to run?
-bool test_for_recodes(char const *tag){
+static bool test_for_recodes(char const *tag){
     char *q = strdup("select distinct key from keys where "
             " (key like 'recodes%' or key like 'group recodes%')");
     if (*tag) asprintf(&q, "%s and tag like '%%%s%%'", q, tag);
@@ -190,7 +190,7 @@ the read-in now.
 
 Returns 0 on OK, 1 on error.
 */
-int make_recode_view(char **tag, char **first_or_last){
+static int make_recode_view(char **tag, char **first_or_last){
     Apop_stopif(!*first_or_last, return -1, 0, "first_or_last not set. Should never happen.");
     //first_or_last may be "first", "last", "both", or "middle"
     if (tag && !test_for_recodes(*tag)) return 0;
@@ -227,4 +227,33 @@ int make_recode_view(char **tag, char **first_or_last){
 //        Qcheck(apop_query("create view %s as select * %s from %s", out_name, XN(recodestr), intab));
 //    return set_up_triggers(intab);
     return 0;
+}
+
+void do_recodes(){
+    char *goalname; 
+    asprintf(&goalname, "view%s", get_key_word("input", "output table"));
+    char *overwrite = get_key_word("input", "overwrite");
+    if (!overwrite || !strcasecmp(overwrite,"n")
+                || !strcasecmp(overwrite,"no")
+                || !strcasecmp(overwrite,"0") )
+        {free(overwrite), overwrite = NULL;}
+    if (!overwrite && apop_table_exists(goalname)){
+        Apop_notify(1, "Recode view %s exists and input/overwrite tells me to not recreate it.", goalname);
+    } else{
+        apop_data *recode_tags = apop_query_to_text("select distinct tag from keys "
+                " where key like 'recode%%' or key like 'group recodes%%' order by count");
+        if (recode_tags){
+            if (recode_tags->textsize[0]==1) make_recode_view(NULL, (char*[]){"both"});
+            else for (int i=0; i< *recode_tags->textsize; i++){
+                Apop_stopif(!(
+                        !make_recode_view(recode_tags->text[i], //pointer to list of char*s.
+                            ( (i==0) ? (char*[]){"first"}
+                            : (i==*recode_tags->textsize-1) ? (char*[]){"last"}
+                            : (char*[]){"middle"}))
+                        ), return, 0, "Error in recode production.");
+            }
+            apop_data_free(recode_tags);
+        }
+    }
+    free(goalname);
 }

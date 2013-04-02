@@ -175,8 +175,6 @@ void set_key_text(char const *group, char const *key, char const *value);
 void impute(char **active_tab);
 void text_in();
 
-int make_recode_view(char **tag, char **first_or_last);//query to generate the view
-
 void do_preedits(char **datatab);
 
 /* Once you've made your filled_tab, you'll want an image of one draw or another.

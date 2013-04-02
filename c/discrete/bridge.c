@@ -42,47 +42,10 @@ char *fname = "-stdin-";
 /* This is what the parser calls on error. */
 int yyerror(const char *s) { Apop_stopif(1, return 0, 0, "%s(%d): %s\n",fname,lineno,s); }
 
-/* This file does most of the initial processing of a table. There are many steps.
-Following recipe format, I'll list the ingredients, then give the steps.
-
-* a table in the db for every variable and each recode. I currently never delete
-		them, so they get to live there as cruft. These tables convert from
-		ri=rowid in database to ext=external, (or ud=user defined)
-
-* A C struct with info on every edit, named ud_explicits. It's an array of apop_data sets.
-
-* A C struct with info on every variable used, used_vars
-
-* A query to generate a view, based on the input table and the recode info.
-
-* The input table, a copy of the input table, and a working view of the copy
-
-
---read the declarations, to generate a list of interesting variables.
-	--each variable gets its own table in the database. I currently never delete
-		them, so they get to live there as cruft. These tables convert from
-		ri=rowid in database to ext=external, (or ud=user defined)
-
---get a table of recodes. 
-	--Recodes are in the key table right now, and it's just a parsing problem to 
-				turn them into clauses for SQL.
-	--add each recode to the list of interesting variables.
-
---get the list of consistency checks. This is ud_explicits. That is, these are 
-
---generate the em table via the list of consistency checks. The jewel there is
-db_to_em, with its several supporting functions; see the notes below.
-
------Actually read the input file. This may be already in the db, or it may be
-read via text file. It happens on demand---the first time that a procedure requires
-knowing the data, the read-in happens. This is often the recode step.
-*/
-
 
 /**
 Each query produces a (apop_data) table of not-OK values, in the
- to_sql function. We add that to the list of tables from user-defined edit rules,
- ud_explicits (explicits in user-designated, not rowid, notation). Having
+ to_sql function.  Having
  generated the list, the function below gets called by (formerly) FORTRAN to supply
  edits, item by item.
 
@@ -153,7 +116,6 @@ void db_to_em(void){
     for (int i=0; i< total_var_ct; i++) total_option_ct +=optionct[i];
 
 	while(1){
-        //d = ud_explicits[current_explicit];
         if (next_phase == 's'){ //starting a new edit
             if (!edit_grid) edit_grid = apop_data_alloc();
             //We're only doing integer and text edits. If there's a real variable anywhere
@@ -231,7 +193,6 @@ void db_to_em(void){
                 current_col = 0;
                 current_row++;
                 if (!d || current_row == d->textsize[0]) {
-                    //apop_data_free(ud_explicits[current_explicit]);
                     apop_data_free(d);
                     current_row = 0;
                     next_phase = 's';
@@ -402,35 +363,6 @@ void init_edit_list(){
 }
 
 void verbosity(int *verbosityLevel){ verbose = *verbosityLevel;}
-
-static void do_recodes(){
-    char *goalname; 
-    asprintf(&goalname, "view%s", get_key_word("input", "output table"));
-    char *overwrite = get_key_word("input", "overwrite");
-    if (!overwrite || !strcasecmp(overwrite,"n")
-                || !strcasecmp(overwrite,"no")
-                || !strcasecmp(overwrite,"0") )
-        {free(overwrite), overwrite = NULL;}
-    if (!overwrite && apop_table_exists(goalname)){
-        Apop_notify(1, "Recode view %s exists and input/overwrite tells me to not recreate it.", goalname);
-    } else{
-        apop_data *recode_tags = apop_query_to_text("select distinct tag from keys "
-                " where key like 'recode%%' or key like 'group recodes%%' order by count");
-        if (recode_tags){
-            if (recode_tags->textsize[0]==1) make_recode_view(NULL, (char*[]){"both"});
-            else for (int i=0; i< *recode_tags->textsize; i++){
-                Apop_stopif(!(
-                        !make_recode_view(recode_tags->text[i], //pointer to list of char*s.
-                            ( (i==0) ? (char*[]){"first"}
-                            : (i==*recode_tags->textsize-1) ? (char*[]){"last"}
-                            : (char*[]){"middle"}))
-                        ), return, 0, "Error in recode production.");
-            }
-            apop_data_free(recode_tags);
-        }
-    }
-    free(goalname);
-}
 
 void read_spec(char **infile, char **dbname_out){
     start_over();

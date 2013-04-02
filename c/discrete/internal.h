@@ -11,9 +11,9 @@ typedef struct{
 extern used_var_t *used_vars;
 
 typedef struct{
-	char *clause;
-	used_var_t *vars_used;
-	int var_ct;
+    char *clause;           //the original text
+    used_var_t *vars_used;  //the list of variables used
+    int var_ct;             //the length of that vars_used matrix
 } edit_t;
 extern edit_t *edit_list;
 extern int query_ct;
@@ -40,3 +40,5 @@ char * ext_from_ri(char const *varname, int const ri_val);
 double find_nearest_val(char const *varname, double ext_val);
 
 char get_coltype(char const* depvar); //bridge.c
+
+void do_recodes(); //c/text_in/recodes.c.
