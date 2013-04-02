@@ -1,10 +1,25 @@
--------------------------------------
-What you need to know to read and compile the package:
+This is a short tour of Tea's internals. I assume you have already read the tutorial
+and have a basic idea of what the user experiences.
 
-TEA now has a two-stage build process. The first stage uses all sorts of tricks to builds a standard R package, and the second stage uses standard R tools to compile the standard R package.
-After you check out (via git clone /cenwork/tea , or git pull in your already-extant tea directory) then just run
-make
-in the base directory. A {package base}/tea/ directory gets generated and filled with those things (and only those things) that go into an R package. make will then run R CMD check/build/install as well.
+Table of contents:
+
+* Setup/installation notes.
+* A list of the files and what they do.
+* A list of the key objects (loosely defined) that are shared across many parts of
+the program, such as the table of keys and the edit grid.
+* A walk-through of read-in, editing, and imputation, which have grown to be pretty
+complicated procedures.
+
+
+
+--------------Building
+
+TEA has a two-stage build process. The first stage uses all sorts of tricks to build a
+standard R package, and the second stage uses standard R tools to compile the
+now-standard R package.  If you're reading this, then you have successfully cloned the
+R-forge repository. Now, just run make in the base directory. A {package
+base}/pkg/tea/ directory gets generated and filled with those things (and only those things)
+that go into an R package. make will then run R CMD check/build/install as well.
 
 You can call
 make nodoc
@@ -12,19 +27,327 @@ to compile without documentation, which saves a minute or two.
 
 You can also call
 make clean 
-to delete the {package base}/tea/ directory that just got generated, along with some other temp files that got made along the way. I tell you this to stress that when making changes, make them in the {package base}/R, c, doc, tests, ... directories, not the second-stage {package base}/tea directory, which is considered to be disposable, to be re-generated whenever desired.
+to delete the {package base}/pkg/tea/ directory that just got generated, along with
+some other temp files that got made along the way. I tell you this to stress that when
+making changes, make them in the {package base}/R, c, doc, tests, ... directories, not
+the second-stage {package base}/pkg/tea directory, which is considered to be disposable,
+to be re-generated whenever desired.
+
+
+This should be enough to get you started. Further notes about the build scripts:
+
+--After the tea pkg is generated, you'll see tea/doc/tea-overview.pdf. This document
+is generated via a makefile in the {base project directory}/doc directory. This is
+currently the sales-pitch document, but should also be 100% of what a user needs to
+read for a simple survey processing problem. It's based on {pkg base}/doc/tea.tex,
+which is not particularly well written or complete; please edit.
+
+--We have a demo. If it isn't running right now, let us know. However, it certainly
+won't run via the demo() function in R.
 
 
 
--------------------------------------
-A possibly overwhelming quantity of details about the state of the package (i.e., the to-do list):
+--------------The files
+The R side: 
 
---After the tea pkg is generated, you'll see tea/inst/doc/tea-overview.pdf. This document is generated via a makefile in the {base project directory}/doc directory. This is currently the sales-pitch document, but should also be 100% of what a user needs to read for a simple survey processing problem.
---It's based on {pkg base}/doc/tea.tex, which is not particularly well written or complete; please edit.
---The appendix--a comprehensive list of the keys one could put in a spec file---is not quite comprehensive; ask me about the format, or check R/doPEP.R for lines beginning with #\key for examples.
+The R code is mostly bridge to this C code. There's one global variable, teaenv,
+which maintains a database connection, teaenv$con, and some other details. All of the
+substantive stuff, Rolando will fill in here when he has a chance.
 
---There are tests in the {project base}/tests-fix directory; and because none run automatically, they are out of date and we're lucky if they run at all. If you get one working, git mv it to the {project base}/tests directory and it'll get installed with the R pkg and run. 
+The C side: 
 
-A good test includes assertions that will halt on failure. You can  produce a {yourtest}.Rout.save file, and the build system will then check the test output with that file for differences, but (1) this is chintzy because it just guarantees that the install machine made the same errors the package-generating machine had made, and (2) the R build system doesn't halt if there are differences, but just records a warning. 
+discrete/bridge.c: 
+    This is one of the earliest files we wrote, and it was intended to be a bridge
+    between C and some FORTRAN code; it has evolved to being a bridge between C/R and
+    C/spec file. It includes functions for SQL edits-to-edit grid work, reading/writing
+    keys, and the main parsing function; see below for these.
 
---We have a demo. If it isn't running right now, let us know. However, it certainly won't run via the demo() function in R.
+text_in/text_in.c: 
+    reading in text, primarily just prep for apop_text_to_db. We want to get the
+    types right, so we have to convert between the used_vars list and SQL type names
+    (and apop_text_to_db makes this awk), and set up indices as needed.
+
+    This file also has the joinup function for merging data sets. Maybe that should be somewhere else.
+
+text_in/recodes.c: 
+    the recodes() fn does nothing but set up a string holding the query.  It's
+    R-callable.  do_recodes is the only C entry point.  The hard part with the recodes
+    is dealing with chained recodes:
+        create view middletab as select ... from originaldata
+        create view midmiddletab as select ... from middletab
+        create view vieworiginaldata as select ... from midmiddletab
+
+    set_up_triggers isn't used right now.
+
+discrete/consistency.c: 
+    The consistency checking, primarily via the discrete edit system.  See below
+    regarding its workings.
+
+discrete/name_conversions.c:
+    Users can declare whatever junk they want for the values of their variables: state
+    names are text (AK, AL, AZ...WY), race takes on somewhat haphazard values like 101,
+    102, 201, 203,..., and so on. I will refer to these as external field values.
+
+    name_conversions.c maintains a structure holding conversions between external values and
+    row indices, which start at zero and are sequential.
+
+    We thus have functions like ri_from_ext and ext_from_ri. The imputation code uses
+    find_nearest_val, which is here.
+
+    This file is pretty well encapsulated; you should be able to just use the interface
+    functions and not worry about the data structure (it's a list of apop_data*s).
+
+discrete/r_check.c, PEPedits.c: 
+    both of these are bridges between the consistency checking and R. Gotta work out why
+    we have two.
+
+impute/impute.c
+impute/impute_variance.c
+impute/parse_sql.c: 
+    for the imputation; see below. Not sure of the status of those last two files.
+
+impute/checkout.c: 
+    The final result of all of the above is a list of fill-in values in the fill-in table.
+    check_out_impute merges that to the data set. The unit test for check_out_impute is also
+    here.
+
+impute/rel.c: 
+    The model for hot-decking relationship status. 
+
+raking/log_linear_ipf.c, raking/unbiasround.c: 
+    believe it or not, there's a whole subsystem of Tea for synthesizing micro-data sets. It
+    uses raking based on already disclosure-avoidance approved margins.
+
+rnkswp/rnkswp.c
+    A disclosure-avoidance routine. Needs writeup.
+
+tests/asst_tests.c
+    Unit tests not above-mentioned.
+
+
+--------------Some important data structures:
+
+    keys: 
+    a database table with a reduced version of the spec file. As per the tutorial,
+    subsections of the spec get reduced into single lines here in the keys table.
+    The procedure is detailed below.
+
+    I don't recall if the last-used table gets written here as the active table or
+    not. Otherwise, this table is read-only after the spec file is parsed.
+
+    There are several functions (too many!) to get elements from the table.  They 
+    all live in discrete/bridge.c The declarations for the ones currently favored:
+
+    double get_key_float_tagged(char const *part1, char const * part2, char const *tag);
+    char* get_key_word_tagged(char const *part1, char const *part2, char const *tag);
+    apop_data * get_key_text_tagged(char const *part1, char const *part2, char const *tag);
+
+    Notice that get_key_word returns a single string; get_key_text returns a list.
+
+name conversions:
+    as above, there is a conversion table between
+    ri=rowid=a numeric value
+    and
+    ext=the user-defined numeric or text value.
+
+    It's hidden behind getter/setter functions. Probably all you need are the lookups:
+    char * ext_from_ri(char const *varname, int const ri_val)
+
+    //returns -1 if val not found, -100 if var not found
+    int ri_from_ext(char const *varname, char const * ext_val)
+
+    void reset_ri_ext_table() [which gets called by bridge.c at the right place]
+
+used_vars:
+    the global list of variables declared. It includes both real and
+    categorical/integer values, which the name_conversions may not.
+
+    The only part that's really interesting about the used_vars structure is that it
+    has a type marker, which is where you can look to check whether a variable is real,
+    int, or char.
+
+    It would be desirable and not difficult to merge the variable info in used_vars
+    into the name_conversions struct/interface.
+
+The edits: edit_list, edit_grid, total_var_ct
+    The edits take on several forms, which are organized into two data structures,
+    edit_list and edit_grid.
+
+    edit_list is a list of the user defined, explicit edit requests. Every line
+    of SQL in the checks section of the spec file gets an element of this array.
+    Here's the type declaration one element:
+
+    typedef struct{
+        char *clause;           //the original text
+        used_var_t *vars_used;  //the list of variables used
+        int var_ct;             //the length of that vars_used matrix
+    } edit_t;
+
+    The edit_grid is for the purposes of the DISCRETE system. Each row is an edit
+    encoded into zero/one/-1 markers for quick comparison against records.
+
+--------------A walk-through of reading in the spec file
+
+
+At the top level, Tea reads the spec file and produces a set of global structures
+embodying the requirements.
+
+The parsing happens in peptalk/peptalk.y, which is a bison file describing the grammar of
+the file.
+
+The main spec-reading procedure is discrete/bridge.c:read_spec. read_spec runs the
+parser twice: once for the main readin and most of the processing; once after the recodes.
+read_spec calls yyparse, which starts the parsing process. 
+
+You can read the comments at the top of the peptalk/peptalk.y for details. But the
+parser's primary activity is to convert the plain text spec file into a table of
+key/value pairs. It keeps a current_key that grows and shrinks as we enter and exit
+curly-brace segments. Here's a sample spec file, with what gets executed in square brackets at the point at which it runs:
+
+impute {         [call extend_key here to set key to "impute"] 
+    categories { [call extend_key to set key to "impute/categories"] 
+        age      [call add_keyval to write ("impute/categories", "age") to keys table]
+        sex      [call add_keyval to write ("impute/categories", "sex") to keys table]
+    }            [call reduce_key to set key to "impute"]
+}                [call reduce_key to set key to ""]
+
+This is most of the parsing, but there are a few exceptions:
+
+--numerical ranges (0-100) get expanded.
+
+--the consistency checks and recodes need some special TLC, because of how the queries get run.
+
+--Field declarations for ints and cats induce the creation of a table in the database,
+for generating the consistency checks. I currently never delete them, so they get to
+live there as cruft.
+
+
+--------------A walk-through of consistency checking
+
+The work starts in check_consistency. 
+    * It works entirely with text data, so numeric data has to be converted to text before input.
+    * The input also takes in a list of field names. If an edit uses a field not on the
+    input list, then that edit doesn't get run. E.g., you have (age, rel, sex) in your data,
+    and both are missing. You impute age, but rel and sex are both still blank, so any
+    rel or sex-based checks are guaranteed to fail, so only age-related checks run. Then you
+    impute rel, and now (age, rel)-based checks can run, but sex-based checks will fail.
+    Et cetera.
+    * To make this work, we need to keep track of how fields from the user match up with
+    fields in the edit grid. Thus, em_to_user and user_to_em functions that do the
+    conversions. Try to keep an eye on whether any given counter is in the user-field
+    space or the edit-list space.
+
+check_a_record is where the real action happens. It is a for loop over all of the edits.
+    * It first does all the edits that are entirely discrete. See the documentation in
+    that file for details.
+    * If an edit is real-valued, set up a test table in the database and a query of the
+        form "select count(*) from tea_test where (check1) or (check2) or ...". If the count isn't
+        zero, then one of the edit checks failed.
+    * There's something in there to log which edit checks failed. It's currently commented
+        out, and was never implemented for real-valued edits.
+    * To do: What if an edit has only real-valued edits? Then we could bypass a lot of the work. 
+
+There are also features for finding alternatives that are valid (via a recursive search
+over all possible values). We haven't used this feature in a while, however.
+
+
+--------------A walk-through of imputation
+
+The imputation system is arguably the core of Tea; correspondingly, it is the
+most complex part. Fundamentally, all imputations have the same basic form: identify
+that something is missing data, find some other sufficiently complete data
+(sometimes called the training data, herein called the donors), fit a specified model
+to the donors, and draw from the estimated model to fill in the missing point.
+
+There is an impustruct struct that holds most of the information about each imputation
+segment in the spec. I pass this from function to function instead of lots of little
+items:
+
+typedef struct {
+    apop_model base_model, *fitted_model;
+    char * depvar, **allvars, *vartypes, *selectclause;
+    int position, allvars_ct, error;
+    apop_data *isnan, *notnan;
+    bool is_bounds_checkable, is_hotdeck, textdep, is_rake, is_regression;
+} impustruct;
+
+
+Borrowing from the network literature (among others), I use "ego" to indicate the
+observation that we are currently trying to fill in. Here is the detailed procedure
+for non-raking imputations.  Raking uses a somewhat different procedure, because it
+turned out to be easier to just rewrite everything from scratch.
+
+--Imputation is customarily done by subgroups: we fill in for Californians
+    with other Californians, or fill in for rich kids with other rich kids.
+    So first, identify the subcategory of the data for the missing data point
+
+--identify missing points, and candidates for estimation. This is get_nans_and_notnans().
+	--Both are done at once because 80% of the work is the same, like the first
+		step of identifying ego's category.
+
+	--Having identified ego's category, we might as well fill in all NaNs for
+		that category and variable at once. This makes the main for loop in get_nans_...
+		more complex, but means we're running O(categories) queries instead of
+		O(observations) queries. The output of this function is then two tables: egos
+		and donors for the given category. These get saved in the impustruct.
+
+	--Donors need to be complete in all of the explanatory variables specified
+		by the user as inputs to the model. 
+
+	--If disclosure avoidance was done (the fingerprinting routine), check whether
+		this variable is marked in that table; add thus-flagged id numbers to
+		the to-fill-in table.
+
+	--The output from get_nans_and_notnals is the ego table and donor table for
+	the category.
+
+--Now, fill in missing values
+	--The user gets to specify a model for each variable.
+	
+	--This is what Apophenia was written for:
+		apop_data *fitted_m=apop_estimate (donors, your_model); 
+		double fill_me= apop_data_ptr(fill_ins, i, colname);
+		apop_draw(&fill_me, rng, fitted_m);
+
+	--There are many models that you can use. Notable:
+		--The Multinomial distribution == randomized hot deck. We don't care
+			about straight hot deck, which is an effort to simulate punched cards 
+			as closely as possible.
+		--One can implement a sequential regression setup by simply setting the
+			first model to be univariate, the second a 2-D regression, then a 3-D
+			regression, &c. Useful for loops; see below.
+		--Other models we've implemented basically fall into distributions (Normal,
+			 Multivariate Normal, Lognormal, Poisson, Kernel Density Estimation)
+			and generalized linear methods (Logit & probit).
+
+
+	--The interchangeable-model system will always be imperfect, so there are a few 
+		tweaks to be made. After the fitted_m=apop_estimate (donors, your_model) step, 
+		these are done if appropriate.
+		--The distribution given by the OLS model is incomplete: it depends 
+			on the underlying distribution of the input variables [and this is not an
+			Apophenia thing---it's the nature of OLS]. We specify a uniform prior. 
+			Similarly for logit and probit.
+
+	--Write-ups for sequential regression methods typically suggest looping back
+		and re-doing the regression as often as necessary. NaN observations at the
+		first round become donors in subsequent rounds.
+		--This is not yet implemented---it takes some bookkeeping. 
+
+--Draw
+	--As above, this step is one line for a straight draw.
+	--Check that the drawn value is within the bounds declared for a field. If we send a
+        negative age to consistency_check, it'll break, so round as needed here.
+	--Run consistency_check, and throw out if the draw doesn't pass
+	--We want to multiply impute, which typically means just repeating the draw step as often as needed.
+        --in some cases it will mean re-estimating the model, especially when this
+            imputation step builds on a previous imputation.
+	--the output is a multi-impute table, with a row/col coordinate for what's
+		being filled in, plus a column per imputation.
+
+--Anybody left? If somebody didn't have enough data in their category to produce good
+    estimates, remove the bottom-most category from the list and re-run.
+
+--At the end of this, the data is untouched, but the fill-in table has a number of
+    imputations for each (rowid, field) that was blank. Use check_out_impute (in C)
+    or checkOutImpute (the R wrapper) to produce a filled table.
