@@ -319,6 +319,7 @@ void tea_c_tests(){
     recode_test();
     just_like_the_R_test();
     snowman_test();
+    test_levenshtein_distance();
 }
 
 #ifdef TESTING

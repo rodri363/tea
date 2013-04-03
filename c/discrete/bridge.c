@@ -14,6 +14,7 @@ As of 4 May 2010, the main() function has been removed---it works only via PEP's
 #include <stdbool.h>
 #include "tea.h"
 #include "internal.h"
+#include <assert.h>
 
 void generate_indices(char const *);
 
@@ -42,10 +43,47 @@ char *fname = "-stdin-";
 /* This is what the parser calls on error. */
 int yyerror(const char *s) { Apop_stopif(1, return 0, 0, "%s(%d): %s\n",fname,lineno,s); }
 
+/* This file does most of the initial processing of a table. There are many steps.
+Following recipe format, I'll list the ingredients, then give the steps.
+
+* a table in the db for every variable and each recode. I currently never delete
+		them, so they get to live there as cruft. These tables convert from
+		ri=rowid in database to ext=external, (or ud=user defined)
+
+* A C struct with info on every edit, named ud_explicits. It's an array of apop_data sets.
+
+* A C struct with info on every variable used, used_vars
+
+* A query to generate a view, based on the input table and the recode info.
+
+* The input table, a copy of the input table, and a working view of the copy
+
+
+--read the declarations, to generate a list of interesting variables.
+	--each variable gets its own table in the database. I currently never delete
+		them, so they get to live there as cruft. These tables convert from
+		ri=rowid in database to ext=external, (or ud=user defined)
+
+--get a table of recodes. 
+	--Recodes are in the key table right now, and it's just a parsing problem to 
+				turn them into clauses for SQL.
+	--add each recode to the list of interesting variables.
+
+--get the list of consistency checks. This is ud_explicits. That is, these are 
+
+--generate the em table via the list of consistency checks. The jewel there is
+db_to_em, with its several supporting functions; see the notes below.
+
+-----Actually read the input file. This may be already in the db, or it may be
+read via text file. It happens on demand---the first time that a procedure requires
+knowing the data, the read-in happens. This is often the recode step.
+*/
+
 
 /**
 Each query produces a (apop_data) table of not-OK values, in the
- to_sql function.  Having
+ to_sql function. We add that to the list of tables from user-defined edit rules,
+ ud_explicits (explicits in user-designated, not rowid, notation). Having
  generated the list, the function below gets called by (formerly) FORTRAN to supply
  edits, item by item.
 
@@ -116,6 +154,7 @@ void db_to_em(void){
     for (int i=0; i< total_var_ct; i++) total_option_ct +=optionct[i];
 
 	while(1){
+        //d = ud_explicits[current_explicit];
         if (next_phase == 's'){ //starting a new edit
             if (!edit_grid) edit_grid = apop_data_alloc();
             //We're only doing integer and text edits. If there's a real variable anywhere
@@ -193,6 +232,7 @@ void db_to_em(void){
                 current_col = 0;
                 current_row++;
                 if (!d || current_row == d->textsize[0]) {
+                    //apop_data_free(ud_explicits[current_explicit]);
                     apop_data_free(d);
                     current_row = 0;
                     next_phase = 's';
@@ -308,6 +348,7 @@ void set_key_text_for_R(char **group, char **key, char **value){
 }
 
 void start_over(){ //Reset everything in case this wasn't the first call
+    test_levenshtein_distance();
     extern int file_read, impute_is_prepped;
     extern apop_data *pre_edits;
     free(edit_list); 
@@ -372,7 +413,7 @@ void read_spec(char **infile, char **dbname_out){
     pass=0;
     begin_transaction();
     yyparse();  //fill keys table
-    check_hamming_distances();
+    check_levenshtein_distances();
     do_recodes();
 
      //Generating indices for ID
@@ -451,12 +492,12 @@ char get_coltype(char const* depvar){
   * put in the correct key using Apop_stopif
   */
 
-int check_hamming_distances(){
+int check_levenshtein_distances(){
     char * ok_keys[] = {"raking/thread count", "input/primary key", "group recodes/recodes", "raking/tolerance", "input/types", "id", "rankSwap/max change","raking/all vars", "impute/draw count", "rankSwap/seed","impute/earlier output table", "impute/input table", "impute/output table", "impute/seed","raking/contrasts", "input/indices", "rankSwap/swap range", "raking/count col", "input/input file", "recodes", "raking/input table", "input/missing marker", "timeout", "raking/max iterations", "input/output table","database", "raking/run number", "input/overwrite", "group recodes","raking/structural zeros", "input/primary key", "group recodes/group id", ""};
     apop_data *userkeys = apop_query_to_text("select key from keys");
         for (int i=0; i < *userkeys->textsize; i++){
             for (char **keyptr=ok_keys; strlen(*keyptr); keyptr++){
-                int hd= hamming_distance(*keyptr, *userkeys->text[i]);
+                int hd= levenshtein_distance(*keyptr, *userkeys->text[i]);
                 Apop_stopif(hd > 0 && hd <= Max_ham_distance, , 0, "%s and %s are TOO CLOSE, dude!", *keyptr, *userkeys->text[i])
             }
         }
@@ -472,54 +513,81 @@ int check_hamming_distances(){
  *  won't get executed above in check_hamming_distances. Otherwise, if the keys have at most
  *  Min_hamming_distance differences then it will.
  */
-int hamming_distance(char *ok_key, char *user_key){
+int levenshtein_distance(char *ok_key, char *user_key){
     int size_ok_key = strlen(ok_key);
     int size_user_key = strlen(user_key);
     int string_distance = fabs(size_ok_key - size_user_key);
+    if(size_ok_key == 0) return size_user_key;
+    if(size_user_key == 0) return size_ok_key;
 
-    /* If distance < Max_ham_distance then don't bother with the rest 
-     * of the function
-     */
-    if(string_distance > Max_ham_distance) return (Max_ham_distance + 1);
+    int cost;
+    if(string_distance > 0) cost = 1;
+    else cost = 0;
     
-    int size_smaller_string = size_ok_key <= size_user_key ? size_ok_key : size_user_key;
-    int ok_string_larger = size_ok_key > size_user_key ? 1 : 0;
+    /* We make copies of input strings and compare their last characters. If they're
+     * !equal, we set cost = 1. We then return the minimum of the levenshtein distances
+     * seen below. That might sound cryptic and (is definitely) not helpful, but
+     * essentially the algorithm checks for the minimum number of adjustments that need
+     * to be made between its two arguments based on the three parameters to min.
+     */ 
+    char *ok_key_copy, *user_key_copy, *temp_last_ok, *temp_last_user;
 
-    int num_differences = 0;
-
-
-    /* Iterate through loop for length of smaller string number of times and 
-     * compare both keys at each index. If num differences ever becomes >
-     * Max_ham_distance just exit loop and return (Max_ham_distance + 1).
-     */
-
-    for(int index = 0; index < size_smaller_string; index++){
-    /* Checks whether string is off by an index of at most Max_ham_distance. If so, user_key is 
-     * shifted by the appropriate amount before the main for loop is re-entered.
-     */
+    asprintf(&ok_key_copy, ok_key);
+    asprintf(&user_key_copy, user_key);
     
-    if(string_distance > 0){
-        if(ok_string_larger){
-            while(*ok_key != *user_key){
-                ok_key++;
-                num_differences++;
-                if(num_differences > Max_ham_distance) return (Max_ham_distance + 1);
-            }
-        } else {
-            while(*ok_key != *user_key){
-                user_key++;
-                num_differences++;
-                if(num_differences > Max_ham_distance) return (Max_ham_distance + 1);
-        }
+    temp_last_ok = ok_key_copy + strlen(ok_key_copy);
+    temp_last_ok--;
+    temp_last_user = user_key_copy + strlen(user_key_copy);
+    temp_last_user--;
 
-    if(*ok_key != *user_key) num_differences++;
-    ok_key++;
-    user_key++;
+    if(*temp_last_ok != *temp_last_user) cost = 1;
 
-    if(num_differences > Max_ham_distance) return (Max_ham_distance + 1);
-    //Same reason as above
-    } 
+    //Create strings of size strlen - 1 (all but last character) for both ok_key and user_key
+    //To be called in recursive step at the bottom of function
+    char *decremented_ok_key = strdup(ok_key_copy);
+    decremented_ok_key[strlen(ok_key_copy) - 1] = '\0';
 
-    return 0;
-    }
+    char *decremented_user_key = strdup(user_key_copy);
+    decremented_user_key[strlen(user_key_copy) - 1] = '\0';
+     
+
+    return min(levenshtein_distance(decremented_ok_key, user_key_copy) + 1,
+            levenshtein_distance(ok_key_copy, decremented_user_key) + 1,
+            levenshtein_distance(decremented_ok_key, decremented_user_key) + cost);
+}
+
+
+/** Quick inline function to find min value in levenshtein_distance
+  *
+  */
+int min(int input1, int input2, int input3){
+    if((input1 <= input2) && (input1 <= input3)) return input1;
+    else if ((input2 <= input1) && (input2 <= input3)) return input2;
+    else return input3;
+
+}
+
+/** Test function for levinshtein_distance
+  *
+  */
+
+void test_levenshtein_distance(){
+    char *string_one, *string_two;
+
+    asprintf(&string_one, "impute/recodes");
+    asprintf(&string_two, "impute/recdes");
+
+    assert(levenshtein_distance(string_one, string_two) == 1);
+
+    asprintf(&string_one, "input/input table");
+    asprintf(&string_two, "niput/input table");
+
+    assert(levenshtein_distance(string_one, string_two) == 2);
+
+    asprintf(&string_one, "database");
+    asprintf(&string_two, "database");
+    assert(levenshtein_distance(string_one, string_two) == 0); 
+
+    free(string_one);
+    free(string_two);
 }
