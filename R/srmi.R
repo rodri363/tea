@@ -98,7 +98,7 @@ tea.srmi.est <- function(env){
 	hdx <- 1
 	while(hdx <= env$maxit){
 		if(krun > 2){
-			print("Converged")
+			print("SRMI Converged")
 			hdx <- env$maxit
 		}else{
 		for(idx in 1:length(vyvar)){
