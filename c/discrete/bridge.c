@@ -348,7 +348,6 @@ void set_key_text_for_R(char **group, char **key, char **value){
 }
 
 void start_over(){ //Reset everything in case this wasn't the first call
-    test_levenshtein_distance();
     extern int file_read, impute_is_prepped;
     extern apop_data *pre_edits;
     free(edit_list); 
