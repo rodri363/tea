@@ -171,13 +171,12 @@ static int check_a_record(int const * restrict row,  int * failures,
 
    Notice that fields that aren't marked as failing are just skipped over.
 */
-/*   \key timeout Once it has been established that a record has failed a consistency
+/*   TeaKEY(timeout, <<<Once it has been established that a record has failed a consistency
    check, the search for alternatives begins. Say that variables one, two, and three each have 100
     options; then there are 1,000,000 options to check against possibly thousands
     of checks. If a timeout is present in the spec (outside of all groups), then the
     alternative search halts and returns what it has after the given number of seconds
-    have passed.
-
+    have passed.>>>)
    */
 static void do_a_combo(int *record, char *const restrict  *record_name_in, int const *user_to_em, int record_in_size, 
          int const *failed_edits_in, int this_field, int field_count, apop_data *fillme,

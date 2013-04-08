@@ -35,20 +35,20 @@ gsl_rng *r  =apop_rng_alloc(231);
 
 void rake_for_r(char **table_name){
 	//Sadly, this function is entirely conversion of forms.
-    /* \key{raking/input table} The table to be raked. 
-    \key{raking/all vars} The full list of variables that will be involved in the
-       raking. All others are ignored. 
-    \key{raking/max iterations} If convergence to the desired tolerance isn't 
-       achieved by this many iterations, stop with a warning. 
-    \key{raking/count col} If this key is not present take each row to be a
+    /* TeaKEY(raking/input table, <<<The table to be raked.>>>)
+    TeaKEY(raking/all vars, <<<The full list of variables that will be involved in the
+       raking. All others are ignored.>>>)
+    TeaKEY(raking/max iterations, <<<If convergence to the desired tolerance isn't 
+       achieved by this many iterations, stop with a warning.>>>)
+    TeaKEY(raking/count col, <<<If this key is not present take each row to be a
 		single observation, and count them up to produce the cell counts to which the
 		system will be raking. If this key is present, then this column in the data set
-		will be used as the cell count.
-    \key{raking/tolerance} If the max(change in cell value) from one step to the next
-       is smaller than this value, stop. 
-    \key{raking/run number} If running several raking processes simultaneously via
+		will be used as the cell count.>>>)
+    TeaKEY(raking/tolerance, <<<If the max(change in cell value) from one step to the next
+       is smaller than this value, stop.>>>)
+    TeaKEY(raking/run number, <<<If running several raking processes simultaneously via
         threading on the R side, specify a separate run\_number for each. If
-        single-threading (or if not sure), ignore this.
+        single-threading (or if not sure), ignore this.>>>)
      */
 	Apop_stopif(!*table_name, return, 0, "I couldn't find a name for the input table "
                             "to the raking segment.");
@@ -58,16 +58,16 @@ void rake_for_r(char **table_name){
 	double tolerance = get_key_float("raking", "tolerance");
 	double run_number = get_key_float("raking", "run number");
 
-    /* \key{raking/thread count} You can thread either on the R side among several tables,
+    /* TeaKEY(raking/thread count, <<<You can thread either on the R side among several tables,
      or interally to one table raking. To thread a single raking process, set this to the
-     number of desired threads. 
+     number of desired threads.>>>)
      */
 	int thread_ct = get_key_float("raking", "thread count");
     int prior_threads= apop_opts.thread_count;
     if (thread_ct > 0) apop_opts.thread_count = thread_ct;
 
-    /* \key{raking/structural zeros} A list of cells that must always be zero, 
-     in the form of SQL statements. 
+    /* TeaKEY(raking/structural zeros, <<<A list of cells that must always be zero, 
+     in the form of SQL statements.>>>)
      */
 	apop_data *zero_data = get_key_text("raking", "structural zeros");
 

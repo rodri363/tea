@@ -881,13 +881,13 @@ Raking: needs all the variables, in numeric format
 int impute_is_prepped; //restarts with new read_specs.
 char *configbase = "impute";
 
-/* \key {impute/input table} The table holding the base data, with missing values. 
-  Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called <tt>doInput()</tt> in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one. 
-  \key{impute/seed} The RNG seed
-  \key{impute/draw count} How many multiple imputations should we do? Default: 5.
-  \key{impute/output table} Where the fill-ins will be written. You'll still need <tt>checkOutImpute</tt> to produce a completed table.
-  \key{impute/earlier output table} If this imputaiton depends on a previous one, then give the fill-in table from the previous output here.
-  \key{impute/margin table} Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.
+/* TeaKEY(impute/input table, <<<The table holding the base data, with missing values. 
+  Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called <tt>doInput()</tt> in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one.>>>)
+  TeaKEY(impute/seed, <<<The RNG seed>>>)
+  TeaKEY(impute/draw count, <<<How many multiple imputations should we do? Default: 5.>>>)
+  TeaKEY(impute/output table, <<<Where the fill-ins will be written. You'll still need <tt>checkOutImpute</tt> to produce a completed table.>>>)
+  TeaKEY(impute/earlier output table, <<<If this imputaiton depends on a previous one, then give the fill-in table from the previous output here.>>>)
+  TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
  */
 int do_impute(char **tag, char **idatatab){ 
     //This fn does nothing but read the config file and do appropriate setup.

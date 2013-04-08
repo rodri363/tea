@@ -45,7 +45,14 @@ pkg: talk
 	cp -r data R tests $(Pkg_dir) 
 	cp `find c -type f` $(Pkg_dir)/src #flattens to a one-level directory
 	cp -r pkging/* $(Pkg_dir)
+	make keys
 	cd $(Pkg_dir); autoconf; rm configure.ac; rm -r autom4te.cache
+
+keys:
+	cd doc; m4 -P make_key_docs.m4 `find ../pkg/tea/ -name '*.c' -or -name '*.h' -or -name '*.R'` | sed 's/^#//' > keys.tex
+	cd doc; m4 -P make_key_prints.m4 `find ../pkg/tea/ -name '*.c' -or -name '*.h' -or -name '*.R'` |sort > key_prints.tex
+	cd doc; m4 -P make_key_list.m4 `find ../pkg/tea/ -name '*.c' -or -name '*.h' -or -name '*.R'` > ../$(Pkg_dir)/src/keylist
+
 
 clean:
 	rm -fr $(Pkg_dir)/* $(Pkg_dir)/../tea.Rcheck $(Pkg_dir)/../tea*.tar.gz

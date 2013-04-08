@@ -41,9 +41,9 @@ void generate_indices(char const *tag){
         }
 }
 
-/* \key{join/host} The main data set to be merged with.
-\key{join/add} The set to be merged in to join/host.  Both data sets need to have a
-field with the id you gave at the top of the spec file.
+/* TeaKEY(join/host, <<<The main data set to be merged with.>>>)
+TeaKEY(join/add, <<<The set to be merged in to join/host.  Both data sets need to have a
+field with the id you gave at the top of the spec file.>>>)
 */
 int join_tables(){
     char *jointo = get_key_word("join", "host");
@@ -70,14 +70,25 @@ int join_tables(){
                 jointo);
 }
 
+/* TeaKEY(input/input file, <<<The text file from which to read the data set. This should be in
+the usual comma-separated format (CSV) with the first row of the file listng column names. We recommend separating|fields|with|pipes, because pipes rarely appear in addresses or other such data.>>>)
 
-/* \key{input/input file} The text file from which to read the data set. This should be in
-the usual comma-separated format with the first row listng column names.
-\key{input/output table} The name of the table in the database to which to write the data read in.
-\key input/overwrite If {\tt n} or {\tt no}, I will skip the input step if the output table already exists. This makes it easy to re-run a script and only sit through the input step the first time.
-\key{input/primary key} The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.
-\key input/indices Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect. Remark, however, that we've moved the function generate_indices(table_out) to bridge.c:428 to after the recodes.
-\key{input/missing marker} How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.
+TeaKEY(input/output table, <<<Name for the database table generated from the input file.>>>)
+
+TeaKEY(input/overwrite, <<<If {\tt n} or {\tt no}, I will skip the input step if
+the output table already exists. This makes it easy to re-run a script and only wait
+through the input step the first time. Otherwise, the default is to overwrite.  >>>)
+
+TeaKEY(input/primary key, <<<The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.>>>)
+
+TeaKEY(input/primary key, <<<A list of variables to use as the primary key for the output table.
+In SQLite, if there is only one variable in the list as it is defined as an integer,
+this will create an integer primary key and will thus be identical to the auto-generated
+ROWID variable.>>>)
+
+TeaKey(input/indices, <<<Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect. Remark, however, that we've moved the function generate_indices(table_out) to bridge.c:428 to after the recodes.>>>)
+
+TeaKEY(input/missing marker, <<<How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.>>>)
 */
 static int text_in_by_tag(char const *tag){
     char *file_in   = get_key_word_tagged("input", "input file", tag);
@@ -135,19 +146,18 @@ void text_in(){
 }
 
 
-/* \key database The database to use for all of this. It must be the first thing on your line.
+/* TeaKEY(database, <<<The database to use for all of this. It must be the first thing on your line.
  
-I need it to know where to write all the keys to come.
+I need it to know where to write all the keys to come.>>>)
 
-\key id Provides a column in the data set that provides a unique identifier for each
+TeaKEY(id, <<<Provides a column in the data set that provides a unique identifier for each
 observation.
 Some procedures need such a column; e.g., multiple imputation will store imputations in a
 table separate from the main dataset, and will require a means of putting imputations in
 their proper place. Other elements of TEA, like flagging for disclosure avoidance, use the
-same identifier. The function that creates an index for the key in the specified \key output table is located at bridge.c:428
+same identifier. The function that creates an index for the key in the specified output table is located at bridge.c:428>>>)
 
-
-\key recodes New variables that are deterministic functions of the existing data sets.
+TeaKEY(recodes, <<<New variables that are deterministic functions of the existing data sets.
 There are two forms, one aimed at recodes that indicate a list of categories, and one
 aimed at recodes that are a direct calculation from the existing fields.
 For example (using a popular rule that you shouldn't date anybody who is younger than
@@ -205,5 +215,5 @@ group recodes {
     total_income: sum(income)
     mean_income: avg(income)
 }
-\end{lstlisting}
+\end{lstlisting}>>>)
 */

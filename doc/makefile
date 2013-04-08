@@ -8,9 +8,6 @@ all: tea.bbl keys.tex
 	-pdflatex $(DOC)
 	scp $(DOC).pdf $(KLEMENS)/www/asst/d.pdf
 
-keys:
-	find ../pkg/tea/ -name '*.y' -or -name '*.c' -or -name '*.h' -or -name '*.R' | xargs cat | ./make_key_docs.awk  > keys.tex
-
 imputation: tea.bbl
 	sed -i 's/\\imputationfalse/\\imputationtrue/' $(DOC).tex
 	pdflatex $(DOC)
@@ -25,7 +22,7 @@ diagram:
 	fi
 	#cd dots&& /apps/graphviz/usr/bin/dot -Teps < pepflow.dot > pepflow.eps
 
-tea.bbl: tea.bib keys diagram
+tea.bbl: tea.bib diagram
 	pdflatex $(DOC).tex
 
 PROG=read_spec

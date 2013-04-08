@@ -493,8 +493,8 @@ char get_coltype(char const* depvar){
   * put in the correct key using Apop_stopif
   */
 
+#include "keylist"
 int check_levenshtein_distances(){
-    char * ok_keys[] = {"raking/thread count", "input/primary key", "group recodes/recodes", "raking/tolerance", "input/types", "id", "rankSwap/max change","raking/all vars", "impute/draw count", "rankSwap/seed","impute/earlier output table", "impute/input table", "impute/output table", "impute/seed","raking/contrasts", "input/indices", "rankSwap/swap range", "raking/count col", "input/input file", "recodes", "raking/input table", "input/missing marker", "timeout", "raking/max iterations", "input/output table","database", "raking/run number", "input/overwrite", "group recodes","raking/structural zeros", "input/primary key", "group recodes/group id", ""};
     apop_data *userkeys = apop_query_to_text("select key from keys");
         for (int i=0; i < *userkeys->textsize; i++){
             for (char **keyptr=ok_keys; strlen(*keyptr); keyptr++){

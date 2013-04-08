@@ -7,22 +7,6 @@ doPreedits <- function(input_table=teaenv$active_tab){
     .C("do_preedits", as.character(input_table))
 }
 
-#\key {input/input file} Path to a comma-separated value (CSV) file containing
-#data to read into the database.
-#\key {input/output table} Name for the database table generated from the input file
-#\key input/overwrite Numeric key indicating whether the output table should be overwritten
-#if it exists. A key value that is any capitalization of 'no' or 'n', or 0, will prevent overwriting, otherwise
-#the default is to overwrite
-#\key{input/primary key} A list of variables to use as the primary key for the output table.
-#In SQLite, if there is only one variable in the list as it is defined as an integer,
-#this will create an integer primary key and will thus be identical to the auto-generated
-#ROWID variable.
-#\key input/types A list of \emph{keys} of the form:
-#var: type
-#where var is the name of a variable (column) in the output table and type is a valid
-#database type or affinity.  The default is to read in all variables as character
-#columns.
-
 #' Read a text file into a database table
 #' @param input_file The name of the text file to read in. Make sure the path is
 #'      correct and you have permissions to read the file.

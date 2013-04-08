@@ -1,16 +1,16 @@
 
-# \key rankSwap/seed The random number generator seed for the rank swapping setup.
+# TeaKEY(rankSwap/seed, <<<The random number generator seed for the rank swapping setup.>>>)
 
-# \key{rankSwap/swap range} proportion of ranks to use for swapping interval, that is
+# TeaKEY(rankSwap/swap range, <<<proportion of ranks to use for swapping interval, that is
 # if current rank is r, swap possible from r+1 to r+floor(swaprange*length(x))
 #
-# default = 0.5
+# default = 0.5>>>)
 #
-# \key{rankSwap/max change} maximal absolute change in value of x allowed.
+# TeaKEY(rankSwap/max change, <<<maximal absolute change in value of x allowed.
 # That is, if the swap value for $x_i$ is $y$, if $|y - x_i| >$ maxchange,
 # then the swap is rejected
 #
-# default = 1
+# default = 1>>>)
 
 
 #' Swap items in a real/numeric vector by ranks, with
