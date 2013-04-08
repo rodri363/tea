@@ -12,6 +12,10 @@ for i in `seq 1200 3 3500` ; do
     sqlite3 tobug.db "update dc set agep=NULL where rowid = $i"
 done
 
+for i in `seq 200 8 2100` ; do
+    sqlite3 tobug.db "update dc set wagp=NULL where rowid = $i"
+done
+
 sqlite3 -header tobug.db "select * from dc" |sed "s/|/,/g" > dc_pums_08.csv
 
 rm tobug.db

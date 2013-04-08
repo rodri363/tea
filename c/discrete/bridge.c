@@ -10,13 +10,8 @@ the awkward interface functions, because R can only pass int*s, double*s, or cha
 As of 4 May 2010, the main() function has been removed---it works only via PEP's config files.
 */
 
-#include <apop.h>
 #include <stdbool.h>
-#include "tea.h"
 #include "internal.h"
-#include <assert.h>
-
-#define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
 
 void generate_indices(char const *);
 
@@ -44,43 +39,6 @@ char *fname = "-stdin-";
 
 /* This is what the parser calls on error. */
 int yyerror(const char *s) { Apop_stopif(1, return 0, 0, "%s(%d): %s\n",fname,lineno,s); }
-
-/* This file does most of the initial processing of a table. There are many steps.
-Following recipe format, I'll list the ingredients, then give the steps.
-
-* a table in the db for every variable and each recode. I currently never delete
-		them, so they get to live there as cruft. These tables convert from
-		ri=rowid in database to ext=external, (or ud=user defined)
-
-* A C struct with info on every edit, named ud_explicits. It's an array of apop_data sets.
-
-* A C struct with info on every variable used, used_vars
-
-* A query to generate a view, based on the input table and the recode info.
-
-* The input table, a copy of the input table, and a working view of the copy
-
-
---read the declarations, to generate a list of interesting variables.
-	--each variable gets its own table in the database. I currently never delete
-		them, so they get to live there as cruft. These tables convert from
-		ri=rowid in database to ext=external, (or ud=user defined)
-
---get a table of recodes. 
-	--Recodes are in the key table right now, and it's just a parsing problem to 
-				turn them into clauses for SQL.
-	--add each recode to the list of interesting variables.
-
---get the list of consistency checks. This is ud_explicits. That is, these are 
-
---generate the em table via the list of consistency checks. The jewel there is
-db_to_em, with its several supporting functions; see the notes below.
-
------Actually read the input file. This may be already in the db, or it may be
-read via text file. It happens on demand---the first time that a procedure requires
-knowing the data, the read-in happens. This is often the recode step.
-*/
-
 
 /**
 Each query produces a (apop_data) table of not-OK values, in the
@@ -212,8 +170,6 @@ void db_to_em(void){
             field = pull_index(d->names->text[current_col]);
             ud_val = d->text[current_row][current_col];
             if (verbose) printf("Add edit.\tfield %i\t val %s\n", field, ud_val);
-			/*int ri_position = ri_from_ext(d->names->text[current_col], ud_val);
-            gsl_matrix_set(edit_grid->matrix, em_i-1,find_b[field]-1+ri_position-1, 1); */
             gsl_matrix_set(edit_grid->matrix, em_i-1,find_b[field]-1+atoi(ud_val)-1, 1);
 
             int k, already_recorded = 0;
@@ -274,7 +230,6 @@ double get_key_float_tagged(char const *part1, char const * part2, char const *t
 										XN(part1),
 										(part1 && strlen(part1)&&part2 && strlen(part2))?"/":"",
 										XN(part2), XN(tag));
-
 }
 
 /** Give me a key, in either one or two parts, and I'll give you an apop_data
@@ -495,36 +450,54 @@ char get_coltype(char const* depvar){
 
 #include "keylist"
 int check_levenshtein_distances(){
+    int min_distance = 100;
+    char *closest;
     apop_data *userkeys = apop_query_to_text("select key from keys");
-        for (int i=0; i < *userkeys->textsize; i++){
-            for (char **keyptr=ok_keys; strlen(*keyptr); keyptr++){
-                int hd= levenshtein_distance(*keyptr, *userkeys->text[i]);
-                Apop_stopif(hd > 0 && hd <= Max_lev_distance, , 0, "%s and %s are TOO CLOSE, dude!", *keyptr, *userkeys->text[i])
+    for (int i=0; i < *userkeys->textsize; i++){
+        for (char **keyptr=ok_keys; strlen(*keyptr); keyptr++){
+            int hd= levenshtein_distance(*keyptr, *userkeys->text[i]);
+            if (hd < min_distance){
+                min_distance = hd;
+                closest = keyptr;    
             }
         }
+        Apop_stopif(min_distance > 0 && min_distance <= Max_ham_distance, , 0, 
+                            "You wrote %s; did you mean %s?", *userkeys->text[i], *closest)
+    }
     return 0;
 }
 
-/** An implementation of the Levenshtein distance strings metric as described 
-  * at the webpage:
-  * http://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C
-  */ 
+#define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
+ 
+/** Computes Levenshtein distance between two input strings. Used to check whether 
+ *  author of spec file possibly made a typo when typing out an accepted key
+ *  by checking whether a user's key is within Min_ham_distance of an accepted 
+ *  key.
+ *
+ *  If num_differences == 0 || num_differences > Max_ham_distance then Apop_stopif 
+ *  won't get executed above in check_hamming_distances. Otherwise, if the keys have at most
+ *  Min_hamming_distance differences then it will.
+ */
+//cut/pasted/modified from https://en.wikibooks.org/wiki/Algorithm_implementation/Strings/Levenshtein_distance#C
 
 int levenshtein_distance(char *s1, char *s2) {
-    unsigned int x, y, s1len, s2len;
+    unsigned int s1len, s2len, x, y, lastdiag, olddiag;
     s1len = strlen(s1);
     s2len = strlen(s2);
-    unsigned int matrix[s2len+1][s1len+1];
-    matrix[0][0] = 0;
-    for (x = 1; x <= s2len; x++)
-        matrix[x][0] = matrix[x-1][0] + 1;
+    if (!s1len) return s2len;
+    if (!s2len) return s1len;
+    unsigned int column[s1len+1];
     for (y = 1; y <= s1len; y++)
-        matrix[0][y] = matrix[0][y-1] + 1;
-    for (x = 1; x <= s2len; x++)
-            for (y = 1; y <= s1len; y++)
-                matrix[x][y] = MIN3(matrix[x-1][y] + 1, matrix[x][y-1]+ 1, matrix[x-1][y-1] + (s1[y-1] == s2[x-1] ? 0 : 1));
-                                        
-    return(matrix[s2len][s1len]);
+        column[y] = y;
+    for (x = 1; x <= s2len; x++) {
+        column[0] = x;
+        for (y = 1, lastdiag = x-1; y <= s1len; y++) {
+            olddiag = column[y];
+            column[y] = MIN3(column[y] + 1, column[y-1] + 1, lastdiag + (s1[y-1] == s2[x-1] ? 0 : 1));
+            lastdiag = olddiag;
+        }
+    }
+    return(column[s1len]);
 }
 
 /** Test function for levinshtein_distance

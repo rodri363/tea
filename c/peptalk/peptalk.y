@@ -84,7 +84,6 @@ The functions here are all run by the yyparse() function. To see the context in 
 
 #include <stdlib.h>
 #include <stdbool.h>
-#include "tea.h"
 #include "internal.h"
 #include <string.h>
 #define YYSTYPE char*
@@ -234,22 +233,21 @@ void add_keyval(char *key, char *val){
 	if (apop_strcmp(skey, "database"))
 		set_database(sval);
 	Apop_stopif(!database, return, 0, "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".");
-	apop_query("insert into keys values (\"%s\", \"%s\", %i, \"%s\")", skey, XN(tag), ++val_count, sval);
+	apop_query("insert into keys values ('%s', '%s', %i, '%s')", skey, XN(tag), ++val_count, sval);
         // paste in macro code by selecting lines from the database
         if (apop_strcmp(skey,"paste in")) {
 	  // select from keys what was stored in the macro where tag = skey
-            apop_data *pastein = apop_query_to_text("select * from keys where tag like \'%s\%\'",skey);
-            Apop_stopif(pastein->error,return, 0,"SQL: %s not in keys table\n",skey);
+            apop_data *pastein = apop_query_to_text("select * from keys where tag like '%s/%%'",skey);
+            Apop_stopif(!pastein, return, 0,"SQL: %s not in keys table.",skey);
+            Apop_stopif(pastein->error,return, 0,"SQL: query for %s failed.",skey);
+
             for (int j = 0;j < pastein->textsize[0];j++) {
-              char *nkey;
-              nkey = malloc(100);
-              nkey = strtok(pastein->text[j][0],"/ ");
+              char *nkey = strtok(pastein->text[j][0],"/ ");
               nkey = strtok(NULL,"/ ");
 	  // insert full code into keys
   	      apop_query ("insert into keys values " 
-                          "(\"%s\", \"%s\", %i, \"%s\")",
-                          nkey,
-                          XN(tag), ++val_count, sval) ;
+                      "('%s', '%s', %i, '%s')",
+                        nkey, XN(tag), ++val_count, sval) ;
             }
         }
 	free(skey); free(sval);

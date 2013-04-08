@@ -7,24 +7,17 @@
 
 //I can't believe that R claims these for its own:
 #undef error
+#undef Apop_assert_c
 //#undef warning
 
 #define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
-
-#undef Apop_assert
-#undef Apop_assert_c
-#define Apop_assert(test, ...) if (!(test)) error(__VA_ARGS__);
-
 #define Apop_assert_c(test, returnval, level, ...) if (!(test)) \
 			{if (apop_opts.verbose >= level) warning(__VA_ARGS__); return returnval;}
-
-
 
 #undef Apop_stopif
 #define Apop_stopif(test, returnop, level, ...) if (test) \
 			{if (apop_opts.verbose >= level) warning(__VA_ARGS__); Apop_maybe_abort(level);  returnop;}
-
 
 
 /*
@@ -102,66 +95,6 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
 			int const *id, int *fails_edits, int *failed_fields);
 
 apop_data *checkData(apop_data *data);
-
-#include <apop.h>
-
-/** \defgroup config Reading configuration files
-
-Given that \ref read_spec has read in one or more config files, this function will pull
-individual values.
-
-This function can take zero through three arguments. Keys are typically of the form
-"category/subcat/key", and if you have several in the same group, you can reduce
-redundancy by splitting off the repetitive part. All of the following are valid:
-\code
-apop_data *val0 = get_key_text("category/subcat/key0");
-
-char *base = "category/subcat";
-apop_data *val1 = get_key_text(base, "key1", .optional = 'y');
-apop_data *val2 = get_key_text(base, "key2");
-\endcode
-
-*/
-
-/** \fn double get_key_float(char *part1, char * part2, char optional);
-
-Given that \ref read_spec has read in one or more config files, this function will pull
-individual values.
-
-  \param part1
-  \param part2
-  \param default_val If blank, then I'll throw an error and halt if I don't
-  find what you're looking for.  Else, I return this value if no key is found in the config file.
-
-  \return An \c apop_data set with a list of text elements. E.g.
-  \code
-  apop_data *vals = get_key_text("keyset/key", .default_val=18);
-for (int i=0; i < vals->textsize[0]; i++)
-   printf("%s\n", vals->text[i][0]);
-   \endcode
-   \ingroup config
-
-A small warning: the internals can't distinguish between no default value and
-<tt>.default_val=0</tt>, so design your keys with the knowledge that zero basically can't
-be the default.
-*/
-
-/** \fn apop_data * get_key_text(char *part1, char * part2, char optional);
-
-  \param part1 The base of the key
-  \param part2 The end of the key
-  \param default_val If not given, then I'll throw an error and halt if I don't
-  find what you're looking for.  Else, I return this value if no key is found in the config file.
-
-  \return An \c apop_data set with a list of text elements. E.g.
-  \code
-  apop_data *vals = get_key_text("keyset/key", .optional='n');
-for (int i=0; i < vals->textsize[0]; i++)
-   printf("%s\n", vals->text[i][0]);
-   \endcode
-
-   \ingroup config
-  */
 
 //key-getting functions for the C side. Notice that get_text returns an apop_data set.
 apop_data * get_key_text(char const *part1, char const *part2);

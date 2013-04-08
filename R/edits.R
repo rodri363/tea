@@ -7,6 +7,7 @@
 #' @return Nothing, but a db name and connection are placed in the global environment,
 #'    teaenv$db_name and teaenv$con
 readSpec <- function(spec,nlines=1000){
+    options(warn=1) #print warnings as they occur.
     teaenv$db_name <-.C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
     teaenv$con <- dbConnect(dbDriver("SQLite"), teaenv$db_name);
     teaenv$verbosity <- 0

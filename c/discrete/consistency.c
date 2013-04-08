@@ -1,6 +1,4 @@
 #include "internal.h"
-#include "tea.h"
-#include <apop.h>
 #include <setjmp.h>
 #include <stdbool.h>
 
@@ -78,8 +76,7 @@ static int check_a_record(int const * restrict row,  int * failures,
     int out = 0, has_c_edits=0;
     if (failures)
         memset(failures, 0, sizeof(int)*nflds);
-    if (!edit_grid)
-        return 0;
+    if (!edit_grid) return 0;
     for (int i=0; i < edit_grid->matrix->size1; i++){
         if (gsl_vector_get(edit_grid->vector, i) == 2) {//this row has real values in it; skip.
             //check that all of the variables used in the query are in the list
@@ -147,7 +144,7 @@ static int check_a_record(int const * restrict row,  int * failures,
     if (has_c_edits){
         bool usable_sql[edit_grid->vector->size];
         check_for_all_vars(usable_sql, record_name_in, record_in_size);
-	Apop_stopif(*data_as_query==NULL, return, 0, "*data_as_query is null. Should be a string of data.");
+	    Apop_stopif(*data_as_query==NULL, return -1, 0, "*data_as_query is null. Should be a string of data.");
         apop_query("%s", *data_as_query);
         char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
                   .before= "select count(*) from tea_test where (", .prune=prune_edits, .prune_parameter=usable_sql);
@@ -294,8 +291,6 @@ static void fill_a_record(int record[], int const record_width, char * const res
     for (int i=0; i < record_in_size; i++){
         int ri_position = ri_from_ext(record_name_in[i], ud_values[i]);
         if (ri_position == -100) continue;  //This variable wasn't declared ==> can't be in an edit.
-	    //	printf("Using %s at var %d with value %s\n",
-    	//		record_name_in[i],user_to_em[i],ud_values[i]);
         for(int  kk = find_b[user_to_em[i]]-1; kk< find_e[user_to_em[i]]; kk++)
           record[kk] = 0;
         Apop_stopif(ri_position == -1 , return, 0, "I couldn't find the value %s in your "
@@ -324,7 +319,7 @@ static void fill_a_record(int record[], int const record_width, char * const res
         xprintf(&insert, "%s%c'%s' ", insert, comma, ud_values[i]);
         comma=',';
     }
-    xprintf(qstring, "%s); %s);", *qstring, insert);
+    xprintf(qstring, "%s numeric); %s);", *qstring, insert);
     free(insert);
 }
 

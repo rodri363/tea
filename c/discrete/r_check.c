@@ -23,7 +23,7 @@ double check_one_row(apop_data *row, void *colnames_in){
 			   asprintf(&values[i], "%g", val);
 		} else {
            datacol = apop_name_find(row->names, colnames[i], 't');
-           Apop_assert(datacol > -2, "I can't find %s in the names list.", colnames[i])
+           Apop_stopif(datacol <= -2, return GSL_NAN, 0, "I can't find %s in the names list.", colnames[i])
            values[i] =strdup(row->text[0][datacol]);
        }
    }

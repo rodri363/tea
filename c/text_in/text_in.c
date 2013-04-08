@@ -1,5 +1,4 @@
 #include "internal.h"
-#include "tea.h"
 
 int file_read = 0;
 
@@ -51,9 +50,9 @@ int join_tables(){
 
     char *thistab = get_key_word("join", "add");
     char *idcol = get_key_word("id", NULL);
-    Apop_assert(jointo && thistab, "If you have a 'join' segment in the spec, it has to have "
+    Apop_stopif(!jointo || !thistab, return -1, 0, "If you have a 'join' segment in the spec, it has to have "
                     "a 'host' key and an 'add' key.");
-    Apop_assert(idcol, "You asked me to join %s and %s, but I have no 'id' column name "
+    Apop_stopif(!idcol, return -1, 0, "You asked me to join %s and %s, but I have no 'id' column name "
                         "on which to join (put it outside of all groups in the spec, "
                         "and until we get to implementing otherwise, it has to be the same for both tables).", thistab, jointo);
     apop_query("create index j%sidx on %s(%s);\n"

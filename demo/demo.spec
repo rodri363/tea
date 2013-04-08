@@ -29,9 +29,7 @@ fields  {
     WAGP: real
 
     # SCHL represents "educational attainment"
-    SCHL: int 0-16
-
-    
+    SCHL: int 0-24
 }
 
 recodes  {

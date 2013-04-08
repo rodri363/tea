@@ -1,6 +1,5 @@
 //See readme file for notes.
 #define __USE_POSIX //for strtok_r
-#include "tea.h"
 #include <rapophenia.h>
 #include <stdbool.h>
 #include "internal.h"
@@ -10,7 +9,6 @@ char *process_string(char *inquery, char **typestring); //parse_sql.c
 void xprintf(char **q, char *format, ...); //parse_sql.c
 char *strip (const char*); //peptalk.y
 #define XN(in) ((in) ? (in) : "")
-#define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
 apop_model relmodel; //impute/rel.c
 
@@ -450,9 +448,9 @@ static void model_est(impustruct *is, int *model_id){
     install_data_to_R(notnan, &is->base_model); //no-op if not an R model.
 	is->fitted_model = apop_estimate(notnan, is->base_model);
     Apop_stopif(!is->fitted_model, return, 0, "model fitting fail.");
-    if (apop_strcmp(is->base_model.name, "multinomial"))
+    if (!strcmp(is->base_model.name, "multinomial"))
         apop_data_set(is->fitted_model->parameters, .row=0, .col=-1, .val=1);
-    if (apop_strcmp(is->base_model.name, "Ordinary Least Squares"))
+    if (!strcmp(is->base_model.name, "Ordinary Least Squares"))
         is->fitted_model->draw=lil_ols_draw;
     if (verbose) apop_model_print(is->fitted_model);
     (*model_id)++;
@@ -718,7 +716,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         bool still_has_missings=true, hit_zero=false;
         do {
             for (int i=0; i < nanvals->names->rowct; i++){ //see notes above.
-                if (apop_strcmp(nanvals->names->row[i], ".")) continue; //already got this person.
+                if (!strcmp(nanvals->names->row[i], ".")) continue; //already got this person.
                 get_nans_and_notnans(is, nanvals->names->row[i] /*ego_id*/, 
                         dt, underlying, min_group_size, category_matrix, fingerprint_vars, id_col);
 
@@ -770,41 +768,37 @@ apop_model tea_get_model_by_name(char *name, impustruct *model){
     if (!is_inited && using_r)
         rapop_model_from_registry = (void*) R_GetCCallable("Rapophenia", "get_am_from_registry");
 
-    apop_model out= apop_strcmp(name, "normal")
-          ||apop_strcmp(name, "gaussian")
+    apop_model out= !strcmp(name, "normal")
+          ||!strcmp(name, "gaussian")
 				? apop_normal :
-			apop_strcmp(name, "multivariate normal")
+			!strcmp(name, "multivariate normal")
 				? apop_multivariate_normal :
-			apop_strcmp(name, "lognormal")
+			!strcmp(name, "lognormal")
 				? apop_lognormal :
-			apop_strcmp(name, "rake")
-		  ||apop_strcmp(name, "raking")
+			!strcmp(name, "rake")
+		  ||!strcmp(name, "raking")
 				?  (model->is_rake = true, (apop_model){.name="null model"}) :
-			apop_strcmp(name, "hotdeck")
-		  ||apop_strcmp(name, "hot deck")
-	      ||apop_strcmp(name, "multinomial")
-		  ||apop_strcmp(name, "pmf")
+			!strcmp(name, "hotdeck")
+		  ||!strcmp(name, "hot deck")
+	      ||!strcmp(name, "multinomial")
+		  ||!strcmp(name, "pmf")
 				? (model->is_hotdeck=true, apop_pmf) :
-			apop_strcmp(name, "poisson")
+			!strcmp(name, "poisson")
 				? (model->is_regression=true, apop_poisson) :
-			apop_strcmp(name, "ols")
+			!strcmp(name, "ols")
 				? (model->is_regression=true, apop_ols) :
-			apop_strcmp(name, "logit")
+			!strcmp(name, "logit")
 				? (model->is_regression=true, apop_logit) :
-			apop_strcmp(name, "probit")
+			!strcmp(name, "probit")
 				? (model->is_regression=true, apop_probit) :
-			apop_strcmp(name, "rel")
+			!strcmp(name, "rel")
 				? relmodel :
-			apop_strcmp(name, "kernel")
-	      ||apop_strcmp(name, "kernel density")
+			!strcmp(name, "kernel")
+	      ||!strcmp(name, "kernel density")
 				? apop_kernel_density 
 				: (apop_model) {.name="Null model"};
-        if (using_r && apop_strcmp(out.name, "Null model")) //probably an R model.
+        if (using_r && !strcmp(out.name, "Null model")) //probably an R model.
             out= *rapop_model_from_registry(name);
-/*        Apop_assert(!apop_strcmp(out.name, "Null model"), 
-                "I couldn't find the model named '%s' in my list of supported "
-                "models (or among models you added using setupRapopModel.", name);
-*/
         Apop_stopif(!strcmp(out.name, "Null model"), return (apop_model){}, 0, "model selection fail.");
         Apop_model_add_group(&out, apop_parts_wanted, .predicted='y'); //no cov
         if (!strcmp(out.name, "PDF or sparse matrix")) out.dsize=-2;

@@ -4,7 +4,7 @@
  asprintf(&q, "%s is a teapot.", q);
  q may be NULL, which prints the string "null", so use the little macro below when using this function.
 */
-void xprintf(char **q, char *format, ...){ 
+void xprintf(char **q, char *format, ...){
     va_list ap; 
     char *r = *q; 
     va_start(ap, format); 

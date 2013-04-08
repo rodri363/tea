@@ -1,5 +1,4 @@
 #define __USE_POSIX //for strtok_r
-#include "tea.h"
 #include "internal.h"
 /*
 #include <R.h>

@@ -1,6 +1,5 @@
 #include <stdbool.h>
 #include "internal.h"
-#include "tea.h"
 
 void generate_indices(char const *tablename); //in text_in.c
 extern int file_read;
