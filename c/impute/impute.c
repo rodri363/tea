@@ -288,9 +288,22 @@ static char *construct_a_query(char const *datatab, char const *underlying, char
     //else
     for (int i=0; i< category_matrix->textsize[0]; i++){
         char *n = *category_matrix->text[i]; //short name
-        if (strcmp(n, depvar)) //if n==depvar, you're categorizing by the missing var.
+        if (strcmp(n, depvar)){ //if n==depvar, you're categorizing by the missing var.
+
+            /* apop_data *category_str = apop_query_to_text("select %s from %s where %s is \
+                      null limit 1", n, datatab, n);
+
+            Apop_stopif(category_str == NULL, return, 0, "I returned a NULL apop_data \
+                    ptr. Something is wrong here."); 
+
+            Apop_stopif(strcmp(**category_str->text, "NaN"), return, 0, "You gave me a null \
+                    category. You should either check your syntax to make sure that \
+                    you're giving me the right value, or consider imputing the \
+                    category you gave me at an earlier point in your spec file."); */
+
             qxprintf(&q, "%s (%s) = (select %s from %s where %s = %s) and\n",  
                            q,  n,           n,  datatab, id_col, ego_id);
+        }
     }
     return q;
 }
@@ -412,6 +425,8 @@ static void get_nans_and_notnans(impustruct *is, char const* index, char const *
               apop_query_to_data("%s %s is null union %s", q, is->depvar, q2)
             : apop_query_to_data("%s %s is null", q, is->depvar);
          //but we'll need the text for the consistency checking anyway.
+
+         //Check whether isnan is null somewhere
          apop_text_alloc(is->isnan, is->isnan->matrix->size1, is->isnan->matrix->size2);
          for (int i=0; i< is->isnan->matrix->size1; i++)
              for (int j=0; j< is->isnan->matrix->size2; j++)

@@ -461,7 +461,7 @@ int check_levenshtein_distances(){
                 closest = keyptr;    
             }
         }
-        Apop_stopif(min_distance > 0 && min_distance <= Max_ham_distance, , 0, 
+        Apop_stopif(min_distance > 0 && min_distance <= Max_lev_distance, , 0, 
                             "You wrote %s; did you mean %s?", *userkeys->text[i], *closest)
     }
     return 0;
@@ -474,7 +474,7 @@ int check_levenshtein_distances(){
  *  by checking whether a user's key is within Min_ham_distance of an accepted 
  *  key.
  *
- *  If num_differences == 0 || num_differences > Max_ham_distance then Apop_stopif 
+ *  If num_differences == 0 || num_differences > Max_lev_distance then Apop_stopif 
  *  won't get executed above in check_hamming_distances. Otherwise, if the keys have at most
  *  Min_hamming_distance differences then it will.
  */
