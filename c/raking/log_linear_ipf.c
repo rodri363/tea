@@ -50,7 +50,7 @@ void rake_for_r(char **table_name){
         threading on the R side, specify a separate run\_number for each. If
         single-threading (or if not sure), ignore this.
      */
-	Apop_stopif(*table_name, return, 0, "I couldn't find a name for the input table "
+	Apop_stopif(!*table_name, return, 0, "I couldn't find a name for the input table "
                             "to the raking segment.");
 
     apop_data *all_vars_d = get_key_text("raking", "all vars");
