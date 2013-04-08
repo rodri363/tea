@@ -16,6 +16,8 @@ As of 4 May 2010, the main() function has been removed---it works only via PEP's
 #include "internal.h"
 #include <assert.h>
 
+#define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
+
 void generate_indices(char const *);
 
 int edit_ct, nflds, errorcount, verbose, run_number, explicit_ct;
@@ -24,7 +26,7 @@ FILE *yyin;
 int total_var_ct, *optionct;
 char *database;
 apop_data *settings_table, *ud_queries;
-int Max_ham_distance = 2;
+int Max_lev_distance = 2;
 
 /* The implicit edit code has been removed---it never worked. The last edition that had it was 
 git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
@@ -497,73 +499,32 @@ int check_levenshtein_distances(){
         for (int i=0; i < *userkeys->textsize; i++){
             for (char **keyptr=ok_keys; strlen(*keyptr); keyptr++){
                 int hd= levenshtein_distance(*keyptr, *userkeys->text[i]);
-                Apop_stopif(hd > 0 && hd <= Max_ham_distance, , 0, "%s and %s are TOO CLOSE, dude!", *keyptr, *userkeys->text[i])
+                Apop_stopif(hd > 0 && hd <= Max_lev_distance, , 0, "%s and %s are TOO CLOSE, dude!", *keyptr, *userkeys->text[i])
             }
         }
     return 0;
 }
 
-/** Computes hamming distance between two input strings. Used to check whether 
- *  author of spec file possibly made a typo when typing out an accepted key
- *  by checking whether a user's key is within Min_ham_distance of an accepted 
- *  key.
- *
- *  If num_differences == 0 || num_differences > Max_ham_distance then Apop_stopif 
- *  won't get executed above in check_hamming_distances. Otherwise, if the keys have at most
- *  Min_hamming_distance differences then it will.
- */
-int levenshtein_distance(char *ok_key, char *user_key){
-    int size_ok_key = strlen(ok_key);
-    int size_user_key = strlen(user_key);
-    int string_distance = fabs(size_ok_key - size_user_key);
-    if(size_ok_key == 0) return size_user_key;
-    if(size_user_key == 0) return size_ok_key;
+/** An implementation of the Levenshtein distance strings metric as described 
+  * at the webpage:
+  * http://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C
+  */ 
 
-    int cost;
-    if(string_distance > 0) cost = 1;
-    else cost = 0;
-    
-    /* We make copies of input strings and compare their last characters. If they're
-     * !equal, we set cost = 1. We then return the minimum of the levenshtein distances
-     * seen below. That might sound cryptic and (is definitely) not helpful, but
-     * essentially the algorithm checks for the minimum number of adjustments that need
-     * to be made between its two arguments based on the three parameters to min.
-     */ 
-    char *ok_key_copy, *user_key_copy, *temp_last_ok, *temp_last_user;
-
-    asprintf(&ok_key_copy, ok_key);
-    asprintf(&user_key_copy, user_key);
-    
-    temp_last_ok = ok_key_copy + strlen(ok_key_copy);
-    temp_last_ok--;
-    temp_last_user = user_key_copy + strlen(user_key_copy);
-    temp_last_user--;
-
-    if(*temp_last_ok != *temp_last_user) cost = 1;
-
-    //Create strings of size strlen - 1 (all but last character) for both ok_key and user_key
-    //To be called in recursive step at the bottom of function
-    char *decremented_ok_key = strdup(ok_key_copy);
-    decremented_ok_key[strlen(ok_key_copy) - 1] = '\0';
-
-    char *decremented_user_key = strdup(user_key_copy);
-    decremented_user_key[strlen(user_key_copy) - 1] = '\0';
-     
-
-    return min(levenshtein_distance(decremented_ok_key, user_key_copy) + 1,
-            levenshtein_distance(ok_key_copy, decremented_user_key) + 1,
-            levenshtein_distance(decremented_ok_key, decremented_user_key) + cost);
-}
-
-
-/** Quick inline function to find min value in levenshtein_distance
-  *
-  */
-int min(int input1, int input2, int input3){
-    if((input1 <= input2) && (input1 <= input3)) return input1;
-    else if ((input2 <= input1) && (input2 <= input3)) return input2;
-    else return input3;
-
+int levenshtein_distance(char *s1, char *s2) {
+    unsigned int x, y, s1len, s2len;
+    s1len = strlen(s1);
+    s2len = strlen(s2);
+    unsigned int matrix[s2len+1][s1len+1];
+    matrix[0][0] = 0;
+    for (x = 1; x <= s2len; x++)
+        matrix[x][0] = matrix[x-1][0] + 1;
+    for (y = 1; y <= s1len; y++)
+        matrix[0][y] = matrix[0][y-1] + 1;
+    for (x = 1; x <= s2len; x++)
+            for (y = 1; y <= s1len; y++)
+                matrix[x][y] = MIN3(matrix[x-1][y] + 1, matrix[x][y-1]+ 1, matrix[x-1][y-1] + (s1[y-1] == s2[x-1] ? 0 : 1));
+                                        
+    return(matrix[s2len][s1len]);
 }
 
 /** Test function for levinshtein_distance
@@ -587,6 +548,11 @@ void test_levenshtein_distance(){
     asprintf(&string_two, "database");
     assert(levenshtein_distance(string_one, string_two) == 0); 
 
+    asprintf(&string_one, "mthod");
+    asprintf(&string_two, "method");
+    assert(levenshtein_distance(string_one, string_two) == 1);
+
     free(string_one);
     free(string_two);
+    printf("Leaving test_levenshtein_distance successfully!\n");
 }
