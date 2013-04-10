@@ -1,15 +1,8 @@
 database: demo.db
-
-catagesex{
-	categories {
-		...
-	}	
-}
-
 id: SSN
 
 input {
-    input file: dc_pums_08.csv 
+    inpput file: dc_pums_08.csv 
     overwrite: no
     output table: dc
 	types {

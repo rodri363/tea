@@ -421,6 +421,7 @@ static void get_nans_and_notnans(impustruct *is, char const* index, char const *
                : apop_query_to_mixed_data(is->vartypes, "%s %s is not null", q, is->depvar);
     apop_data_listwise_delete(is->notnan, .inplace='y');
     if (!strcmp(is->vartypes, "all numeric")){
+        printf("Performing query:\n");
          is->isnan = q2 ? 
               apop_query_to_data("%s %s is null union %s", q, is->depvar, q2)
             : apop_query_to_data("%s %s is null", q, is->depvar);

@@ -71,3 +71,6 @@ push:
 get:
 	git svn fetch
 	git svn rebase
+	#R_LIBS=$(R_LIBS) R CMD check tea
+	cd $(Pkg_dir)/..; R_LIBS=$(R_LIBS) R CMD build tea | sed '/-fpic/d'
+	cd $(Pkg_dir)/..; R CMD INSTALL -l ~/.Rlibs tea*.tar.gz

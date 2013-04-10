@@ -21,7 +21,7 @@ FILE *yyin;
 int total_var_ct, *optionct;
 char *database;
 apop_data *settings_table, *ud_queries;
-int Max_lev_distance = 2;
+int Max_lev_distance = 4;
 
 /* The implicit edit code has been removed---it never worked. The last edition that had it was 
 git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
@@ -450,19 +450,23 @@ char get_coltype(char const* depvar){
 
 #include "keylist"
 int check_levenshtein_distances(){
-    int min_distance = 100;
+    int min_distance;
     char *closest;
     apop_data *userkeys = apop_query_to_text("select key from keys");
     for (int i=0; i < *userkeys->textsize; i++){
+        min_distance = 100;
         for (char **keyptr=ok_keys; strlen(*keyptr); keyptr++){
-            int hd= levenshtein_distance(*keyptr, *userkeys->text[i]);
-            if (hd < min_distance){
-                min_distance = hd;
-                closest = keyptr;    
+            printf("Current key: %s\n", *keyptr);
+            int ld = levenshtein_distance(*keyptr, *userkeys->text[i]);
+
+            if (ld < min_distance){
+                if(ld == 0) break;
+                min_distance=ld;
+                closest = *keyptr;    
             }
         }
-        Apop_stopif(min_distance > 0 && min_distance <= Max_lev_distance, , 0, 
-                            "You wrote %s; did you mean %s?", *userkeys->text[i], *closest)
+        Apop_stopif(min_distance > 0 && min_distance <= Max_lev_distance, return , 0, 
+                            "You wrote %s; did you mean %s?", *userkeys->text[i], closest)
     }
     return 0;
 }
@@ -475,8 +479,8 @@ int check_levenshtein_distances(){
  *  key.
  *
  *  If num_differences == 0 || num_differences > Max_lev_distance then Apop_stopif 
- *  won't get executed above in check_hamming_distances. Otherwise, if the keys have at most
- *  Min_hamming_distance differences then it will.
+ *  won't get executed above in check_levenshtein_distances. Otherwise, if the keys have at most
+ *  Max_lev_distance differences then it will.
  */
 //cut/pasted/modified from https://en.wikibooks.org/wiki/Algorithm_implementation/Strings/Levenshtein_distance#C
 
