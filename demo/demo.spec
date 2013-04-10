@@ -2,7 +2,7 @@ database: demo.db
 id: SSN
 
 input {
-    inpput file: dc_pums_08.csv 
+    input file: dc_pums_08.csv 
     overwrite: no
     output table: dc
 	types {

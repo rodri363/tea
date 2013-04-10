@@ -1,6 +1,7 @@
 \documentclass{article}
 
 \long\def\comment#1{}
+\long\def\cmt#1{}
 \long\def\todo#1{}
 \comment{
     This document is a combination of "A Tutorial Introduction to PEP" and "Tea for survey processing". Both documents have important information regarding the usage of Tea and this document is meant to combine that information into one source. Clean up and correct as you see fit.
@@ -336,7 +337,7 @@ A visual layout of the {\tt keys} file is shown below. If this all seems confusi
 \begin{figure}[H]
 \begin{center}
 \includegraphics[scale=.5]{dotInput.png}
-\caption{input \{ $\ldots$ \} flow chart}\label{afigure}
+\caption{input \{ $\ldots$ \} flow chart}\label{inputfigure}
 \end{center}
 \end{figure}
 
@@ -435,7 +436,7 @@ Here is a visual representation of the {\tt recodes} key:
 \begin{figure}[H]
 \begin{center}
 \includegraphics[scale=.5]{dotRecodes.png}
-\caption{records \{ $\ldots$ \} flow chart}\label{afigure}
+\caption{records \{ $\ldots$ \} flow chart}\label{recodefigure}
 \end{center}
 \end{figure}
 
@@ -549,7 +550,7 @@ Here is a visual representation of the {\tt impute} key and all of its sub-keys:
 \begin{figure}[H]
 \begin{center}
 \includegraphics[scale=.5]{dotImpute.png}
-\caption{impute \{ ... \} key flow chart.}\label{afigure}
+\caption{impute \{ ... \} key flow chart.}\label{imputefigure}
 \end{center}
 \end{figure}
 
@@ -656,7 +657,13 @@ fingerprint {
 }
 \end{lstlisting}
 
-\comment{ %BK: All of raking is commented out. 
+
+This concludes our discussion of the spec file layout and syntax. At this point, you should be 
+able to implement a basic spec file to impute any data set. More information about the keys 
+discussed above and others that were not present in {\tt demo.spec} can be found in the appendix and 
+at the r-forge website.
+
+\cmt{ %BK: All of raking is commented out. 
 \paragraph{Raking} Each record in a data set might have several data items which require imputation for
 different reasons:
 \begin{itemize}
@@ -720,11 +727,6 @@ can use those to tweak settings on the command line:
 \end{lstlisting}
 } %end commented-out raking section.
 
-
-This concludes our discussion of the spec file layout and syntax. At this point, you should be 
-able to implement a basic spec file to impute any data set. More information about the keys 
-discussed above and others that were not present in {\tt demo.spec} can be found in the appendix and 
-at the r-forge website.
 
 We now continue our tutorial by discussing imputation in more detail.
 
@@ -826,7 +828,7 @@ on a variable, which is then updated using non-missing data from the survey.\\
 $\bullet$ One could do a simple regression using the data on hand. For example,
 within the universe, regress income on  age, race, sex, and covariates from \adrec.
 Once the regression coefficients are calculated, use them to impute income for
-the record as the predicted value plus an error term. \comment{ Note that OLS assumes
+the record as the predicted value plus an error term. \cmt{ Note that OLS assumes
 a Normally-distributed error term and therefore gives a distribution of values for
 the predicted income, not just a single number; therefore one could draw multiple
 imputations.}\\
@@ -846,7 +848,7 @@ remainder of the overall routine would not need to be rewritten across surveys.
 
 We now discuss each of the models that are available in Tea.
 
-\comment{DV: We need to add rel to this list.}
+\cmt{DV: We need to add rel to this list.}
 \subsection{Models of Tea} This section describes the models available for use in imputing
 missing data.
 
@@ -896,7 +898,7 @@ used in the regression are not missing. For a point where $y$ is missing but $(x
 The variables may be specified via the usual SQL, with two exceptions to accommodate the
 fact that so many survey variables are categorical.
 
-\comment{%BK: Not sure how much of this still works.
+\cmt{%BK: Not sure how much of this still works.
 Unless otherwise noted, all dependent variables are taken to be categorical, and so are expanded to
 a set of dummies. The first category is taken to be the numeraire, and others are broken
 down into dummy variables that each have a separate term in the regression. The
@@ -912,7 +914,7 @@ a sex-age cross of $(M, 0--18), (F, 0--18), (M, 18--35), (F, 18--35)$; for conti
 variables {\em product} has its typical meaning.
 }
 
-\comment{
+\cmt{
 Because every dependent variable must be complete for the regression to calculate the
 independent variable, it makes sense to put regressions in a sequence, with a spec file like:
 
@@ -992,7 +994,7 @@ variables and for pruning out values that match our criteria. The tedium turns o
 to be worth it: our test data set takes about 25 seconds to run using the original
 full-cross `72 algorithm, and runs in under two seconds using the SQL-pruned matrix.
 
-\comment{
+\cmt{
 \section{Synthesis}
 Group quarters data in the 2010 Decennial census will be protected via
 a method known as ``synthetic data''. This method uses statistical models to modify
@@ -1082,7 +1084,7 @@ remains open. The more extensive option would be to provide multiple data sets; 
 extensive option would be to simply provide a variance measure for each data point that
 is not a direct observation.
 
-\comment{
+\cmt{
 	DV: The two paragraphs below (and more specifically the figures in them) probably need 
 	to be cleaned up. I got rid of the \listing{ ... } tags below that were around the 
 	\lstlisting{...} tags because they weren't getting compiled correctly but if you 
@@ -1338,10 +1340,13 @@ group {
 
 Here are the keys, in alphabetical order.
 
-\input keys.tex
-\input key_prints.tex
+\input ../keys.tex
+\input ../key_prints.tex
 
 %\bibliographystyle{harvard}
 %\bibliographystyle{plainnat}
 %\bibliography{Tea}
 \end{document}
+
+
+

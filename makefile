@@ -37,7 +37,7 @@ talk:
 	cd c/peptalk && bison --verbose -d -t peptalk.y 
 	cd c/peptalk && flex peptalk.l
 	mkdir -p $(Pkg_dir)/src
-	mv c/peptalk/*.c c/peptalk/*.h $(Pkg_dir)/src/
+	mv c/peptalk/p*.c c/peptalk/*.h $(Pkg_dir)/src/
 
 pkg: talk
 	mkdir -p $(Pkg_dir)/src #a reminder that make talk does this

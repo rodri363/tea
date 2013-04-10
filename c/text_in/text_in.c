@@ -200,9 +200,9 @@ from just the recode formula. Please add the new field and its valid values in t
 fields section, as with the usual variables.
 
 If you have edits based on category-style recodes, I auto-declare those, because the
-recode can only take on the values that you wrote down here.
+recode can only take on the values that you wrote down here.>>>)
 
-\key {group recodes} Much like recodes (qv), but for variables set within a group, like
+TeaKEY(group recodes,<<<Much like recodes (qv), but for variables set within a group, like
 eldest in household.
 For example,
 \begin{lstlisting}[language=]
