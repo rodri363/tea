@@ -42,3 +42,9 @@ double find_nearest_val(char const *varname, double ext_val);
 char get_coltype(char const* depvar); //bridge.c
 
 void do_recodes(); //c/text_in/recodes.c.
+
+
+int check_levenshtein_distances(int);//c/peptalk/levendistance.c
+void test_levenshtein_distance(); //also in levendistance.c, for the test suite.
+
+void test_check_out_impute();//in checkout.c

@@ -1,4 +1,4 @@
-#include "tea.h"
+#include "internal.h"
 
 //Just for the fun of it.
 #define foreach(s, ...) for (char **s = (char*[]){__VA_ARGS__, NULL}; *s; s=&s[1])
@@ -309,7 +309,6 @@ void test_ols(gsl_rng *r){
     use a startsat page thing.
     */
 
-int test_check_out_impute();//in checkout.c
 
 void tea_c_tests(){
     gsl_rng *r = apop_rng_alloc(134124);
