@@ -9,7 +9,7 @@ catagesex{
 id: SSN
 
 input {
-    input file: ss08pdc.csv 
+    input file: dc_pums_08.csv 
     overwrite: no
     output table: dc
 	types {

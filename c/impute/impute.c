@@ -427,6 +427,8 @@ static void get_nans_and_notnans(impustruct *is, char const* index, char const *
          //but we'll need the text for the consistency checking anyway.
 
          //Check whether isnan is null somewhere
+         Apop_stopif(!is->isnan, return, 0, "query returned no data.");
+         Apop_stopif(is->isnan->error, return, 0, "query failed.");
          apop_text_alloc(is->isnan, is->isnan->matrix->size1, is->isnan->matrix->size2);
          for (int i=0; i< is->isnan->matrix->size1; i++)
              for (int j=0; j< is->isnan->matrix->size2; j++)
