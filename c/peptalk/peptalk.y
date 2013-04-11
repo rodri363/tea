@@ -229,20 +229,20 @@ void add_keyval(char *key, char *val){
     if (pass) return;
 	char *skey = strip(key);
 	char *sval = strip(val);
-        char *rest = strrchr(skey,'/');
+    char *rest = strrchr(skey,'/');
     if (!sval) return;
 	if (apop_strcmp(skey, "database"))
 		set_database(sval);
 	Apop_stopif(!database, return, 0, "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".");
 
-        if (rest) if (strcmp(rest + 1,"paste in")) { //disagree i.e. not a paste in
+        if (strcmp(rest ? (rest + 1) : skey,"paste in")) { //disagree i.e. not a paste in
   	  apop_query("insert into keys values (\"%s\", \"%s\", %i, \"%s\")", skey, XN(tag), ++val_count, sval);
         // paste in macro code by selecting lines from the database
         } else {
 	  // select from keys what was stored in the macro where tag = skey
             apop_data *pastein = apop_query_to_text("select * from keys where key like '%s%%'",sval);
-            Apop_stopif(!pastein, return, 0,"SQL: %s not in keys table.",skey);
-            Apop_stopif(pastein->error,return, 0,"SQL: query for %s failed.",skey);
+            Apop_stopif(!pastein, return, 0,"paste in macro %s not found in keys table.",sval);
+            Apop_stopif(pastein->error,return, 0,"SQL: query for %s failed.",sval);
             for (int j = 0;j < pastein->textsize[0];j++) {
               char *nkey, *vkey;
               nkey = malloc(100);
