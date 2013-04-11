@@ -229,25 +229,35 @@ void add_keyval(char *key, char *val){
     if (pass) return;
 	char *skey = strip(key);
 	char *sval = strip(val);
+        char *rest = strrchr(skey,'/');
     if (!sval) return;
 	if (apop_strcmp(skey, "database"))
 		set_database(sval);
 	Apop_stopif(!database, return, 0, "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".");
-	apop_query("insert into keys values ('%s', '%s', %i, '%s')", skey, XN(tag), ++val_count, sval);
+
+        if (rest) if (strcmp(rest + 1,"paste in")) { //disagree i.e. not a paste in
+  	  apop_query("insert into keys values (\"%s\", \"%s\", %i, \"%s\")", skey, XN(tag), ++val_count, sval);
         // paste in macro code by selecting lines from the database
-        if (apop_strcmp(skey,"paste in")) {
+        } else {
 	  // select from keys what was stored in the macro where tag = skey
-            apop_data *pastein = apop_query_to_text("select * from keys where tag like '%s/%%'",skey);
+            apop_data *pastein = apop_query_to_text("select * from keys where key like '%s%%'",sval);
             Apop_stopif(!pastein, return, 0,"SQL: %s not in keys table.",skey);
             Apop_stopif(pastein->error,return, 0,"SQL: query for %s failed.",skey);
-
             for (int j = 0;j < pastein->textsize[0];j++) {
-              char *nkey = strtok(pastein->text[j][0],"/ ");
+              char *nkey, *vkey;
+              nkey = malloc(100);
+              nkey = strtok(pastein->text[j][0],"/ ");
               nkey = strtok(NULL,"/ ");
+              vkey = malloc(100);
+              strcpy(vkey,pastein->text[j][3]);
 	  // insert full code into keys
-  	      apop_query ("insert into keys values " 
-                      "('%s', '%s', %i, '%s')",
-                        nkey, XN(tag), ++val_count, sval) ;
+              char *query=malloc(1000);
+              int ii = rest-skey;
+              sprintf(query,"insert into keys values " 
+                          "(\"%%%d.%ds/%%s\", \"%%s\", %%i, \"%%s\")",ii,ii);
+  	      apop_query (query, skey,
+                          nkey,
+                          XN(tag), ++val_count, vkey) ;
             }
         }
 	free(skey); free(sval);
