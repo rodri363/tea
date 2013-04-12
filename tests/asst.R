@@ -35,12 +35,16 @@ close(g)
 db<-file("t.db")
 unlink(db)
 library(tea)
-readSpec("spec")
+
+readSpec("Reg.spec")
+
 doInput()
+
 stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where age is null") == 3)
 stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where sex is null") == 3)
 stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where sex is null") == 3)
 stopifnot(dbGetQuery(teaenv$con, "select count(*) from data") == 8)
+
 doMImpute()
 
 unlink(f)
