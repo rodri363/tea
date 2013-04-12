@@ -251,9 +251,9 @@ void add_keyval(char *key, char *val){
               vkey = malloc(100);
               strcpy(vkey,pastein->text[j][3]);
 	  // insert full code into keys
-              char *query=malloc(1000);
               int ii = rest-skey;
-              sprintf(query,"insert into keys values " 
+              char *query; 
+              asprintf(&query,"insert into keys values " 
                           "(\"%%%d.%ds/%%s\", \"%%s\", %%i, \"%%s\")",ii,ii);
   	      apop_query (query, skey,
                           nkey,
