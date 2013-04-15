@@ -369,10 +369,12 @@ void read_spec(char **infile, char **dbname_out){
     pass=0;
     begin_transaction();
     yyparse();  //fill keys table
+    Apop_stopif(!apop_table_exists("keys"), return, 0, "You didn't specify a database in \
+            your spec file. You must specify a database.\n");
     check_levenshtein_distances(max_lev_distance);
     do_recodes();
 
-     //Generating indices for ID
+    //Generating indices for ID
     apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key "
 					      "like 'input/%' order by count");
     if (!tags) return;
@@ -389,7 +391,7 @@ void read_spec(char **infile, char **dbname_out){
 	dbname_out[0] = strdup(database);
     join_tables();
     commit_transaction();
-
+    return; 
 }
 
 void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *is_sub){

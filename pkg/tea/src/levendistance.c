@@ -52,6 +52,7 @@ static int levenshtein_distance(char *s1, char *s2) {
 
 #include "keylist"
 int check_levenshtein_distances(int max_lev_distance){
+    int typo_counter=0;
     int min_distance;
     char *closest;
     if (!apop_table_exists("keys")) return 0;
@@ -67,10 +68,10 @@ int check_levenshtein_distances(int max_lev_distance){
                 closest = *keyptr;    
             }
         }
-        Apop_stopif(min_distance > 0 && min_distance <= max_lev_distance, return min_distance , 0, 
+        Apop_stopif(min_distance > 0 && min_distance <= max_lev_distance, typo_counter++ , 0, 
                             "You wrote %s; did you mean %s?", *userkeys->text[i], closest)
     }
-    return 0;
+    return typo_counter;
 }
 
 void test_levenshtein_distance(){

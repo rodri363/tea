@@ -47,4 +47,8 @@ void do_recodes(); //c/text_in/recodes.c.
 int check_levenshtein_distances(int);//c/peptalk/levendistance.c
 void test_levenshtein_distance(); //also in levendistance.c, for the test suite.
 
+void levenshtein_tests(); //found in tea/c/levenshtein_tests.c -- called in asst_tests.c
+void write_a_file(char *, char *); //found in tea/c/tests/asst_tests.c
+
+
 void test_check_out_impute();//in checkout.c

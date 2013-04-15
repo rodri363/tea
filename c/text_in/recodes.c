@@ -229,6 +229,10 @@ static int make_recode_view(char **tag, char **first_or_last){
 }
 
 void do_recodes(){
+    char *recodes_key;
+    Apop_stopif(get_key_word("input", "output table") == NULL, return, 0, "You didn't \
+        specify an output table in your input key so I don't know where to write your \
+        recodes. Please specify an output table in your spec file.");
     char *goalname; 
     asprintf(&goalname, "view%s", get_key_word("input", "output table"));
     char *overwrite = get_key_word("input", "overwrite");
