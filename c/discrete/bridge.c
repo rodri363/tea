@@ -370,7 +370,7 @@ void read_spec(char **infile, char **dbname_out){
     begin_transaction();
     yyparse();  //fill keys table
     Apop_stopif(!apop_table_exists("keys"), return, 0, "You didn't specify a database in \
-            your spec file. You must specify a database.\n");
+            your spec file. You must specify a database.");
     check_levenshtein_distances(max_lev_distance);
     do_recodes();
 

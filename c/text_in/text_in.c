@@ -102,6 +102,40 @@ static int text_in_by_tag(char const *tag){
             free(overwrite), overwrite = NULL;
 
     Apop_stopif(!file_in, return -1, 0,  "I don't have an input file name");
+
+    char *file_in_copy;
+    char *sas_post_script;
+    asprintf(&file_in_copy, file_in);
+    asprintf(&sas_post_script, "sas7bdat");
+    file_in_copy += strlen(file_in) - 8;
+
+    // Script that converts a sas input file into a regular text file
+    if(strcmp(file_in_copy, sas_post_script) == 0){
+        /* Below we write a shell script to convert the user's SAS input file into a text
+         * file that can be parsed just as any other file by TEA. The file gets written to
+         * the database given by the user in their spec file. Remark that we don't
+         * need to check that the given file exists because this is already handled by the
+         * Apop_stopif statement above.
+         */
+           apop_system(
+           "base=`basename %s .sas7bdat`; \
+           dir='${%s%/*}'; \
+           saslib='${base##*/}'; \
+           sas -noterminal -stdio <<'XXXXXX'| apop_text_to_db -d',' '-' data_tab %s.db; \
+           libname indata '$dir'; \
+           PROC EXPORT; \
+           DATA=indata.$saslib; \
+           OUTFILE='STDOUT'; \
+           DBMS=CSV REPLACE; \
+           PUTNAMES=YES; \
+           run; \
+           XXXXXX", file_in, file_in, get_key_text("database", NULL)
+           );
+    }
+
+    free(file_in_copy);
+    free(sas_post_script);
+
     Apop_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
     Apop_stopif(!overwrite && apop_table_exists(table_out), return 0, 0,
                         "Table %s exists; skipping the input from file %s.", table_out, file_in);

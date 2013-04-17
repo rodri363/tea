@@ -277,8 +277,8 @@ void test_ols(gsl_rng *r){
     char *d="olsdata";
     impute(&d);
 
-    /*
-    apop_model *stacked = apop_model_stack(apop_multivariate_normal,
+    
+ /*   apop_model *stacked = apop_model_stack(apop_multivariate_normal,
                                            apop_wishart);
     apop_settings_add(stacked, apop_stack, splitpage, "for wishart");
 
@@ -288,9 +288,7 @@ void test_ols(gsl_rng *r){
     apop_model *updated = 
     apop_update(.prior=estimated_stacked, .likelihood=apop_multivariate_normal,
                 .data=mvn_appropriate_data);
-
-*/
-
+                */
 
 }
 
@@ -310,14 +308,14 @@ void test_ols(gsl_rng *r){
 
 
 void tea_c_tests(){
-    gsl_rng *r = apop_rng_alloc(134124);
-    test_ols(r);
-    test_check_out_impute();
-    group_recode_test();
-    recode_test();
-    just_like_the_R_test();
-    snowman_test();
-    levenshtein_tests();
+   gsl_rng *r = apop_rng_alloc(134124);
+   test_ols(r);
+   test_check_out_impute();
+   group_recode_test();
+   recode_test();
+   just_like_the_R_test();
+   snowman_test();
+   levenshtein_tests();
 }
 
 #ifdef TESTING

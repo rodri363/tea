@@ -28,7 +28,7 @@ writeLines(c( "age|sex",
             "3|f",
             "83|f",
             "|f",
-	    "|NaN",
+	        "|NaN",
             "83|NaN"), g)
 close(g)
 
@@ -40,9 +40,6 @@ readSpec("spec")
 
 doInput()
 
-# DV: Commenting out these tests (that are failing) so that I can focus on tests in 
-#     levenshtein_tests.c. I will uncomment and fix errors after implementing 
-#     levenshtein_tests.c.
  stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where age is null") == 3)
  stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where sex is null") == 3)
  stopifnot(dbGetQuery(teaenv$con, "select count(*) from data where sex is null") == 3)
