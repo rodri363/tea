@@ -989,6 +989,25 @@ int do_impute(char **tag, char **idatatab){
 
 
 void impute(char **idatatab){ 
+    /* At the beginning of this function, we check the spec file to verify that the
+     * user has specified all of the necessary keys for impute(...) to function correctly.
+     * If they haven't we alert them to this and exit the function.
+     */
+    Apop_stopif(get_key_text("impute", NULL) == NULL, return, 0, "You need to specify an \
+            impute{...} key to use the doMImpute() function.");
+    Apop_stopif(get_key_text("impute", "input table") == NULL, return, 0, "You need to \
+            specify an input table in your impute key.");
+    Apop_stopif(get_key_text("impute", "output vars") == NULL, return, 0, "You need to \
+            specify your output vars (the variables that you would like to impute). \
+            Recall that output vars is a subkey of impute.");
+    Apop_stopif(get_key_text("impute", "method") == NULL, return, 0, "You need to \
+            specify the method by which you would like to impute your variables. \
+            Recall that method is a subkey of the impute key.");
+    Apop_stopif(get_key_text("input", "output table") == NULL, , 0, "You didn't specify an \
+            output table in your input key so I'm going to use `filled' as a default \
+            If you want another name than specify one in your spec file.");
+    
+    //The actual function starts here:
     apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
     for (int i=0; i< *tags->textsize; i++){
         char *out_tab = get_key_word_tagged(configbase, "output table", *tags->text[i]);
