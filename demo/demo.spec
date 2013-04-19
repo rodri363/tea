@@ -71,7 +71,10 @@ impute{
     draw count: 3
     seed:2332
 
-	paste in: catagesex
+    categories {
+        CATAGE
+        SEX
+    }
 
     method: hot deck
 	output vars: SCHL
@@ -85,6 +88,10 @@ impute{
     draw count: 3
     seed:2332
 
+    categories {
+        CATAGE
+        SEX
+    }
 
     method: hot deck
 	output vars: SEX
@@ -96,14 +103,17 @@ impute{
     draw count: 3
     seed:2332
 
-    paste in: catagesx
+    categories {
+        CATAGE
+        SEX
+    }
 
     method: hot deck
 	output vars: WAGP
 }
 
-impute{
-    input table: viewdc
+impue{
+    nput table: viewdc
     min group size: 3
     draw count: 3
     seed:2332

@@ -21,7 +21,8 @@ FILE *yyin;
 int total_var_ct, *optionct;
 char *database;
 apop_data *settings_table, *ud_queries;
-int max_lev_distance = 4;
+int max_lev_distance = 2;
+int num_typos = 0;
 
 /* The implicit edit code has been removed---it never worked. The last edition that had it was 
 git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
@@ -369,9 +370,8 @@ void read_spec(char **infile, char **dbname_out){
     pass=0;
     begin_transaction();
     yyparse();  //fill keys table
-    Apop_stopif(!apop_table_exists("keys"), return, 0, "You didn't specify a database in \
-            your spec file. You must specify a database.");
-    check_levenshtein_distances(max_lev_distance);
+    Apop_stopif(get_key_text("database", "") == NULL, return, 0, "You didn't specify a database in your spec file. You must specify a database.");
+    num_typos = check_levenshtein_distances(max_lev_distance);
     do_recodes();
 
     //Generating indices for ID
@@ -392,6 +392,12 @@ void read_spec(char **infile, char **dbname_out){
     join_tables();
     commit_transaction();
     return; 
+}
+
+/** Used in /tea/c/tests/levenshtein_test.c to test check_levenshtein_distances()
+  */
+int get_num_typos(){
+    return num_typos;
 }
 
 void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *is_sub){

@@ -780,6 +780,8 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
     apop_name_free(clean_names);
 }
 
+/* TeaKEY(impute/method, <<<This key is where the user specifies what model she would like to use to impute output vars for a given impute key>>>)
+ */
 apop_model tea_get_model_by_name(char *name, impustruct *model){
     static get_am_from_registry_type *rapop_model_from_registry;
     static int is_inited=0;
@@ -832,6 +834,8 @@ void prep_imputations(char *configbase, char *id_col, gsl_rng **r, char *filltab
         apop_query("create table model_log ('model_id', 'parameter', 'value')");
 }
 
+/* TeaKEY(impute/output vars, <<<specifies the variable whose data points are to be imputed. For this reason you could consider output vars as both the ‘input’ variable as well as the ’output’ variable to the model specified in method.>>>)
+ */
 impustruct read_model_info(char const *configbase, char const *tag, char const *id_col){
 	apop_data *vars=NULL, *indepvarlist=NULL;
     apop_regex(get_key_word_tagged(configbase, "output vars", tag),
@@ -993,19 +997,10 @@ void impute(char **idatatab){
      * user has specified all of the necessary keys for impute(...) to function correctly.
      * If they haven't we alert them to this and exit the function.
      */
-    Apop_stopif(get_key_text("impute", NULL) == NULL, return, 0, "You need to specify an \
-            impute{...} key to use the doMImpute() function.");
-    Apop_stopif(get_key_text("impute", "input table") == NULL, return, 0, "You need to \
-            specify an input table in your impute key.");
-    Apop_stopif(get_key_text("impute", "output vars") == NULL, return, 0, "You need to \
-            specify your output vars (the variables that you would like to impute). \
-            Recall that output vars is a subkey of impute.");
-    Apop_stopif(get_key_text("impute", "method") == NULL, return, 0, "You need to \
-            specify the method by which you would like to impute your variables. \
-            Recall that method is a subkey of the impute key.");
-    Apop_stopif(get_key_text("input", "output table") == NULL, , 0, "You didn't specify an \
-            output table in your input key so I'm going to use `filled' as a default \
-            If you want another name than specify one in your spec file.");
+    Apop_stopif(get_key_word("impute", "input table") == NULL, return, 0, "You need to specify an input table in your impute key.");
+    Apop_stopif(get_key_word("impute", "output vars") == NULL, return, 0, "You need to specify your output vars (the variables that you would like to impute). Recall that output vars is a subkey of impute.");
+    Apop_stopif(get_key_word("impute", "method") == NULL, return, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
+    Apop_stopif(get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name than specify one in your spec file.");
     
     //The actual function starts here:
     apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
