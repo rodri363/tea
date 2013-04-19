@@ -55,7 +55,7 @@ void snowman_test(){
     "\n"
     "input {\n"
     "    input file: onetwo.data\n"
-    "    output table: d \n\ "
+    "    output table: d \n"
     "    overwrite: y}\n"
     " \n\
     fields { \n\

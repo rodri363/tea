@@ -63,7 +63,7 @@ int check_levenshtein_distances(int max_lev_distance){
             int ld = levenshtein_distance(*keyptr, *userkeys->text[i]);
 
             if (ld < min_distance){
-                if(ld == 0) break;
+                if(ld == 0) {min_distance=0; break;}
                 min_distance=ld;
                 closest = *keyptr;    
             }

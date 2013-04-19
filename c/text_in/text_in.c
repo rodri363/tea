@@ -119,7 +119,7 @@ static int text_in_by_tag(char const *tag){
          */
            apop_system(
            "base=`basename %s .sas7bdat`; \
-           dir='${%s%/*}'; \
+           dir='${%s%%/*}'; \
            saslib='${base##*/}'; \
            sas -noterminal -stdio <<'XXXXXX'| apop_text_to_db -d',' '-' data_tab %s.db; \
            libname indata '$dir'; \
@@ -129,7 +129,7 @@ static int text_in_by_tag(char const *tag){
            DBMS=CSV REPLACE; \
            PUTNAMES=YES; \
            run; \
-           XXXXXX", file_in, file_in, get_key_text("database", NULL)
+           XXXXXX", file_in, file_in, get_key_word("database", NULL)
            );
     }
 

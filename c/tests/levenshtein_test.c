@@ -13,12 +13,6 @@
   */
 void levenshtein_tests(){
 
-char *db_dummy1;
-char *db_dummy2;
-char *db_dummy3;
-char *db_dummy4;
-char *db_dummy5;
-
 char *spec1;
 asprintf(&spec1, "1.spec");
 
@@ -48,7 +42,6 @@ asprintf(&spec5, "5.spec");
      SCHL: int 0-24 \n\
      WAGP: real}"
      );
-
 
      write_a_file(spec2,
      "\n"
@@ -117,6 +110,13 @@ asprintf(&spec5, "5.spec");
      seed:2332\n\
      methd: hot deck \n}"
      );
+
+    /*
+char *db_dummy1;
+char *db_dummy2;
+char *db_dummy3;
+char *db_dummy4;
+char *db_dummy5;*/
 
      /* Will have to readjust this test. Right now, read_spec doesn't support
         returning the number of typos so this code will not execute.
