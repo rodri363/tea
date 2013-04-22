@@ -311,23 +311,23 @@ void tea_c_tests(){
    printf("Entering apop_rng_alloc(134124) test\n");
    gsl_rng *r = apop_rng_alloc(134124);
 
-   //printf("Entering test_ols(r)\n");
-   //test_ols(r);
+   printf("Entering test_ols(r)\n");
+   test_ols(r);
 
-   //printf("Entering test_check_out_impute()\n");
-   //test_check_out_impute();
-   
-   //printf("Entering group_recode_test()\n");
-   //group_recode_test();
+   printf("Entering test_check_out_impute()\n");
+   test_check_out_impute();
+ 
+   printf("Entering group_recode_test()\n");
+   group_recode_test();
 
-   //printf("Entering recode_test()\n");
-   //recode_test();
+   printf("Entering recode_test()\n");
+   recode_test();
 
-   //printf("Entering just_like_the_R_test()\n");
-   //just_like_the_R_test();
+   printf("Entering just_like_the_R_test()\n");
+   just_like_the_R_test();
 
-   //printf("Entering snowman_test()\n");
-   //snowman_test();
+   printf("Entering snowman_test()\n");
+   snowman_test();
 
    printf("Entering levenshtein_tests()\n");
    levenshtein_tests();
