@@ -49,8 +49,8 @@ pkg: talk
 	cd $(Pkg_dir); autoconf; rm configure.ac; rm -r autom4te.cache
 
 keys:
-	cd doc; m4 -P make_key_docs.m4 `find ../pkg/tea/ -name '*.c' -or -name '*.h' -or -name '*.R'` | sed 's/^#//' > keys.tex
-	cd doc; m4 -P make_key_prints.m4 `find ../pkg/tea/ -name '*.c' -or -name '*.h' -or -name '*.R'` |sort > key_prints.tex
+	cd doc; m4 -P make_key_prints.m4 `find ../pkg/tea/ -name '*.c' -or -name '*.h' -or -name '*.R'` |sort > key_prints.m4
+	cd doc; m4 -P make_key_docs.m4 `find ../pkg/tea/ -name '*.c' -or -name '*.h' -or -name '*.R'` div.m4 key_prints.m4| sed 's/^#//'> keys.tex
 	cd doc; m4 -P make_key_list.m4 `find ../pkg/tea/ -name '*.c' -or -name '*.h' -or -name '*.R'` > ../$(Pkg_dir)/src/keylist
 
 

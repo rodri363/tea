@@ -179,8 +179,7 @@ void text_in(){
 }
 
 
-/* TeaKEY(database, <<<The database to use for all of this. It must be the first thing on your line.
- 
+/* TeaKEY(database, <<<The database to use for all of this. It must be the first line in your spec file, because 
 I need it to know where to write all the keys to come.>>>)
 
 TeaKEY(id, <<<Provides a column in the data set that provides a unique identifier for each
