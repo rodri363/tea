@@ -104,8 +104,8 @@
 Tea is a system designed to unify and streamline survey processing.  It detects
 observations that are missing data, fail consistency checks, or risk the disclosure
 of sensitive information, and uses a unified imputation process to amend these issues.
-It includes tools for handling data, generating graphs and tables, and other needs of
-the survey processor or analyst.
+It includes tools for handling data, generating graphs and tables, generating synthetic
+data, and other needs of the survey processor or analyst.
 \end{abstract}
 
 
@@ -118,11 +118,11 @@ well-documented and reasonably easy to maintain.
 Raw data is often rife with missing items, logical errors, and sensitive information.
 To ignore these issues risks alienating respondents and data users alike, and so data
 modification is a necessary part of the production of quality survey and census data.
-Tea is a statistical library designed to eradicate these errors by creating a framework
+Tea is a statistical library designed to eradicate these errors via a framework
 that is user-friendly, effectively handles Census-sized data sets, and processes
 quickly even with relatively sophisticated methods.
 
-The following is a detailed overview of the Tea system, its components, and their usage.
+This document is a detailed overview of the Tea system, its components, and their usage.
 
 Section \ref{basicssec} is an overview of the basic mechanics of the system, including the
 underlying platforms and the the format of the spec file used to describe a survey.
@@ -200,21 +200,25 @@ Output at each step is also written to the database to be read as input in the n
 step. Thus the state of the data can be recorded at each step in the process to allow
 for auditing of suspect changes.
 
+Outside the database, to control what happens and do the modeling, the Tea package
+consists of roughly 5,000 lines of R and C code.
+
 {\bf R} is a relatively user-friendly system that makes it easy to interact with data
 sets and write quick scripts to glue together segments of the survey-processing pipeline.
 R is therefore the interactive front-end for Tea. Users will want to get familiar with
-the basics of R.  As with SQL, users well-versed in \textbf{R} can use their additional
+the basics of R.  As with SQL, users well-versed in R can use their additional
 knowledge to perform analysis beyond the tools provided by Tea.
 
 {\bf C} is the fastest human-usable system available for manipulating matrices, making
 draws from distributions, and other basic model manipulations. Most of the numerical
-work will be in C. The user is not expected to know any C at all, because \textbf{R}
-procedures are provided that do the work of running the underlying C-based procedures.
-
-Now that we have a better idea of the environments in which Tea is run, let's take a look  
-at an example of a full {\tt spec} file: {\tt demo.spec}:
+work will be in C. The user is not expected to know any C at all, because R procedures
+are provided that do the work of running the underlying C-based procedures.
 
 %\comment{DV: Taking this out for now until we get all the other syntax settled.
+
+%Now that we have a better idea of the environments in which Tea is run, here is 
+%an example of a full {\tt spec} file, {\tt demo.spec}:
+
 
 %\begin{figure}
 %\lstset{columns=fullflexible}
@@ -309,8 +313,7 @@ input/output table  dc
 
 It is worth getting familiar with this internal form, because Tea prints error messages
 using this form.  We will discuss this more later in the tutorial when we talk about
-running your spec file in \textbf{R}.  Here is a summary of the syntax
-rules for keys:
+running your spec file in R.  Here is a summary of the syntax rules for keys:
 
 \begin{itemize}
 \item You can have several values in curly braces, each on a separate line, which are
@@ -505,8 +508,9 @@ after commas are removed; spaces within category names are kept.
 
 \subsection{Recodes}
 In short, {\tt recode} keys are new variables that are deterministic functions of 
-existing fields. Observe the following typical example of a {\tt recodes} key:
+existing fields. Figure \ref{basicrecode} presents a typical example of a {\tt recodes} key:
 
+\begin{figure}
 \begin{lstlisting}[language=]
 recodes {
     CATAGE {
@@ -516,15 +520,21 @@ recodes {
     }
 }
 \end{lstlisting}
+\caption{A typical recode.}\label{basicrecode}
+\end{figure}
 
 Here, we have declared a new variable CATAGE whose data points are based on a
 deterministic function of the variable AGEP. As we will see later, this recode will
-be called in the {\tt categories} key during imputation so that the data points we are
-attempting to impute will be imputed in categories based on their recode values rather
-than collectively as a single set of data points. The {\tt recodes} key is fairly
-straightforward, although we will learn about some of its more advanced features
-later. For now, however, we continue our walkthrough of the spec file by discussing
-the {\tt checks} key.
+be called in the {\tt categories} key during imputation so that the data points we
+are attempting to impute will be imputed in categories based on their recode values
+rather than collectively as a single set of data points.
+
+Recodes are created via an SQL view, which is a virtual table that calculates the
+values of recode fields on demand.
+
+The name of the recode table is always the name of the input table preceded by {\tt
+view}.  For example, the demo has an input table {\tt dc}, so subsequent steps use
+the recode view {\tt viewdc} as input.
 
 \begin{itemize}
 \item The parsing of recodes is a little different from the other parsing. We may change
@@ -588,19 +598,15 @@ Figure \ref{checkflow} is a visual representation of the {\tt checks} key and al
 \end{center}
 \end{figure}
 
-Up to this point, all of the keys we've discussed relate to preparing the data for
-imputation as specified in the {\tt impute} key. We now describe its function.
-
 
 \subsection{Imputation} \label{imputesec}
 The {\tt impute} key has several sub-keys that describe various steps in the imputation
 process. Many of the values of these sub-keys are derived from values found earlier
 in the spec file, e.g. {\tt categories} is based off of the variables declared in {\tt
-recodes}. Take a look at the following example of an {\tt impute} key that is used to
+recodes}. Here is an example of an {\tt impute} key that is used to
 outline the imputation of the age variable described above:
 
 \begin{lstlisting}[language=]
-
 impute {
     input table: viewdc
     min group size: 3
@@ -615,52 +621,45 @@ impute {
     method: hot deck
     output vars: age
 }
-
-
 \end{lstlisting}
 
 Let's walk through each of the sub-keys above and see what they're doing:
 \begin{itemize}
-\item The {\tt input table} sub-key specifies the name of a view table to 
-where you will write your recode variables. A view table is a virtual SQL table 
-that takes up very little memory and is very quick to render. In our example, we've indicated 
-that the name of the view table to where our {\tt recode} variables will be written is 
-called `viewdc'. We'll be able to access this view table from \textbf{R} later when we actually 
-compile our spec file.\\
-\item \ {\tt min group size}\ indicates the minimum number of known data points that can be 
-used to impute any unknown data points. For instance, it wouldn't make much sense to use a single 
-data point to impute five other data points as they would all end up being the same value. To 
-prevent this, we set {\tt min group size: 3}.\\
-\item \ {\tt draw count}\ determines the number of multiple imputations that should be performed. 
+\item The {\tt output table} sub-key specifies the name of a view table to 
+where you will write your recode variables. 
+\item {\tt min group size}\ indicates the minimum number of known data points that can be 
+used as donor or training data to impute unknown data points. 
+\item {\tt draw count}\ determines the number of multiple imputations that should be performed. 
 Because imputation can be done using stochastic models, it is often beneficial to obtain multiple 
-imputations of the same data set. This will be explained in more detail later. For now, just know 
-that the {\tt draw count} sub-key determines the number of multiple imputations that are performed.\\
-\item \ {\tt seed}\ specifies the pseudo-random number generator seed that is used to obtain 
-random numbers for stochastic imputation models. Keeping this seed the same will ensure that multiple imputations of the same data set will return the same outputs. Be sure to record the seeds you choose for your 
-imputations so that other analysts can reference your data and replicate your imputations if necessary.\\
-\item \ {\tt categories}\  specifies which recodes will be used to impute the data set for 
-the given variable. For example, if CATAGE is listed in the {\tt categories} key then the 
-data points that correspond to each of the three possible CATAGE values will be imputed 
+imputations of the same data set. This will be explained in more detail later. 
+\item {\tt seed}\ specifies the pseudo-random number generator seed that is used to obtain 
+random numbers for stochastic imputation models. Running Tea with the same seed will
+always produce identical results, so it is good form to record the seed as part of the 
+specification. Changing the random seed will produce a new stream of random draws.
+\item {\tt categories}\  specifies which recodes will be used to impute the data set for 
+the given variable. For example, if {\tt CATAGE} is listed in the {\tt categories} key then the 
+data points that correspond to each of the three possible {\tt CATAGE} values will be imputed 
 separately. While it's not an absolute requirement that the {\tt categories} key be implemented, most data 
-sets are imputed by categories so you will be using this key for almost all of your imputations.\\
-\item \ {\tt method}\ specifies the type of model that is used to impute your data points. 
-Choosing this model is itself a non-trivial task and is discussed more thoroughly later on 
-in the tutorial.\\
-\item \ {\tt output vars}\ specifies the variable whose data points are to be imputed. For this reason 
-you could consider {\tt output vars} as both the `input' variable as well as the 'output' variable 
-to the model specified in {\tt method}.\\
+sets are imputed by categories so you will be using this key for almost all of your imputations.
+\item {\tt method}\ specifies the type of model that is used to impute your data points. 
+Choosing this model is discussed more thoroughly later on in the tutorial.
+\item {\tt output vars}\ specifies the variable whose data points are to be imputed. For this reason 
+you could consider {\tt output vars} as both the `input' variable as well as the `output' variable 
+to the model specified in {\tt method}.
 \end{itemize}
+More can be found on each of the above keys in the appendix.
 
-Here is a visual representation of the {\tt impute} key and all of its sub-keys:
+\cmt{
+Figure \ref{imputefigure} is a visual representation of the {\tt impute} key how the
+elements are used.
 
-\begin{figure}[H]
+\begin{figure}
 \begin{center}
 \includegraphics[scale=.5]{dotImpute.png}
 \caption{impute \{ ... \} key flow chart.}\label{imputefigure}
 \end{center}
 \end{figure}
-
-More can be found on each of the above keys in the appendix.
+}
 
 \subsection{More features}
 This concludes our walkthrough of a typical spec file. By now you should have a basic idea of 
@@ -668,19 +667,34 @@ how a spec file is implemented within Tea. Before we continue on to explaining m
 the models available in Tea, and other features that are available within the Tea framework, we will mention 
 four more features of the spec file.
 
-% Group recodes paragraph is incomplete and needs to be updated before being published.
+\paragraph{Group recodes} Tea does all consistency checking on a single observation by
+itself. Thus, to make an edit like {\em people with relationship status of child must
+be younger than the householder} work, the age of the householder must be on the same line
+as the child's age.
 
-\paragraph{Group recodes} The first feature that we'll mention is that of {\tt group recodes}. 
-Often in an imputation model, after declaring your {\tt recodes}, it is also necessary to declare 
-sub-recodes that are function of those earlier recodes. For example, suppose you had a spec file 
-in which you intended to impute data points for various members of households. Then to perform imputations 
-on 
+Group recodes are much like individual recodes: they are a new variable that is a function
+of an existing variable (perhaps from an earlier recode group in the spec file), but the
+expression for generating the variable will be evaluated using all of the data in a
+household. 
 
+Figure \ref{morerecodes} shows a series of single-record recodes, then a set of group
+recodes. The single-record recodes demonstrate the use of the SQL {\tt case} statement,
+which is analogous to the if-then-else expressions from many other languages. You will
+rarely (if ever) need this in individual recodes via Tea, because the list-of-categories
+syntax shown in Figure \ref{basicrecode} simplifies writing out the cases.
 
+The group recodes in Figure \ref{morecodes} will produce the given variables
+by applying the given formula to every person in the survey with the same {\tt SERIALNO}
+(one ACS household). Thus, each member of a household will have an {\tt NP} field listing
+the total number of people in the household, an {\tt NHH} field listing the number of
+people in the household who are householders, et cetera. 
+
+The age of householder is the maximum age in the household only among those with {\tt RELP='00'}, which is expressed using 
+a {\tt case} statement inside of the {\tt max()} function.
+
+\begin{figure}
 \begin{lstlisting}[language=]
-
 recodes {
-        EARN: case when WAGP<=0 then 'none' when WAGP>0 then 'black' else NULL end
         MOVE: case MIG when 1 then 'moved' else 'stayed' end
         DEG: case when SCHL in ('24','23','22','21','20') then 'degree' else 'non-degreed' end
         MF: case SEX when '1' then 'Male' when '2' then 'Female' else NULL end
@@ -703,10 +717,9 @@ group recodes {
         SPSEX: cast(round(avg(case RELP when '01' then SEX end)) as integer)
     }
 }
-
-
-
 \end{lstlisting}
+\caption{Some more elaborate recodes}\label{morerecodes}
+\end{figure}
 
 \paragraph{Including} So far we've spoken of a single on-disk spec file that contains
 all of the survey processing instructions.  Though this approach may be appropriate
@@ -745,7 +758,7 @@ variables in the list will be tried. The {\tt frequency} variable indicates that
 cells with two or fewer observations will be marked.
 
 We are calling this specific form of disclosure avoidance {\em fingerprinting}, so after
-this segment of the spec file is in place, call {\em doFingerprinting()} from \textbf{R} to run the
+this segment of the spec file is in place, call {\em doFingerprinting()} from R to run the
 procedure. The output is currently in a database table named {\em vflags}.
 
 \begin{lstlisting}[language=]
@@ -813,7 +826,7 @@ raking {
 \end{lstlisting}
 
 As you have seen a few times to this point, once you have the spec file in place you can
-call the procedure with one \textbf{R} function, which in this case is {\tt doRaking()}. But there
+call the procedure with one R function, which in this case is {\tt doRaking()}. But there
 are several ways to change the settings as you go, so that you can experiment and adjust.
 
 The first is to simply change the spec file and re-run. To do this, you will have to call
@@ -836,36 +849,36 @@ can use those to tweak settings on the command line:
 
 \section{Interactive R}\label{rsec}
 The specification file described to this point does nothing by itself, but provides
-information to procedures written in \textbf{R} that do the work. In fact, Tea is simply 
-called as a library in \textbf{R}, and the spec file itself is instantiated by 
-issuing commands from the \textbf{R} command prompt described below.
+information to procedures written in R that do the work. In fact, Tea is simply 
+called as a library in R, and the actions described in the spec file are executed by
+issuing commands from the R command prompt described below.
 
 \subsection{Loading Tea in R}
-When you start \textbf{R} (from the directory where the data is located), you are left at a
-simple command prompt, $>$, waiting for your input. Tea extends \textbf{R} via a library of
+When you start R (from the directory where the data is located), you are left at a
+simple command prompt, $>$, waiting for your input. Tea extends R via a library of
 functions for survey processing, but you will first need to load the library, with:
 \begin{lstlisting}[language=]
 > library(Tea)
 \end{lstlisting}
 
-Now you have all of the usual commands from \textbf{R}, plus those from Tea. You only
-need to load the library once per \textbf{R} session, but it's harmless if you run
+Now you have all of the usual commands from R, plus those from Tea. You only
+need to load the library once per R session, but it's harmless if you run
 {\tt library(Tea)} several times.
 
-After loading the library by running {\tt > library(tea)}, you would then need to 
-tell \textbf{R} to read your spec file, perform the checks, perform the imputations, 
-and then finally check out the imputations to an \textbf{R} data structure so that you 
+After loading the library by running {\tt library(tea)}, you would then need to 
+tell R to read your spec file, perform the checks, perform the imputations, 
+and then finally check out the imputations to an R data structure so that you 
 can view them. Observe the following code:
 
 \begin{lstlisting}[language=]
-> library(Tea)
-> read_spec("spec")
+> library(tea)
+> readSpec("spec")
 > doChecks()
 > doMImpute()
-> checkOutImpute()
+> checkOutImpute("fulldata")
 \end{lstlisting}
 
-These commands could be entered in a script file as easily as they're entered on R's command line.
+These commands could be entered in a script file as easily as they are entered on R's command line.
 You always have the option of creating a {\tt .R} file that has each of the above commands listed 
 sequentially. Observe the following example of a {\tt .R} file:
 
@@ -879,33 +892,30 @@ checkOutImpute()
 \end{lstlisting}
 
 If we assume that the file above is named {\tt demo.R} then we could run the following command 
-from \textbf{R}'s command line:
+from R's command line:
 
 \begin{lstlisting}[language=]
 > source("demo.R")
 \end{lstlisting}
 
-Then \textbf{R} would automatically run each of the scripts specified in {\tt demo.R} and would 
-accomplish the exact same thing as running each command separately through \textbf{R}'s command line.
-Though running {\tt > source("your\_file.")} is often quicker and more convenient than entering 
-each command separately on the command line, entering the commands separately can often aid in 
-verifying the results of the consistency-checking step, verifying the results of the imputation, 
-et cetera.\\
+Starting R and sourcing a script allows you to further query and interrogate the data
+after execution. To run {\tt demo.R} without starting R's interactive shell, use {\tt R -f
+demo.R}.
 
-In either case, once your spec file has been correctly implemented, your data will be 
-imputed and available for viewing through an \textbf{R} data-frame.
-We examine how this is done in the next subsection.
+In either case, once your spec file has been correctly implemented, your data will
+be imputed and available for viewing through an R data frame.  We examine how this is
+done in the next subsection.
 
 \subsection{Showing the data}
-Data is stored in two places: the database, and \textbf{R} data frames. Database tables
+Data is stored in two places: the database, and R data frames. Database tables
 live on the hard drive and can easily be sent to colleagues or stored in
-backups. \textbf{R} data frames are kept in R's memory, and so are easy to manipulate and
+backups. R data frames are kept in R's memory, and so are easy to manipulate and
 view, but are not to be considered permanent. Database tables can be as large as
-the disk drive can hold; \textbf{R} data frames are held in memory and can clog up memory if
+the disk drive can hold; R data frames are held in memory and can clog up memory if
 they are especially large.
 
-You can use Tea's {\tt show\_db\_table} function to pull a part of a database table into
-an \textbf{R} data frame. You probably don't want to see the whole table, so there are
+You can use the {\tt teaTable} function to pull a part of a database table into
+an R data frame. You probably don't want to see the whole table, so there are
 various options to limit what you get. Some examples:
 \begin{lstlisting}[language=]
 > TeaTable("dc", cols="AGEP, PUMA", where="PUMA=104")
@@ -918,7 +928,7 @@ table. You will probably be using the {\tt limit} often; the {\tt offset} allows
 you to check the middle of the table, if you suspect that the top of the table
 is not relevant or representative of the data need to analyze.
 
-There are, of course many more options than those listed here. If you'd like to see what other tools are available in manipulating \textbf{R} data, you can get them via \textbf{R}'s help system as such:
+There are, of course many more options than those listed here. If you'd like to see what other tools are available in manipulating R data, you can get them via R's help system as such:
 \begin{lstlisting}[language=]
 > ?TeaTable
 \end{lstlisting}
@@ -929,9 +939,9 @@ little hit-and-miss.) Depending on R's setup, this may start a paging program th
 you use the arrow keys and page up/page down keys to read what could be a long document. 
 Quit the pager with {\tt q}.
 
-The {\tt show\_db\_table} function creates an \textbf{R} data frame, and, because the examples above didn't do
+The {\tt show\_db\_table} function creates an R data frame, and, because the examples above didn't do
 anything else with it, displays the frame to the screen and then throws it out. Alternatively, you can
-save the frame and give it a name. \textbf{R} does assignment via {\tt $<$-}, so name the output
+save the frame and give it a name. R does assignment via {\tt $<$-}, so name the output
 with:
 
 \begin{lstlisting}[language=]
@@ -944,11 +954,11 @@ To display the data frame as is, just give its name at the command line.
 > p104
 \end{lstlisting}
 
-But you may want to restrict it further, and \textbf{R} gives you rather extensive control over
+But you may want to restrict it further, and R gives you rather extensive control over
 which rows and columns you would like to see.
 
-Another piece of \textbf{R} and spec file syntax: the {\tt \#} indicates a comment to the human
-reader, and \textbf{R} will ignore everything from a {\tt \#} to the end of the line.
+In both R and the spec file syntax, a {\tt \#} indicates a comment to the human
+reader; everything from the {\tt \#} to the end of the line is ignored by the parser.
 
 \begin{lstlisting}[language=]
 > p104[1,1]          #The upper-left element
@@ -963,7 +973,7 @@ reader, and \textbf{R} will ignore everything from a {\tt \#} to the end of the 
 
 These commands could be entered on R's command line as easily as in a script file, so an
 analyst who needs to verify the results of the consistency-checking step could copy and
-paste the first three lines of the script onto the \textbf{R} command prompt, where they will run and
+paste the first three lines of the script onto the R command prompt, where they will run and
 then return the analyst to the command prompt, where he or she could print subsections of
 the output tables, check values, modify the spec files and re-run, continue to the
 imputation step, et cetera.
@@ -1241,7 +1251,7 @@ records in need of confidentiality protection. Such a method has already been ap
 group quarters records in the American Community Survey for collection years 2006--2009.
 
 \section{Weighting}
-We use the {\em survey} package for \textbf{R} to calculate and modify weights for a
+We use the {\em survey} package for R to calculate and modify weights for a
 survey. The package is fully documented in \citet{lumley:surveys}.
 
 \section{Models and Universes}
@@ -1413,10 +1423,11 @@ is not a direct observation.
 
 
 \section{Conclusion}
-This concludes our tutorial. If you have any questions or comments please feel free to contact 
-us at xxxxxxxxx@email.gov. Also, check out the R-Forge Website at 
-\url{https://r-forge.r-project.org/projects/Tea/} for updates to both the Tea software as well 
-as this tutorial document.
+This concludes our tutorial. If you have any questions or comments please feel
+free to contact Ben Klemens (ben.klemens@census.gov) or Rolando Rodr\'iguez
+(rolando.a.rodriguez@gmail.com). Also, check out the R-Forge Website at
+\url{https://r-forge.r-project.org/projects/Tea/} for updates to both the Tea software
+as well as this tutorial document.
 
 \section*{Appendix: keys}
 
@@ -1424,21 +1435,7 @@ This is a reference list of all of the available keys that could appear in a spe
 As a reference, descriptions are brief and assume you already know the narrative of the
 relevant procedures, in the main text.
 
-Keys are listed using the {\tt group/key/value} notation described in Section \ref{specsec}. As described there, one could write a key as either
-\begin{lstlisting}[language=]
-group {
-    key : value
-}
-
-#or as
-group {
-    key {
-        value
-    }
-}
-\end{lstlisting}
-
-Here are the keys, in alphabetical order.
+Keys are listed using the {\tt group/key/value} notation described in Section \ref{specsec}.
 
 %\input ../keys.tex
 
@@ -1446,6 +1443,3 @@ Here are the keys, in alphabetical order.
 %\bibliographystyle{plainnat}
 %\bibliography{Tea}
 \end{document}
-
-
-
