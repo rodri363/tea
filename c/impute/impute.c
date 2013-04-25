@@ -421,7 +421,6 @@ static void get_nans_and_notnans(impustruct *is, char const* index, char const *
                : apop_query_to_mixed_data(is->vartypes, "%s %s is not null", q, is->depvar);
     apop_data_listwise_delete(is->notnan, .inplace='y');
     if (!strcmp(is->vartypes, "all numeric")){
-        printf("Performing query:\n");
          is->isnan = q2 ? 
               apop_query_to_data("%s %s is null union %s", q, is->depvar, q2)
             : apop_query_to_data("%s %s is null", q, is->depvar);
@@ -825,7 +824,7 @@ apop_model tea_get_model_by_name(char *name, impustruct *model){
         return out;
 }
 
-void prep_imputations(char *configbase, char *id_col, gsl_rng **r, char *filltab){
+void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
     int seed = get_key_float(configbase, "seed");
     *r = apop_rng_alloc((!isnan(seed) && seed>=0) ? seed : 35);
     apop_table_exists("impute_log", 'd');
@@ -900,8 +899,8 @@ char *configbase = "impute";
 /* TeaKEY(impute/input table, <<<The table holding the base data, with missing values. 
   Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called {\tt doInput()} in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one.>>>)
   TeaKEY(impute/seed, <<<The RNG seed>>>)
-  TeaKEY(impute/draw count, <<<How many multiple imputations should we do? Default: 5.>>>)
-  TeaKEY(impute/output table, <<<Where the fill-ins will be written. You'll still need {\tt checkOutImpute} to produce a completed table.>>>)
+  TeaKEY(impute/draw count, <<<How many multiple imputations should we do? Default: 1.>>>)
+  TeaKEY(impute/output table, <<<Where the fill-ins will be written. You'll still need {\tt checkOutImpute} to produce a completed table. If you give me a value for {\tt impute/eariler output table}, that will be the default output table; if not, the default is named {\tt filled}.>>>)
   TeaKEY(impute/earlier output table, <<<If this imputation depends on a previous one, then give the fill-in table from the previous output here.>>>)
   TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
  */
@@ -913,9 +912,7 @@ int do_impute(char **tag, char **idatatab){
     Apop_stopif(get_key_word("impute", "input table") == NULL, return -1, 0, "You need to specify an input table in your impute key.");
     Apop_stopif(get_key_word("impute", "output vars") == NULL, return -1, 0, "You need to specify your output vars (the variables that you would like to impute). Recall that output vars is a subkey of impute.");
     Apop_stopif(get_key_word("impute", "method") == NULL, return -1, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
-    Apop_stopif(get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name than specify one in your spec file.");
     
-
     //This fn does nothing but read the config file and do appropriate setup.
     //See impute_a_variable for the real work.
     Apop_stopif(!*tag, return -1, 0, "All the impute segments really should be tagged.")
@@ -938,7 +935,9 @@ int do_impute(char **tag, char **idatatab){
     char *out_tab = get_key_word_tagged(configbase, "output table", *tag);
 
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
-    if (!out_tab) out_tab = "filled";
+    if (!out_tab && previous_fill_tab) out_tab = previous_fill_tab;
+    Apop_stopif(!out_tab, out_tab = "filled",
+        0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name than specify one in your spec file.");
 
     char *id_col= get_key_word(NULL, "id");
     if (!id_col) {
@@ -951,7 +950,7 @@ int do_impute(char **tag, char **idatatab){
     sprintf(apop_opts.db_name_column, "%s", id_col);
 
     static gsl_rng *r;
-    if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r, out_tab);
+    if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r);
     //I depend on this column order in a few other places, like check_out_impute_base.
     if (!apop_table_exists(out_tab))
         apop_query("create table %s ('draw', 'value', '%s', 'field');"

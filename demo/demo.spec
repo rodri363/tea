@@ -23,6 +23,7 @@ fields  {
 
     # SCHL represents "educational attainment"
     SCHL: int 0-24
+    logWAGP: real
 }
 
 recodes  {
@@ -32,10 +33,10 @@ recodes  {
 		3|
 	}
 
-        HAS_INCOME {
-       	       1 | WAGP > 0
-               0 |
-        }
+    HAS_INCOME {
+           1 | WAGP > 0
+           0 |
+    }
 
    	SSN: SERIALNO*100+SPORDER
 
@@ -57,24 +58,19 @@ checks {
 
 
 catagesex{
-
+    min group size: 3
+    draw count: 3
+    seed:2332
     categories {
         CATAGE
         SEX
     }
-
 }
 
 impute{
     input table: viewdc
-    min group size: 3
-    draw count: 3
-    seed:2332
-
-    categories {
-        CATAGE
-        SEX
-    }
+    output table: imputes
+    paste in: catagesex
 
     method: hot deck
 	output vars: SCHL
@@ -84,14 +80,8 @@ impute{
 
 impute{
     input table: viewdc
-    min group size: 3
-    draw count: 3
-    seed:2332
-
-    categories {
-        CATAGE
-        SEX
-    }
+    earlier output table: imputes
+    paste in: catagesex
 
     method: hot deck
 	output vars: SEX
@@ -99,29 +89,17 @@ impute{
 
 impute{
     input table: viewdc
-    min group size: 3
-    draw count: 3
-    seed:2332
-
-    categories {
-        CATAGE
-        SEX
-    }
+    earlier output table: imputes
+    paste in: catagesex
 
     method: hot deck
 	output vars: WAGP
 }
 
 impue{
-    nput table: viewdc
-    min group size: 3
-    draw count: 3
-    seed:2332
-
-    categories {
-        CATAGE
-        SEX
-    }
+    input table: viewdc
+    earlier output table: imputes
+    paste in: catagesex
 
     method: ols
 	output vars: AGEP

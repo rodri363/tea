@@ -128,7 +128,6 @@ static int text_in_by_tag(char const *tag){
            );
     }
 
-    free(file_in_copy);
     free(sas_post_script);
 
     Apop_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
