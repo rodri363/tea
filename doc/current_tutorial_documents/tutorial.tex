@@ -72,7 +72,7 @@
 
 \newenvironment{key}[1]{ %
   \setlength{\parsep}{0pt} %
-\hspace{-0.5cm} \textbf{#1}:\\ %
+\hspace{-0.85cm} \textbf{#1}:\\ %
   \setlength{\parindent}{0pt} %
   \setlength{\parsep}{3pt} %
 }{}
@@ -125,7 +125,7 @@ quickly even with relatively sophisticated methods.
 This document is a detailed overview of the Tea system, its components, and their usage.
 
 Section \ref{basicssec} is an overview of the basic mechanics of the system, including the
-underlying platforms and the the format of the spec file used to describe a survey.
+underlying platforms and the format of the spec file used to describe a survey.
 Because Tea uses R as a front-end, Section \ref{rsec} gives a brief overview of using R
 for the purposes of querying, subsetting, and summarizing tables.
 Section \ref{impsec} goes into greater detail on the workings of the imputation system,
@@ -155,8 +155,8 @@ look closer at the spec file:
 \subsection{The spec file}\label{specsec}
 The full specification of the various steps of Tea's process, from input of data to final
 production of output tables, is specified in a single file, the {\em spec file}. There
-are several benefits to such a workflow.  First, because the spec file is separate from
-robust programming languages like \textbf{R} or SAS, it is a simpler grammar that is easier to
+are several benefits to such a work flow.  First, because the spec file is separate from
+programming languages like R or SAS, it is a simpler grammar that is easier to
 write and analysts whose areas of expertise are not in programming can customize Tea
 and write technical specifications without the assistance of a programmer or extensive
 training in a new programming language. Consider the following script that is taken
@@ -166,8 +166,8 @@ from the {\tt demo.spec} file (which you can open using Kate or any other text e
 database: test.db
 
 input {
-        input_file: dc_pums_08.CSV
-        output_table: dc_pums
+        input file: dc_pums_08.CSV
+        output table: dc
 }
 \end{verbatim}
 
@@ -233,619 +233,6 @@ are provided that do the work of running the underlying C-based procedures.
 The configuration system ({\tt spec} file) is a major part of the user interface with Tea. 
 As is evident from {\tt demo.spec}, there are many components of the spec file that all 
 perform certain functions. We begin by explaining the concept of \textit{keys}.
-
-\subsection{Keys}
-Everything in the spec file is a key/value pair (or, as may be more familiar to 
-you, a tag: data definition). Each key in the spec file has a specific purpose and 
-will be outlined in this tutorial.
-To begin, we start in the header of {\tt demo.spec}:
-
-\begin{lstlisting}[language=]
-database: demo.db
-id: SSN
-\end{lstlisting}
-
-Here, {\tt database: demo.db} and {\tt id: SSN} are examples of key: value pairs.
-As is the case in {\tt demo.spec}, your spec file must begin by providing the
-database ({\tt database:your\_database.db}) and the unique identifier ({\tt
-id:your\_unique\_identifier}). The {\tt database:} key identifies the database file
-where all of your data will be manipulated during the various processes of Tea.
-The {\tt id} key provides a column in the database table that serves as the unique
-identifier for each set of data points in your data set. Though the {\tt id} key is
-not strictly necessary, we strongly advise that you include one in your spec file to
-prevent any unnecessary frustration as most of Tea's routines require its use. More
-information on both of these keys can be found in the appendix of this tutorial.\\
-
-You may have noticed that keys are assigned values with the following syntax:\\
-
-{\tt key: value}\\
-
-This syntax is equivalent to the following form with curly braces:
-\begin{lstlisting}[language=]
-database{
-	demo.db
-}
-
-id {
-	SSN
-}
-\end{lstlisting}
-
-Clearly, this form is not as convenient as the {\tt key: value} form for single values. However, it allows 
-us to have multiple values associated with a single line of data, and even subkeys. For example, take  
-the next line in {\tt demo.spec} (the computer will 
-ignore everything after a \#, so those lines are comments for your fellow humans):
-
-\begin{lstlisting}[language=]
-checks { #all of the following values are associated with the "checks" key
-	age < 15 && status='married'
-	age > 99
-}
-\end{lstlisting}
-
-The elements in a group don't just have to be values; they can also be key:value pairs:
-
-\begin{lstlisting}[language=]
-input { 
-    input file: ss08pdc.CSV
-    overwrite: no
-    output table: dc
-}
-\end{lstlisting}
-
-%  DV: Here we should explain how subkeys are used (a fact of which I'm not entirely 
-%  sure myself). After explaining this we have:
-
-We thus have a main key, {\tt input} and subkeys.  This is useful for keeping the spec
-file organized and making sure that keys from one part of the pipeline do not clash with
-keys from other parts.  In the database, the keys and subkeys get merged together,
-to produce a key:value table that, given the above inputs, would look like this:
-
-\begin{verbatim}
-key                 value
-------------------  -----------
-database            demo.db
-id                  SSN
-input/input file    ss08pdc.CSV
-input/overwrite     no
-input/output table  dc
-\end{verbatim}
-
-It is worth getting familiar with this internal form, because Tea prints error messages
-using this form.  We will discuss this more later in the tutorial when we talk about
-running your spec file in R.  Here is a summary of the syntax rules for keys:
-
-\begin{itemize}
-\item You can have several values in curly braces, each on a separate line, which are
-added to the key/value list. Order is preserved.
-
-\item You can have as many levels of subkeys as you wish.
-
-\item If there is a subkey, then its name is merged with the parent key via a slash.
-
-\item As a shortcut, you can replace {\tt key \{single value\}} with {\tt key:single
-value}.
-
-\item Each value takes up exactly one line (unless you explicitly combine lines; see
-below). Otherwise, white space is irrelevant to the parser. Because humans will also
-read the spec file, you are strongly encouraged to use indentation to indicate group
-membership.
-
-\item If you need to continue a value over several lines, put a backslash at the end
-of each line that continues to the next; the backslash and the newline following it
-will be replaced with a single space.
-
-\end{itemize}
-
-\paragraph{Two more tricks} There are two more conveniences to the spec file syntax,
-which can be skipped on a first reading.
-
-First, the special key {\tt include} indicates that a separate file should be pasted in
-where the {\tt include} key was given. For example, we may have a file named {\tt
-checks.spec}:
-
-\begin{lstlisting}[language=]
-age < 15 && status='married'
-age > 99
-\end{lstlisting}
-
-The main spec file would have a {\tt checks} section that looks like this:
-
-\begin{lstlisting}[language=]
-checks{
-    include: checks.spec
-}
-\end{lstlisting}
-
-The {\tt checks.spec} file would be pasted into place to reproduce the same {\tt checks}
-section written in one place above. This mechanism allows one person to work on the
-consistency rules in one file and another to work on the imputations in another file.
-
-Second, smaller segments can also be pasted into place. This was originally intended to
-minimize redundancy in the {\tt impute} segments below. The special {\tt paste in} key
-will paste in a given set of key:values at the point given. Thus, this spec file:
-
-\begin{lstlisting}[language=]
-cats{
-    categories{
-        age
-        sex
-        tract
-    }
-}
-
-impute {
-    paste in: cats
-    output var: income
-    method: lognormal
-}
-
-impute {
-    paste in: cats
-    output var: sex
-    method: hot deck
-}
-\end{lstlisting}
-
-will expand to this more redundant spec file:
-
-\begin{lstlisting}[language=]
-
-impute {
-    categories{
-        age
-        sex
-        tract
-    }
-
-    output var: income
-    method: lognormal
-}
-
-impute {
-    categories{
-        age
-        sex
-        tract
-    }
-    output var: sex
-    method: hot deck
-}
-\end{lstlisting}
-
-Notice that the key {\tt cats} gets used by {\tt paste in}, but does not appear in
-the final spec file.
-
-
-\subsection{Input declarations}
-We now continue through our spec file to the {\tt input} key.
-
-The {\tt input} key specifies:
-\begin{enumerate}
-\item The  CSV\footnote{The custom is to call these files {\em
-    comma-separated values}, but you are not required to use commas as a delimiter.}
-    file from which you will draw your data.
-\item The option to \texttt{overwrite} the CSV file currently written into the specified database with 
-a new CSV file that you have specified.
-\item The {\tt output table} key that specifies the table where you would like to 
-write the data that is read in from the {\tt CSV} file.
-\end{enumerate}
-
-More information about these keys can be found in the appendix.  A visual layout of
-what the effects of the {\tt input} segment of the spec affects is shown in Figure
-\ref{inputfigure}.
-
-\begin{figure}
-\begin{center}
-\includegraphics[scale=.5]{dotInput.png}
-\caption{input \{ $\ldots$ \} flow chart}\label{inputfigure}
-\end{center}
-\end{figure}
-
-\subsection{Field declarations} The edit-checking system needs to know the type and range
-of every variable that has an associated edit. If a variable does not have an associated
-edit, there is no need to declare its range.
-
-The declaration of the edit variables contained in the {\tt fields} key consists of the field name, 
-a type ({\tt int}, {\tt cat}, or 
-{\tt real}) to be discussed further below, and a list of valid values for integer and categorical variables. Here is a typical example:
-
-\begin{lstlisting}[language=]
-fields {
-    age: int 0-100
-    sex: cat M, F
-    hh_type: int 1, 2, 4, 8
-    income: real
-}
-\end{lstlisting}
-
-The above code declared four variables: {\tt age}, {\tt sex}, {\tt hh\_type}, and
-{\tt income} and we've declared those four variables in different and valid ways.
-By declaring our variables with a type and range, we can pass the information to the
-edit-checking system so that it knows what to verify when running its checks for each
-of these variables.  You can see that the list of values may be text categories or
-numeric values, and the range 0--100 will be converted into the full sequence 0, 1,
-2, \dots, 100.
-
-When declaring a variable, the first word following the {\tt :} must be a type. For instance, 
-for the {\tt hh\_type: int 1, 2, 4, 8} field above, we used the word 'int' to indicate that 
-the data values of the field were of type integer. If leading zeros are relevant (e.g.,
-a category like {\tt 01}), specify the field as a text category to prevent the leading
-zero from being removed.  Keep in mind 
-that if you declare the incorrect type for a field that the edit-checking system may not correctly 
-verify the values of that field in your data set.
-
-As a final note, we warn the user against creating fields with an overly large range of
-integer values. For a field with a range of possible integer values, the edit-checking
-system will verify that each data point falls into one of the possible values specified
-in the range. Though this is easily doable for smaller ranges such as 0-100 or even
-0-1000, it becomes extremely time consuming for larger ranges such as 0-600000. Instead,
-we recommend assigning a field with a large range as a real variable.
-
-
-\begin{itemize}
-\item Any variable used for consistency checking needs to have a key:value line in the
-{\tt fields} section.
-\item The value is of one of three forms:
-    \begin{itemize}
-    \item {\tt int <values>}
-    \item {\tt cat <values>}
-    \item {\tt real}
-    \end{itemize}
-\item The values for categories can be any list, separated by commas. Spaces before and
-after commas are removed; spaces within category names are kept. 
-\item Integer values are a comma separated list of numbers and ranges, such as {\tt -2, -1, 1-20, 20-30, 32}.
-\end{itemize}
-
-%Here is a visual representation of the {\tt fields} key:
-%
-%\begin{figure}[H]
-%\begin{center}
-%\includegraphics[scale=.5]{dotFields.png}
-%\caption{fields \{ $\ldots$ \} key flow chart}\label{afigure}
-%\end{center}
-%\end{figure}
-
-\subsection{Recodes}
-In short, {\tt recode} keys are new variables that are deterministic functions of 
-existing fields. Figure \ref{basicrecode} presents a typical example of a {\tt recodes} key:
-
-\begin{figure}
-\begin{lstlisting}[language=]
-recodes {
-    CATAGE {
-        0 | age between 0 and 15
-        1 | age between 16 and 64
-        2 | age > 64
-    }
-}
-\end{lstlisting}
-\caption{A typical recode.}\label{basicrecode}
-\end{figure}
-
-Here, we have declared a new variable CATAGE whose data points are based on a
-deterministic function of the variable AGEP. As we will see later, this recode will
-be called in the {\tt categories} key during imputation so that the data points we
-are attempting to impute will be imputed in categories based on their recode values
-rather than collectively as a single set of data points.
-
-Recodes are created via an SQL view, which is a virtual table that calculates the
-values of recode fields on demand.
-
-The name of the recode table is always the name of the input table preceded by {\tt
-view}.  For example, the demo has an input table {\tt dc}, so subsequent steps use
-the recode view {\tt viewdc} as input.
-
-\begin{itemize}
-\item The parsing of recodes is a little different from the other parsing. We may change
-this in the future. 
-\item Typical recodes have a name of the variable being created, followed by a sequence of
-values of the form {\tt <value> | <formula>}.
-\item The {\tt <value>} can be anything, but is typically a small integer.
-\item The {\tt <formula>} is any SQL expression using existing variables; when the formula
-is true, the variable takes on the associated value.
-\item If a recode does not have a $|$, then it is interpreted as a plain SQL formula for
-defining the recode.
-\item There can be multiple {\tt recodes} segments. They are executed in sequence, so
-later recodes can make use of variables set up in earlier recodes.
-
-\end{itemize}
-
-Figure \ref{recodefigure} is a visual representation of the {\tt recodes} key:
-
-\begin{figure}
-\begin{center}
-\includegraphics[scale=.5]{dotRecodes.png}
-\caption{records \{ $\ldots$ \} flow chart}\label{recodefigure}
-\end{center}
-\end{figure}
-
-\subsection{Checks}
-The consistency-checking system is rather complex, but this complexity is what makes
-the system efficient and reliable: there are typically a few dozen to a few hundred
-checks that every observation must pass, from sanity checks like {\em fail if age < 0}
-to real-world constraints like {\em fail if age < 16 and status='married'}. Further,
-every time a change is made (such as by the imputation system) we need to re-check that
-the new value does not fail checks. For example, an OLS imputation of age could easily
-generate negative age values, so the consistency checks are essential for verifying that
-the imputation process is giving us accurate and usable data points. In addition to
-error checking we can also use consistency checks for other purposes, such as setting
-{\em structural zeros} for the raking procedure.
-
-All of the checks that are to be performed are specified in the {\tt checks} key. 
-The checks you specify here will be performed on all input variables, as well as on all 
-imputed data values. Let's take a look at an example {\tt checks} key:
-
-\begin{lstlisting}[language=]
-checks {
-    	age < 0
-        age > 95 => age = 95
-       }
-\end{lstlisting}
-
-This indicates that the consistency checking system should verify that age is not less
-than 0 and that age is not greater than 95. Addtionaly we specify that a value higher
-than 95 should simply be top-coded as 95. We have not included an automatic fix for
-age < 0 because if a data-point has a negative age value than it's indicative of a
-processing error in the incoming data.
-
-Figure \ref{checkflow} is a visual representation of the {\tt checks} key and all of its subkeys.
-
-\begin{figure}
-\begin{center}
-\includegraphics[scale=.5]{dotChecks.png}
-\caption{checks \{ ... \} key flow chart}\label{checkflow}
-\end{center}
-\end{figure}
-
-
-\subsection{Imputation} \label{imputesec}
-The {\tt impute} key has several sub-keys that describe various steps in the imputation
-process. Many of the values of these sub-keys are derived from values found earlier
-in the spec file, e.g. {\tt categories} is based off of the variables declared in {\tt
-recodes}. Here is an example of an {\tt impute} key that is used to
-outline the imputation of the age variable described above:
-
-\begin{lstlisting}[language=]
-impute {
-    input table: viewdc
-    min group size: 3
-    draw count: 3
-    seed: 2332
-
-    categories {
-        CATAGE
-        SEX
-    }
-
-    method: hot deck
-    output vars: age
-}
-\end{lstlisting}
-
-Let's walk through each of the sub-keys above and see what they're doing:
-\begin{itemize}
-\item The {\tt output table} sub-key specifies the name of a view table to 
-where you will write your recode variables. 
-\item {\tt min group size}\ indicates the minimum number of known data points that can be 
-used as donor or training data to impute unknown data points. 
-\item {\tt draw count}\ determines the number of multiple imputations that should be performed. 
-Because imputation can be done using stochastic models, it is often beneficial to obtain multiple 
-imputations of the same data set. This will be explained in more detail later. 
-\item {\tt seed}\ specifies the pseudo-random number generator seed that is used to obtain 
-random numbers for stochastic imputation models. Running Tea with the same seed will
-always produce identical results, so it is good form to record the seed as part of the 
-specification. Changing the random seed will produce a new stream of random draws.
-\item {\tt categories}\  specifies which recodes will be used to impute the data set for 
-the given variable. For example, if {\tt CATAGE} is listed in the {\tt categories} key then the 
-data points that correspond to each of the three possible {\tt CATAGE} values will be imputed 
-separately. While it's not an absolute requirement that the {\tt categories} key be implemented, most data 
-sets are imputed by categories so you will be using this key for almost all of your imputations.
-\item {\tt method}\ specifies the type of model that is used to impute your data points. 
-Choosing this model is discussed more thoroughly later on in the tutorial.
-\item {\tt output vars}\ specifies the variable whose data points are to be imputed. For this reason 
-you could consider {\tt output vars} as both the `input' variable as well as the `output' variable 
-to the model specified in {\tt method}.
-\end{itemize}
-More can be found on each of the above keys in the appendix.
-
-\cmt{
-Figure \ref{imputefigure} is a visual representation of the {\tt impute} key how the
-elements are used.
-
-\begin{figure}
-\begin{center}
-\includegraphics[scale=.5]{dotImpute.png}
-\caption{impute \{ ... \} key flow chart.}\label{imputefigure}
-\end{center}
-\end{figure}
-}
-
-\subsection{More features}
-This concludes our walkthrough of a typical spec file. By now you should have a basic idea of 
-how a spec file is implemented within Tea. Before we continue on to explaining more about imputation, 
-the models available in Tea, and other features that are available within the Tea framework, we will mention 
-four more features of the spec file.
-
-\paragraph{Group recodes} Tea does all consistency checking on a single observation by
-itself. Thus, to make an edit like {\em people with relationship status of child must
-be younger than the householder} work, the age of the householder must be on the same line
-as the child's age.
-
-Group recodes are much like individual recodes: they are a new variable that is a function
-of an existing variable (perhaps from an earlier recode group in the spec file), but the
-expression for generating the variable will be evaluated using all of the data in a
-household. 
-
-Figure \ref{morerecodes} shows a series of single-record recodes, then a set of group
-recodes. The single-record recodes demonstrate the use of the SQL {\tt case} statement,
-which is analogous to the if-then-else expressions from many other languages. You will
-rarely (if ever) need this in individual recodes via Tea, because the list-of-categories
-syntax shown in Figure \ref{basicrecode} simplifies writing out the cases.
-
-The group recodes in Figure \ref{morecodes} will produce the given variables
-by applying the given formula to every person in the survey with the same {\tt SERIALNO}
-(one ACS household). Thus, each member of a household will have an {\tt NP} field listing
-the total number of people in the household, an {\tt NHH} field listing the number of
-people in the household who are householders, et cetera. 
-
-The age of householder is the maximum age in the household only among those with {\tt RELP='00'}, which is expressed using 
-a {\tt case} statement inside of the {\tt max()} function.
-
-\begin{figure}
-\begin{lstlisting}[language=]
-recodes {
-        MOVE: case MIG when 1 then 'moved' else 'stayed' end
-        DEG: case when SCHL in ('24','23','22','21','20') then 'degree' else 'non-degreed' end
-        MF: case SEX when '1' then 'Male' when '2' then 'Female' else NULL end
-        REL: case RELP when '00' then 'Householder' when '01' then 'Spouse' \
-                        when '02' then 'Child' \
-                        when '06' then 'Parent' else NULL end
-}
-
-group recodes {
-    group id: SERIALNO
-    recodes {
-        NP: max(SPORDER)
-        NHH: sum(RELP='00')
-        NSP: sum(RELP='01')
-        NUP: sum(RELP='15')
-        HHAGE: max(case RELP when '00' then AGEP end)
-        SPAGE: max(case RELP when '01' then AGEP end)
-        SPORD: max(case RELP when '01' then SPORDER end)
-        HHSEX: cast(round(avg(case RELP when '00' then SEX end)) as integer)
-        SPSEX: cast(round(avg(case RELP when '01' then SEX end)) as integer)
-    }
-}
-\end{lstlisting}
-\caption{Some more elaborate recodes}\label{morerecodes}
-\end{figure}
-
-\paragraph{Including} So far we've spoken of a single on-disk spec file that contains
-all of the survey processing instructions.  Though this approach may be appropriate
-in many scenarios, it's often the case that you and your colleagues would like to
-make edits to the same spec file and update or construct it concurrently. To do this,
-you can simply make subsidiary files to be included in the main spec file.
-
-To include a subsidiary file\footnote{Note that any subsidiary files that you choose
-to include in your spec file must be in the same directory as the spec file or it
-will not be able to find them.} at a certain point in the spec file, simply insert
-the key {\tt include: }\textit{subsidiary\_file\_name} at the line in the spec file
-where you would like the contents of the subsidiary file to be inserted. For example,
-if you have written the consistency checks in a file named {\tt consistency}, and the
-entire rank swapping configuration was in a file named {\tt swap}, then you could use
-this parent spec file:
-
-\begin{lstlisting}[language=]
-database: test.db
-
-include: swap
-
-checks {
-    include: consistency
-}
-\end{lstlisting}
-
-\paragraph{Flagging for disclosure} For a given crosstab, there may be cells with a
-small number of people, perhaps only one. This feature of Tea allows us to flag those
-cells for later handling.
-
-Any combination of variables could be a crosstab to be checked, but flagging
-typically focuses on only a few sensitive sets of variables. Here is the section
-of the spec file describing the flagging. The {\tt key} list gives the variables
-that will be crossed together. With {\tt combinations: 3}, every set of three
-variables in the list will be tried. The {\tt frequency} variable indicates that
-cells with two or fewer observations will be marked.
-
-We are calling this specific form of disclosure avoidance {\em fingerprinting}, so after
-this segment of the spec file is in place, call {\em doFingerprinting()} from R to run the
-procedure. The output is currently in a database table named {\em vflags}.
-
-\begin{lstlisting}[language=]
-fingerprint {
-    key{
-        CATAGE
-        SEX
-        PUMA
-        HISPF
-        ESR
-        PWGTP
-    }
-    frequency: 2
-    combinations: 3
-}
-\end{lstlisting}
-
-
-This concludes our discussion of the spec file layout and syntax. At this point, you should be 
-able to implement a basic spec file to impute any data set. More information about the keys 
-discussed above and others that were not present in {\tt demo.spec} can be found in the appendix and 
-at the r-forge website.
-
-\cmt{ %BK: All of raking is commented out. 
-\paragraph{Raking} Each record in a data set might have several data items which require imputation for
-different reasons:
-\begin{itemize}
-\item a record could have several inconsistent items that we must replace
-\item an otherwise consistent record could have a blank item that we wish to impute.
-\item a record could have a combination of consistent items that could lead to personal identification
-\end{itemize}
-Each scenario implies slightly different knowledge about the data, and thus each scenario
-might require a different imputation method to properly use this knowledge.
-
-An overlay is a secondary data table (or set of tables) that gives information regarding
-the \emph{reason} for imputation.  Using missing data as an example, a simple overlay
-could have an entry for each item in the data, indicating if that item is missing or not.
-A more complicated overlay could delineate the type of non-response for each data item.
-
-Raking is a method of producing a consistent table of individual cells beginning
-with just the column and row totals. For this tutorial, we will use it as a
-disclosure-avoidance technique for crosstabs. The column sums
-and row sums are guaranteed to not change; all individual cells are
-recalculated. Thus, provided the column totals have passed inspection for
-avoiding disclosure, the full table passes.
-
-The key inputs are the set of fields that are going to appear in the final
-crosstab, and a list of sets of fields whose column totals (and cross-totals)
-must not change.
-
-In the spec file, you will see a specification for a three-way crosstab between
-the {\tt PUMA}, {\tt rac1p}, and {\tt catage} variables. All pairwise crosstabs
-must not change, but any other details are free to be changed for the raking.
-
-\begin{lstlisting}[language=]
-raking {
-    all_vars: puma|catage | rac1p
-
-    contrasts{
-        catage | rac1p
-        puma | rac1p
-        puma | catage
-    }
-}
-\end{lstlisting}
-
-As you have seen a few times to this point, once you have the spec file in place you can
-call the procedure with one R function, which in this case is {\tt doRaking()}. But there
-are several ways to change the settings as you go, so that you can experiment and adjust.
-
-The first is to simply change the spec file and re-run. To do this, you will have to call
-{\tt read\_spec} again:
-\begin{lstlisting}[language=]
-> read_spec("demo.spec"); doRaking()    #Run two commands on a line by ending the first with a semicolon
-> read_spec("demo.spec"); doRaking()    #Hit the up-arrow to call up the previous line.
-\end{lstlisting}
-
-Everything you can put in a spec file you can put on the command line. The help system
-will give you the list of inputs (which will also help with writing a spec file), and you
-can use those to tweak settings on the command line:
-\begin{lstlisting}[language=]
-> ?doRaking                   #What settings are available?
-> doRaking(max_iterations=2)  #What happens when the algorithm doesn't have time to
-> converge?
-\end{lstlisting}
-} %end commented-out raking section.
-
 
 \section{Interactive R}\label{rsec}
 The specification file described to this point does nothing by itself, but provides
@@ -979,7 +366,577 @@ the output tables, check values, modify the spec files and re-run, continue to t
 imputation step, et cetera.
 
 
-\section{Imputation}\ref{impsec}
+\section{Basic specification syntax}
+Everything in the spec file is a key/value pair (or, as may be more familiar to 
+you, a tag: data definition). Each key in the spec file has a specific purpose and 
+will be outlined in this tutorial.
+To begin, we start in the header of {\tt demo.spec}:
+
+\begin{lstlisting}[language=]
+database: demo.db
+id: SSN
+\end{lstlisting}
+
+Here, {\tt database: demo.db} and {\tt id: SSN} are examples of key: value pairs.
+As is the case in {\tt demo.spec}, your spec file must begin by providing the
+database ({\tt database:your\_database.db}) and the unique identifier ({\tt
+id:your\_unique\_id}). The {\tt database} key identifies the database file
+where all of your data will be manipulated during the various processes of Tea.
+The {\tt id} key provides a column in the database table that serves as the unique
+identifier for each set of data points in your data set. Though the {\tt id} key is
+not strictly necessary, we strongly advise that you include one in your spec file to
+prevent any unnecessary frustration as most of Tea's routines require its use. More
+information on both of these keys can be found in the appendix of this tutorial.\\
+
+You may have noticed that keys are assigned values with the following syntax:\\
+
+{\tt key: value}\\
+
+This syntax is equivalent to the following form with curly braces:
+\begin{lstlisting}[language=]
+database{
+	demo.db
+}
+
+id {
+	SSN
+}
+\end{lstlisting}
+
+Clearly, this form is not as convenient as the {\tt key: value} form for single values. However, it allows 
+us to have multiple values associated with a single line of data, and even subkeys. For example, take  
+the next line in {\tt demo.spec} (the computer will 
+ignore everything after a \#, so those lines are comments for your fellow humans):
+
+\begin{lstlisting}[language=]
+checks { #all of the following values are associated with the "checks" key
+	age < 15 && status='married'
+	age > 99
+}
+\end{lstlisting}
+
+The elements in a group don't just have to be values; they can also be key:value pairs:
+
+\begin{lstlisting}[language=]
+input { 
+    input file: ss08pdc.CSV
+    overwrite: no
+    output table: dc
+}
+\end{lstlisting}
+
+%  DV: Here we should explain how subkeys are used (a fact of which I'm not entirely 
+%  sure myself). After explaining this we have:
+
+We thus have a main key, {\tt input} and subkeys.  This is useful for keeping the spec
+file organized and making sure that keys from one part of the pipeline do not clash with
+keys from other parts.  In the database, the keys and subkeys get merged together,
+to produce a key:value table that, given the above inputs, would look like this:
+
+\begin{verbatim}
+key                 value
+------------------  -----------
+database            demo.db
+id                  SSN
+input/input file    ss08pdc.CSV
+input/overwrite     no
+input/output table  dc
+\end{verbatim}
+
+It is worth getting familiar with this internal form, because Tea prints error messages
+using this form.  We will discuss this more later in the tutorial when we talk about
+running your spec file in R.  Here is a summary of the syntax rules for keys:
+
+\begin{itemize}
+\item You can have several values in curly braces, each on a separate line, which are
+added to the key/value list. Order is preserved.
+
+\item You can have as many levels of subkeys as you wish.
+
+\item If there is a subkey, then its name is merged with the parent key via a slash.
+
+\item As a shortcut, you can replace {\tt key \{single value\}} with {\tt key:single
+value}.
+
+\item Each value takes up exactly one line (unless you explicitly combine lines; see
+below). Otherwise, white space is irrelevant to the parser. Because humans will also
+read the spec file, you are strongly encouraged to use indentation to indicate group
+membership.
+
+\item If you need to continue a value over several lines, put a backslash at the end
+of each line that continues to the next; the backslash and the newline following it
+will be replaced with a single space.
+
+\end{itemize}
+
+\paragraph{Two more tricks} There are two more conveniences to the spec file syntax,
+which can be skipped on a first reading.
+
+First, the special key {\tt include} indicates that a separate file should be pasted in
+where the {\tt include} key was given. For example, we may have a file named {\tt
+checks.spec}:
+
+\begin{lstlisting}[language=]
+age < 15 && status='married'
+age > 99
+\end{lstlisting}
+
+The main spec file would have a {\tt checks} section that looks like this:
+
+\begin{lstlisting}[language=]
+checks{
+    include: checks.spec
+}
+\end{lstlisting}
+
+The {\tt checks.spec} file would be pasted into place to reproduce the same {\tt checks}
+section written in one place above. This mechanism allows one person to work on the
+consistency rules in one file and another to work on the imputations in another file.
+
+Second, smaller segments can also be pasted into place. This was originally intended to
+minimize redundancy in the {\tt impute} segments below. The special {\tt paste in} key
+will paste in a given set of key:values at the point given. Thus, the spec file on the
+left will be read as the one on the right:
+
+\begin{minipage}{0.45\linewidth}
+\begin{lstlisting}[language=]
+cats{
+    categories{
+        age
+        sex
+        tract
+    }
+}
+
+impute {
+    paste in: cats
+    output var: income
+    method: lognormal
+}
+
+impute {
+    paste in: cats
+    output var: sex
+    method: hot deck
+}
+\end{lstlisting}
+
+
+\end{minipage}
+{\Large $\Rightarrow$}\hspace{1cm}
+\begin{minipage}{0.45\linewidth}
+
+\begin{lstlisting}[language=]
+impute {
+    categories{
+        age
+        sex
+        tract
+    }
+    output var: income
+    method: lognormal
+}
+
+impute {
+    categories{
+        age
+        sex
+        tract
+    }
+    output var: sex
+    method: hot deck
+}
+\end{lstlisting}
+\end{minipage}
+
+Notice that the key {\tt cats} gets used by {\tt paste in}, but does not appear in
+the final spec file.
+
+
+\subsection{Input declarations}
+We now continue through our spec file to the {\tt input} key.
+
+The {\tt input} key specifies:
+\begin{enumerate}
+\item The  CSV\footnote{The custom is to call these files {\em
+    comma-separated values}, but you are not required to use commas as a delimiter.}
+    file from which you will draw your data.
+\item The option to \texttt{overwrite} the CSV file currently written into the specified database with 
+a new CSV file that you have specified.
+\item The {\tt output table} key that specifies the table where you would like to 
+write the data that is read in from the {\tt CSV} file.
+\end{enumerate}
+
+
+You may have auxiliary data (such as administrative records) in a second table that need
+to be merged with the main data set. Add a {\tt join} group to the spec to make this
+happen:
+
+\begin{lstlisting}[language=]
+join {
+    host: dc
+    add: auxtable
+}
+\end{lstlisting}
+
+\begin{itemize}
+\item You can have multiple {\tt input} segments, should you need to read in multiple CSV
+files.
+\item Both files must have a field with the name you specified in the {\tt id} key in your
+spec. There should be one row in each table for each ID.
+\end{itemize}
+
+\cmt{
+More information about these keys can be found in the appendix.  A visual layout of
+what the effects of the {\tt input} segment of the spec affects is shown in Figure
+\ref{inputfigure}.
+
+\begin{figure}
+\begin{center}
+\includegraphics[scale=.5]{dotInput.png}
+\caption{input \{ $\ldots$ \} flow chart}\label{inputfigure}
+\end{center}
+\end{figure}
+}
+
+\subsection{Field declarations} The edit-checking system needs to know the type and range
+of every variable that has an associated edit. If a variable does not have an associated
+edit, there is no need to declare its range.
+
+The declaration of the edit variables contained in the {\tt fields} key consists of the field name, 
+a type ({\tt int}, {\tt cat}, or 
+{\tt real}) to be discussed further below, and a list of valid values for integer and categorical variables. Here is a typical example:
+
+\begin{lstlisting}[language=]
+fields {
+    age: int 0-100
+    sex: cat M, F
+    hh_type: int 1, 2, 4, 8
+    income: real
+}
+\end{lstlisting}
+
+The above code declared four variables: {\tt age}, {\tt sex}, {\tt hh\_type}, and
+{\tt income} and we've declared those four variables in different and valid ways.
+By declaring our variables with a type and range, we can pass the information to the
+edit-checking system so that it knows what to verify when running its checks for each
+of these variables.  You can see that the list of values may be text categories or
+numeric values, and the range 0--100 will be converted into the full sequence 0, 1,
+2, \dots, 100.
+
+When declaring a variable, the first word following the {\tt :} must be a type. For instance, 
+for the {\tt hh\_type: int 1, 2, 4, 8} field above, we used the word 'int' to indicate that 
+the data values of the field were of type integer. If leading zeros are relevant (e.g.,
+a category like {\tt 01}), specify the field as a text category to prevent the leading
+zero from being removed.  Keep in mind 
+that if you declare the incorrect type for a field that the edit-checking system may not correctly 
+verify the values of that field in your data set.
+
+As a final note, we warn the user against creating fields with an overly large range of
+integer values. For a field with a range of possible integer values, the edit-checking
+system will verify that each data point falls into one of the possible values specified
+in the range. Though this is easily doable for smaller ranges such as 0-100 or even
+0-1000, it becomes extremely time consuming for larger ranges such as 0-600000. Instead,
+we recommend assigning a field with a large range as a real variable.
+
+
+\begin{itemize}
+\item Any variable used for consistency checking needs to have a key:value line in the
+{\tt fields} section.
+\item The value is of one of three forms:
+    \begin{itemize}
+    \item {\tt int <values>}
+    \item {\tt cat <values>}
+    \item {\tt real}
+    \end{itemize}
+\item The values for categories can be any list, separated by commas. Spaces before and
+after commas are removed; spaces within category names are kept. 
+\item Integer values are a comma separated list of numbers and ranges, such as {\tt -2, -1, 1-20, 20-30, 32}.
+\end{itemize}
+
+%Here is a visual representation of the {\tt fields} key:
+%
+%\begin{figure}[H]
+%\begin{center}
+%\includegraphics[scale=.5]{dotFields.png}
+%\caption{fields \{ $\ldots$ \} key flow chart}\label{afigure}
+%\end{center}
+%\end{figure}
+
+\subsection{Recodes}
+Recode keys are new variables that are deterministic functions of 
+existing fields. Figure \ref{basicrecode} presents a typical example.
+
+\begin{figure}
+\begin{lstlisting}[language=]
+recodes {
+    CATAGE {
+        0 | age between 0 and 15
+        1 | age between 16 and 64
+        2 | age > 64
+    }
+}
+\end{lstlisting}
+\caption{A typical recode.}\label{basicrecode}
+\end{figure}
+
+The example declares a new variable CATAGE whose data points are based on a
+deterministic function of the variable AGEP. As we will see later, this recode will
+be called in the {\tt categories} key during imputation so that the data points we
+are attempting to impute will be imputed in categories based on their recode values
+rather than collectively as a single set of data points.
+
+Recodes are created via an SQL view, which is a virtual table that calculates the
+values of recode fields on demand.
+
+The name of the recode table is always the name of the input table preceded by {\tt
+view}.  For example, the demo has an input table {\tt dc}, so subsequent steps use
+the recode view {\tt viewdc} as input.
+
+\begin{itemize}
+\item The parsing of recodes is a little different from the other parsing. We may change
+this in the future. 
+\item Typical recodes have a name of the variable being created, followed by a sequence of
+values of the form {\tt <value> | <formula>}.
+\item The {\tt <value>} can be anything, but is typically a small integer.
+\item The {\tt <formula>} is any SQL expression using existing variables; when the formula
+is true, the variable takes on the associated value.
+\item If a recode does not have a $|$, then it is interpreted as a plain SQL formula for
+defining the recode.
+\item There can be multiple {\tt recodes} segments. They are executed in sequence, so
+later recodes can make use of variables set up in earlier recodes.
+
+\end{itemize}
+
+\cmt{
+Figure \ref{recodefigure} is a visual representation of the {\tt recodes} key:
+
+\begin{figure}
+\begin{center}
+\includegraphics[scale=.5]{dotRecodes.png}
+\caption{records \{ $\ldots$ \} flow chart}\label{recodefigure}
+\end{center}
+\end{figure}
+}
+
+
+\subsection{Group recodes} Tea does all consistency checking on a single observation by
+itself. Thus, to make an edit like {\em people with relationship status of child must
+be younger than the householder} work, the age of the householder must be on the same line
+as the child's age.
+
+Group recodes are much like individual recodes: they are a new variable that is a function
+of an existing variable (perhaps from an earlier recode group in the spec file), but the
+expression for generating the variable will be evaluated using all of the data in a
+household. 
+
+Before discussing group recodes, here are a set of of single-record recodes
+demonstrating the use of the SQL {\tt case} statement,
+which is analogous to the if-then-else expressions from many other languages. You will
+rarely (if ever) need this in individual recodes via Tea, because the list-of-categories
+syntax shown in Figure \ref{basicrecode} simplifies writing out the cases.
+
+\begin{lstlisting}[language=]
+recodes {
+    #This syntax is for demonstration purposes only.
+        MOVE: case MIG when 1 then 'moved' else 'stayed' end
+        DEG: case when SCHL in ('24','23','22','21','20') then 'degree' else 'non-degreed' end
+        MF: case SEX when '1' then 'Male' when '2' then 'Female' else NULL end
+        REL: case RELP when '00' then 'Householder' when '01' then 'Spouse' \
+                        when '02' then 'Child' \
+                        when '06' then 'Parent' else NULL end
+}
+\end{lstlisting}
+
+The group recodes in Figure \ref{morecodes} will produce the given variables
+by applying the given formula to every person in the survey with the same {\tt SERIALNO}
+(one ACS household). Thus, each member of a household will have an {\tt NP} field listing
+the total number of people in the household, an {\tt NHH} field listing the number of
+people in the household who are householders, et cetera. 
+
+This is where the {\tt case} statement becomes necessary, because for some group recodes
+we want to use only the information regarding a subset of household members.  The age of
+householder is the maximum age in the household only among those with {\tt RELP='00'},
+which is expressed using a {\tt case} statement inside of the {\tt max()} function.
+
+\begin{figure}
+\begin{lstlisting}[language=]
+group recodes {
+    group id: SERIALNO
+    recodes {
+        NP: max(SPORDER)
+        NHH: sum(RELP='00')
+        NSP: sum(RELP='01')
+        NUP: sum(RELP='15')
+        HHAGE: max(case RELP when '00' then AGEP end)
+        SPAGE: max(case RELP when '01' then AGEP end)
+        SPORD: max(case RELP when '01' then SPORDER end)
+        HHSEX: cast(round(avg(case RELP when '00' then SEX end)) as integer)
+        SPSEX: cast(round(avg(case RELP when '01' then SEX end)) as integer)
+    }
+}
+\end{lstlisting}
+\caption{Group recodes}\label{morerecodes}
+\end{figure}
+
+\subsection{Checks}
+The consistency-checking system is rather complex, but this complexity is what makes
+the system efficient and reliable: there are typically a few dozen to a few hundred
+checks that every observation must pass, from sanity checks like {\em fail if age < 0}
+to real-world constraints like {\em fail if age < 16 and status='married'}. Further,
+every time a change is made (such as by the imputation system) we need to re-check that
+the new value does not fail checks. For example, an OLS imputation of age could easily
+generate negative age values, so the consistency checks are essential for verifying that
+the imputation process is giving us accurate and usable data points. In addition to
+error checking we can also use consistency checks for other purposes, such as setting
+{\em structural zeros} for the raking procedure.
+
+All of the checks that are to be performed are specified in the {\tt checks} key. 
+The checks you specify here will be performed on all input variables, as well as on all 
+imputed data values. Let's take a look at an example {\tt checks} key:
+
+\begin{lstlisting}[language=]
+checks {
+    	age < 0
+        age > 95 => age = 95
+       }
+\end{lstlisting}
+
+This indicates that the consistency checking system should verify that age is not less
+than 0 and that age is not greater than 95. Additionally we specify that a value higher
+than 95 should simply be top-coded as 95. We have not included an automatic fix for
+age < 0 because if a data-point has a negative age value than it's indicative of a
+processing error in the incoming data.
+
+\cmt{
+Figure \ref{checkflow} is a visual representation of the {\tt checks} key and all of its subkeys.
+
+\begin{figure}
+\begin{center}
+\includegraphics[scale=.5]{dotChecks.png}
+\caption{checks \{ ... \} key flow chart}\label{checkflow}
+\end{center}
+\end{figure}
+}
+
+
+\subsection{Imputation} \label{imputesec}
+The {\tt impute} key has several sub-keys that describe various steps in the imputation
+process. Many of the values of these sub-keys are derived from values found earlier
+in the spec file, e.g. {\tt categories} is based off of the variables declared in {\tt
+recodes}. Here is an example of an {\tt impute} key that is used to
+outline the imputation of the age variable described above:
+
+\begin{lstlisting}[language=]
+impute {
+    input table: viewdc
+    min group size: 3
+    draw count: 3
+    seed: 2332
+
+    categories {
+        CATAGE
+        SEX
+    }
+
+    method: hot deck
+    output vars: age
+}
+\end{lstlisting}
+
+Let's walk through each of the sub-keys above and see what they're doing:
+\begin{itemize}
+\item The {\tt output table} sub-key specifies the name of a view table to 
+where you will write your recode variables. 
+\item {\tt min group size}\ indicates the minimum number of known data points that can be 
+used as donor or training data to impute unknown data points. 
+\item {\tt draw count}\ determines the number of multiple imputations that should be performed. 
+Because imputation can be done using stochastic models, it is often beneficial to obtain multiple 
+imputations of the same data set. This will be explained in more detail later. 
+\item {\tt seed}\ specifies the pseudo-random number generator seed that is used to obtain 
+random numbers for stochastic imputation models. Running Tea with the same seed will
+always produce identical results, so it is good form to record the seed as part of the 
+specification. Changing the random seed will produce a new stream of random draws.
+\item {\tt categories}\  specifies which recodes will be used to impute the data set for 
+the given variable. For example, if {\tt CATAGE} is listed in the {\tt categories} key then the 
+data points that correspond to each of the three possible {\tt CATAGE} values will be imputed 
+separately. While it's not an absolute requirement that the {\tt categories} key be implemented, most data 
+sets are imputed by categories so you will be using this key for almost all of your imputations.
+\item {\tt method}\ specifies the type of model that is used to impute your data points. 
+Choosing this model is discussed more thoroughly later on in the tutorial.
+\item {\tt output vars}\ specifies the variable whose data points are to be imputed. For this reason 
+you could consider {\tt output vars} as both the `input' variable as well as the `output' variable 
+to the model specified in {\tt method}.
+\end{itemize}
+More can be found on each of the above keys in the appendix.
+
+\cmt{
+Figure \ref{imputefigure} is a visual representation of the {\tt impute} key how the
+elements are used.
+
+\begin{figure}
+\begin{center}
+\includegraphics[scale=.5]{dotImpute.png}
+\caption{impute \{ ... \} key flow chart.}\label{imputefigure}
+\end{center}
+\end{figure}
+}
+
+\section{Flagging for disclosure} For a given crosstab, there may be cells with a
+small number of people, perhaps only one. This feature of Tea allows us to flag those
+cells for later handling.
+
+Any combination of variables could be a crosstab to be checked, but flagging
+typically focuses on only a few sensitive sets of variables. Here is the section
+of the spec file describing the flagging. The {\tt key} list gives the variables
+that will be crossed together. With {\tt combinations: 3}, every set of three
+variables in the list will be tried. The {\tt frequency} variable indicates that
+cells with two or fewer observations will be marked.
+
+We are calling this specific form of disclosure avoidance {\em fingerprinting}, so after
+this segment of the spec file is in place, call {\em doFingerprinting()} from R to run the
+procedure. The output is currently in a database table named {\em vflags}.
+
+\begin{lstlisting}[language=]
+fingerprint {
+    key{
+        CATAGE
+        SEX
+        PUMA
+        HISPF
+        ESR
+        PWGTP
+    }
+    frequency: 2
+    combinations: 3
+}
+\end{lstlisting}
+
+The fingerprinting algorithm determines which fields are sufficient to eliminate
+disclosure risk for a given record, and then blanks those fields.
+
+
+Thus, by the end of the edit and disclosure-avoidance steps,
+a record in a data set might have several fields which require imputation for different reasons:
+\begin{itemize}
+\item A record could have several inconsistent items that we must replace.
+\item An otherwise consistent record could have a blank item that we wish to impute.
+\item A record could have a combination of consistent items that could lead to personal identification.
+\end{itemize}
+
+The imputation routines in Tea find values to fill in all of these holes.
+
+\cmt{
+Each scenario implies slightly different knowledge about the data, and thus each scenario
+might require a different imputation method to properly use this knowledge.
+
+An overlay is a secondary data table (or set of tables) that gives information regarding
+the \emph{reason} for imputation.  Using missing data as an example, a simple overlay
+could have an entry for each item in the data, indicating if that item is missing or not.
+A more complicated overlay could delineate the type of non-response for each data item.
+}
+
+\section{Imputation}\label{impsec}
 Thus far we've seen how to impute a data set using a single {\tt impute} group. In this form, single 
 imputation produces a list of replacement values for those data items that fail consistency checks 
 or initially had no values. For the case of editing, the replacements would be for data that fails 
@@ -1044,7 +1001,7 @@ available in Tea and the method of choosing the one that is appropriate for the
 imputation being performed.
 
 
-\section{Models}
+\subsection{Models}
 Now that we're more familiar with the concept of universes, we examine how to choose the 
 model that will give us the best results when imputing the data points in a specific universe.
 Indeed, given an observation with a missing data point and a universe, however specified, there is
@@ -1098,8 +1055,8 @@ remainder of the overall routine would not need to be rewritten across surveys.
 We now discuss each of the models that are available in Tea.
 
 \cmt{DV: We need to add rel to this list.}
-\subsection{Models of Tea} This section describes the models available for use in imputing
-missing data.
+\subsection{Models of Tea} This section describes the models currently available from
+Tea in greater detail.
 
 \paragraph{Hot deck} This is randomized hot deck. Missing values are filled in by
 drawing from nonmissing values in the same subset. The assumption underlying the model
@@ -1110,7 +1067,7 @@ This model has no additional keys or options, although the user will probably wa
 extensive set of category subsets. Example:
 
 \begin{lstlisting}
-impute{
+common spec {
     input table: dc
     min group size: 3
     draw count: 5
@@ -1119,23 +1076,21 @@ impute{
         agecat
         sex
     }
+}
+
+impute{
+      # Here, Tea will detect that sex is used both as a category and 
+      # the target variable, and will not use it as a category.
+    paste in: common spec
     output vars: sex
     method: hot deck
 }
 
 impute{
-    input table: dc
-    min group size: 3
-    draw count: 5
-    id: serialno
-
-    categories {
-        agecat
-        sex
-    }
+    paste in: common spec
     method: ols
-    output vars: agep
-    input vars: rac1p, nativity||sex
+    output vars: wagp
+    input vars: rac1p, agep, nativity||sex
 }
 \end{lstlisting}
 
@@ -1149,7 +1104,7 @@ fact that so many survey variables are categorical.
 
 \cmt{%BK: Not sure how much of this still works.
 Unless otherwise noted, all dependent variables are taken to be categorical, and so are expanded to
-a set of dummies. The first category is taken to be the numeraire, and others are broken
+a set of dummies. The first category is taken to be the num\'eraire, and others are broken
 down into dummy variables that each have a separate term in the regression. The
 independent variable will always be calculated as a real number, but depending on the type
 of variable may be rounded to an integer.
@@ -1157,7 +1112,7 @@ of variable may be rounded to an integer.
 If a dependent variable is numeric, list it with a \#, such as {\tt variables:
 \#age, sex}.
 
-An {\em interaction} term is the product of the variables, where for catgories {\em
+An {\em interaction} term is the product of the variables, where for categories {\em
 product} means the smaller subsets generated by the cross of the two variables, such as
 a sex-age cross of $(M, 0--18), (F, 0--18), (M, 18--35), (F, 18--35)$; for continuous
 variables {\em product} has its typical meaning.
@@ -1194,11 +1149,10 @@ doMImpute(second)
 }
 
 \paragraph{Probit and Logit} These models behave like OLS, but are aimed at categorical
-variables. The output variable is not restricted to twoc categories.
+variables. The output variable is not restricted to two categories.
 
 %Need to fill in this paragraph
-\paragraph{seqRegAIC}
-
+%\paragraph{seqRegAIC}
 
 \paragraph{Distributions} The Normal (aka Gaussian) distribution is the archetype of this
 type of model. First, estimate the mean and standard deviation using the non-missing data
@@ -1230,18 +1184,6 @@ Invoke this model using either {\tt method: kernel} or {\tt method: kernel densi
 
 \todo{We have written but not incorporated an HTML viewer for data using overlay
 information.}
-
-\paragraph{Internals}
-The Census Bureau often deals with tables that would have 1.5 million cells if written
-out in full, but where only maybe 20,000 surveys are in hand. Therefore, the algorithm
-is heavily oriented toward sparse data.
-
-It begins with a long and tedious routine to write SQL to generate the set of
-possibly-nonzero values, as per the example above. SQL is the appropriate language
-for generating this list because it is optimized for generating the cross of several
-variables and for pruning out values that match our criteria. The tedium turns out
-to be worth it: our test data set takes about 25 seconds to run using the original
-full-cross `72 algorithm, and runs in under two seconds using the SQL-pruned matrix.
 
 \cmt{
 \section{Synthesis}
@@ -1333,12 +1275,79 @@ remains open. The more extensive option would be to provide multiple data sets; 
 extensive option would be to simply provide a variance measure for each data point that
 is not a direct observation.
 
+
+
+
+\section{Synthesizing microdata} 
+Raking is a method of producing a table of cells consistent with a given list of margins.
+For example, we may require that any data set we produce have an age $\times$ race
+$\times$ ethnicity distribution and a sex $\times age$ distribution that exactly
+matches the complete data in the survey.
+
+This tutorial will not go into the details of raking. But we can begin with any trivial
+data set, such as one record for every possible combination of characteristics, and
+rely on raking to transform the initial data set into one whose distribution matches
+all required margins.
+
+The microdata produced using a fixed and trivial initial data set adds no information to the information provided by the margins.
+Given margins that are cleared for public use and have been determined to not cause any
+disclosure risk, the microdata adds no risk and should have the same status.
+
+The key inputs are the set of fields that are going to appear in the final
+crosstab, and a list of sets of fields whose column totals (and cross-totals)
+must not change.
+
+Here is see a sample specification for a three-way crosstab between
+the {\tt PUMA}, {\tt rac1p}, and {\tt catage} variables. All pairwise crosstabs
+must not change, but any other details are free to be changed for the raking.
+
+\begin{lstlisting}[language=]
+raking {
+    all_vars: puma|catage|rac1p
+
+    contrasts{
+        catage | rac1p
+        puma | rac1p
+        puma | catage
+    }
+}
+\end{lstlisting}
+
+\cmt{
+As you have seen a few times to this point, once you have the spec file in place you can
+call the procedure with one R function, which in this case is {\tt doRaking()}. But there
+are several ways to change the settings as you go, so that you can experiment and adjust.
+
+The first is to simply change the spec file and re-run. To do this, you will have to call
+{\tt read\_spec} again:
+\begin{lstlisting}[language=]
+> read_spec("demo.spec"); doRaking()    #Run two commands on a line by ending the first with a semicolon
+> read_spec("demo.spec"); doRaking()    #Hit the up-arrow to call up the previous line.
+\end{lstlisting}
+
+Everything you can put in a spec file you can put on the command line. The help system
+will give you the list of inputs (which will also help with writing a spec file), and you
+can use those to tweak settings on the command line:
+\begin{lstlisting}[language=]
+> ?doRaking                   #What settings are available?
+> doRaking(max_iterations=2)  #What happens when the algorithm doesn't have time to
+> converge?
+\end{lstlisting}
+} %end commented-out raking section.
+
+
+
+
+
 \cmt{
 	DV: The two paragraphs below (and more specifically the figures in them) probably need 
 	to be cleaned up. I got rid of the \listing{ ... } tags below that were around the 
 	\lstlisting{...} tags because they weren't getting compiled correctly but if you 
 	want to put them in the old code that originally had them can be found in 
-	/Tea/doc/archived_tutorial_documents/tutorial.tex}
+	/Tea/doc/archived_tutorial_documents/tutorial.tex
+
+Maybe usable as an example later.
+
         \paragraph{Interface} Figure \ref{sippconfig} shows a (slightly abbreviated)
         configuration file describing the hot deck process for a variable in the SIPP.
         It is intended to be reasonably readable, and maintainable by an analyst who is
@@ -1420,12 +1429,12 @@ is not a direct observation.
         }
 
         \end{lstlisting}
-
+}
 
 \section{Conclusion}
 This concludes our tutorial. If you have any questions or comments please feel
-free to contact Ben Klemens (ben.klemens@census.gov) or Rolando Rodr\'iguez
-(rolando.a.rodriguez@gmail.com). Also, check out the R-Forge Website at
+free to contact Rolando Rodr\'iguez (rolando.a.rodriguez@census.gov) or
+Ben Klemens (ben.kle\-mens@census.gov). Also, check out the R-Forge Website at
 \url{https://r-forge.r-project.org/projects/Tea/} for updates to both the Tea software
 as well as this tutorial document.
 
@@ -1437,7 +1446,7 @@ relevant procedures, in the main text.
 
 Keys are listed using the {\tt group/key/value} notation described in Section \ref{specsec}.
 
-%\input ../keys.tex
+\input ../keys.tex
 
 %\bibliographystyle{harvard}
 %\bibliographystyle{plainnat}

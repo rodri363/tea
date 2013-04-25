@@ -463,8 +463,6 @@ void moreblob(char **out, char* so_far, char *more){
             asprintf(out, "%s%s", XN(so_far), more);
             return;
         }
-        /* TeaKEY(input/output table, <<<The table that the raw data is written to. Also used 
-            as a reference for some later keys, like the recodes.>>>) */
         bool isreal = false;
         for (int i=0, isfound=0; i< total_var_ct && !isfound && !isreal; i++) 
             if((isfound=!strcmp(more, used_vars[i].name)))

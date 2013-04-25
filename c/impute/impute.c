@@ -834,7 +834,7 @@ void prep_imputations(char *configbase, char *id_col, gsl_rng **r, char *filltab
         apop_query("create table model_log ('model_id', 'parameter', 'value')");
 }
 
-/* TeaKEY(impute/output vars, <<<specifies the variable whose data points are to be imputed. For this reason you could consider output vars as both the ‘input’ variable as well as the ’output’ variable to the model specified in method.>>>)
+/* TeaKEY(impute/output vars, <<<Specifies the variable whose data points are to be imputed. For this reason you could consider output vars as both the `input' variable as well as the `output' variable to the model specified in method.>>>)
  */
 impustruct read_model_info(char const *configbase, char const *tag, char const *id_col){
 	apop_data *vars=NULL, *indepvarlist=NULL;
@@ -898,11 +898,11 @@ int impute_is_prepped; //restarts with new read_specs.
 char *configbase = "impute";
 
 /* TeaKEY(impute/input table, <<<The table holding the base data, with missing values. 
-  Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called <tt>doInput()</tt> in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one.>>>)
+  Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called {\tt doInput()} in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one.>>>)
   TeaKEY(impute/seed, <<<The RNG seed>>>)
   TeaKEY(impute/draw count, <<<How many multiple imputations should we do? Default: 5.>>>)
-  TeaKEY(impute/output table, <<<Where the fill-ins will be written. You'll still need <tt>checkOutImpute</tt> to produce a completed table.>>>)
-  TeaKEY(impute/earlier output table, <<<If this imputaiton depends on a previous one, then give the fill-in table from the previous output here.>>>)
+  TeaKEY(impute/output table, <<<Where the fill-ins will be written. You'll still need {\tt checkOutImpute} to produce a completed table.>>>)
+  TeaKEY(impute/earlier output table, <<<If this imputation depends on a previous one, then give the fill-in table from the previous output here.>>>)
   TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
  */
 int do_impute(char **tag, char **idatatab){ 

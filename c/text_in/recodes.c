@@ -185,7 +185,6 @@ variable isn't mentioned in the imputes, it doesn't need a trigger.
 the read-in now.
 
 TeaKEY(group recodes/group id, <<<The column with a unique ID for each group (e.g., household number).>>>)
-TeaKEY(group recodes/recodes, <<<A set of recodes like the main set, but each calculation of the recode will be grouped by the group id, so you can use things like {\tt max(age)} or {\tt sum(income)}.>>>)
 
 Returns 0 on OK, 1 on error.
 */

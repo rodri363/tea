@@ -80,11 +80,6 @@ through the input step the first time. Otherwise, the default is to overwrite.  
 
 TeaKEY(input/primary key, <<<The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.>>>)
 
-TeaKEY(input/primary key, <<<A list of variables to use as the primary key for the output table.
-In SQLite, if there is only one variable in the list as it is defined as an integer,
-this will create an integer primary key and will thus be identical to the auto-generated
-ROWID variable.>>>)
-
 TeaKey(input/indices, <<<Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect. Remark, however, that we've moved the function generate_indices(table_out) to bridge.c:428 to after the recodes.>>>)
 
 TeaKEY(input/missing marker, <<<How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.>>>)
@@ -182,12 +177,12 @@ void text_in(){
 /* TeaKEY(database, <<<The database to use for all of this. It must be the first line in your spec file, because 
 I need it to know where to write all the keys to come.>>>)
 
-TeaKEY(id, <<<Provides a column in the data set that provides a unique identifier for each
-observation.
+TeaKEY(id, <<<Provides a column in the data set that provides a unique identifier for each observation.
 Some procedures need such a column; e.g., multiple imputation will store imputations in a
 table separate from the main dataset, and will require a means of putting imputations in
-their proper place. Other elements of TEA, like flagging for disclosure avoidance, use the
-same identifier. The function that creates an index for the key in the specified output table is located at bridge.c:428>>>)
+their proper place. Other elements of Tea, like flagging for disclosure avoidance, use the
+same identifier. This identifier may be built by a recode.>>>) 
+The function that creates an index for the key in the specified output table is located at bridge.c:428
 
 TeaKEY(recodes, <<<New variables that are deterministic functions of the existing data sets.
 There are two forms, one aimed at recodes that indicate a list of categories, and one
@@ -227,13 +222,7 @@ recodes [second] {
 
 }
 \end{lstlisting}
-
-If you have edits based on a formula, then I'm not smart enough to set up the edit table
-from just the recode formula. Please add the new field and its valid values in the \c
-fields section, as with the usual variables.
-
-If you have edits based on category-style recodes, I auto-declare those, because the
-recode can only take on the values that you wrote down here.>>>)
+>>>)
 
 TeaKEY(group recodes,<<<Much like recodes (qv), but for variables set within a group, like
 eldest in household.
