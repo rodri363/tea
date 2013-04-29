@@ -128,8 +128,6 @@ static int text_in_by_tag(char const *tag){
            );
     }
 
-    free(sas_post_script);
-
     Apop_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
     Apop_stopif(!overwrite && apop_table_exists(table_out), return 0, 0,
                         "Table %s exists; skipping the input from file %s.", table_out, file_in);

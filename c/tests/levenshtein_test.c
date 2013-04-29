@@ -111,7 +111,7 @@ asprintf(&spec5, "5.spec");
     
 char *db_dummy;
 
-     /* Will have to readjust this test. Right now, read_spec doesn't support
+     /* Will have to re-adjust this test. Right now, read_spec doesn't support
         returning the number of typos so this code will not execute.
      */
      read_spec(&spec1, &db_dummy);

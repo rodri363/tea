@@ -29,7 +29,6 @@ withCallingHandlers({
 # Execute function:
 print("Entering spec1 tests (1)")
 readSpec("spec1")
-doMImpute()
 print("Exiting spec1 tests (1)")
 # Make a counter for when expected "need xxx key" occurs and 
 # assert about number of such warnings after.
@@ -54,7 +53,7 @@ print("Exiting spec1 tests (1)")
         invokeRestart("muffleWarning")
         
 
-    } else if(war$message == "You didn't specify a database in your spec file. You must specify a database.") {
+    } else if(war$message == "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".") {
         counter1 <<- counter1 + 1
         invokeRestart("muffleWarning")
         
@@ -70,7 +69,7 @@ print("Exiting spec1 tests (1)")
     }, error=function(err) {
     print(paste(err)) })
 
-stopifnot(counter1 == 1)
+stopifnot(counter1 == 0)
 
 
 f<- file("spec2")
@@ -128,7 +127,7 @@ print("Exiting spec2 tests (2)")
         invokeRestart("muffleWarning")
         
 
-    } else if(war$message == "You didn't specify a database in your spec file. You must specify a database.") {
+    } else if(war$message == "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".") {
         counter2 <<- counter2 + 1
         invokeRestart("muffleWarning")
         
@@ -198,7 +197,7 @@ print("Exiting spec3 tests (3)")
         invokeRestart("muffleWarning")
         
 
-    } else if(war$message == "You didn't specify a database in your spec file. You must specify a database.") {
+    } else if(war$message == "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".") {
         counter3 <<- counter3 + 1
         invokeRestart("muffleWarning")
         
@@ -270,7 +269,7 @@ print("Exiting spec4 tests (4)")
         invokeRestart("muffleWarning")
         
 
-    } else if(war$message == "You didn't specify a database in your spec file. You must specify a database.") {
+    } else if(war$message == "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".") {
         counter4 <<- counter4 + 1
         invokeRestart("muffleWarning")
         

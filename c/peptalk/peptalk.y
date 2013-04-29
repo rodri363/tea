@@ -9,7 +9,7 @@ grammar.
 I will assume you have had a look at the user-side documentation,
 included in the R manual pages. 
 
-There are about four types of operation:
+There are about four types of operations:
 
 --setting a key/value pair, which is put into the keys table. There are two forms:
     key:value
@@ -91,7 +91,7 @@ The functions here are all run by the yyparse() function. To see the context in 
     YYSTYPE last_value = 0;
 int yylex(void);
 int yyerror(const char *s) ;
-void add_keyval(char *, char*);
+int add_keyval(char *, char*);
 void add_to_num_list_seq(char *min, char*max);
 void extend_key(char *in);
 void reduce_key();
@@ -125,9 +125,18 @@ item: keyval
     | error
     ;
 
-keyval: blob ':' blob  {extend_key($1); add_keyval(current_key, $3); reduce_key($1);} ;
+keyval: blob ':' blob  {extend_key($1); if(add_keyval(current_key, $3) == -1){YYABORT;}
+            else { reduce_key($1); } } /* add_keyval(...) returns -1 on error and calls YYABORT
+                                        which causes yyparse() to immediately return
+                                        with 1. This is used in read_spec() to detect
+                                        whether an error occurred in filling the keys
+                                        table (designed specifically to prevent problems
+                                        with there being no database key).
+                                        */
+      ;
 
-keygroup: blob OPENKEY {extend_key($1);} keylist CLOSEKEY {reduce_key($1);} ;
+keygroup: blob OPENKEY {extend_key($1);} keylist CLOSEKEY {reduce_key($1);} 
+      ;
 
 keylist: keylist keylist_item 
        | keylist_item
@@ -139,8 +148,9 @@ keylist_item: preedit
            | EOL
            | error   {warning("Trouble parsing an item [%s] in the list of fields[%d]", $1, lineno);}
 	   | blob { if (apop_strcmp(current_key, "checks")) {add_check($1);}
-                   else add_keyval(current_key, $1);}
-           ;
+                   else if(add_keyval(current_key, $1) != -1){} else YYABORT;}
+           ;            // See reason above in keyval statement declaration 
+                        // for logic of if statement with add_keyval.
 
 preedit  : blob {add_check($1); preed2=1;} THEN blob {store_right($4);preed2=0;} EOL ;
 
@@ -225,16 +235,15 @@ static void set_database(char *dbname){  //only on pass 0.
                "create table variables (name);");
 }
 
-void add_keyval(char *key, char *val){ 
-    if (pass) return;
+int add_keyval(char *key, char *val){ 
+    if (pass) return 0;
 	char *skey = strip(key);
 	char *sval = strip(val);
     char *rest = strrchr(skey,'/');
-    if (!sval) return;
+    if (!sval) return 0;
 	if (apop_strcmp(skey, "database"))
 		set_database(sval);
-	Apop_stopif(!database, return, 0, "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".");
-
+	Apop_stopif(!database, return -1, 0, "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".");
         if (strcmp(rest ? (rest + 1) : skey,"paste in")) { //disagree i.e. not a paste in
   	  apop_query("insert into keys values (\"%s\", \"%s\", %i, \"%s\")", skey, XN(tag), ++val_count, sval);
         // paste in macro code by selecting lines from the database
@@ -261,6 +270,7 @@ void add_keyval(char *key, char *val){
             }
         }
 	free(skey); free(sval);
+    return 0;
 }
 
 char add_var_no_edit(char const *var, int is_recode, char type){
