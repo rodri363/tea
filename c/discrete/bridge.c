@@ -360,6 +360,9 @@ void init_edit_list(){
     }
 }
 
+
+/* TeaKey(verbose, <<<Specifies whether the user would like TEA's behind-the-scenes work to be printed to screen when functions are executed. It is irrelevant what value you assign to verbose, assigning it any value is enough to turn it on.>>>)
+ */
 void verbosity(int *verbosityLevel){ verbose = *verbosityLevel;}
 
 void read_spec(char **infile, char **dbname_out){
@@ -369,8 +372,11 @@ void read_spec(char **infile, char **dbname_out){
     Apop_stopif(!yyin, return, 0, "Trouble opening spec file %s.", fname);
     pass=0;
     begin_transaction();
-    Apop_stopif(yyparse(), return, 0, "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file.")  
+    Apop_stopif(yyparse(), return, 0, "TEA was unable to read your spec file. This is most likely"
+            " due to the fact that you didn't specify a database at the header of the file.")  
         //fill keys table. Note that yyparse() returns 0 when parsing is successful.
+    
+    if(get_key_word("verbose", NULL) != NULL) verbose = 2;
     num_typos = check_levenshtein_distances(max_lev_distance);
     do_recodes();
 

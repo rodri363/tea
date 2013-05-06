@@ -250,18 +250,19 @@ int add_keyval(char *key, char *val){
         } else {
 	  // select from keys what was stored in the macro where tag = skey
             apop_data *pastein = apop_query_to_text("select * from keys where key like '%s%%'",sval);
-            Apop_stopif(!pastein, return, -1,"paste in macro %s not found in keys table.",sval);
-            Apop_stopif(pastein->error,return, -1,"SQL: query for %s failed.",sval);
+            Apop_stopif(!pastein, return -1, -1,"paste in macro %s not found in keys table.",sval);
+            Apop_stopif(pastein->error,return -1, -1,"SQL: query for %s failed.",sval);
             for (int j = 0;j < pastein->textsize[0];j++) {
               char *nkey, *vkey;
               nkey = malloc(100);
               nkey = strtok(pastein->text[j][0],"/ ");
-              nkey = strtok(NULL,"/ ");
+              nkey = strtok(NULL,"/");
               vkey = malloc(100);
               strcpy(vkey,pastein->text[j][3]);
 	  // insert full code into keys
               int ii = rest-skey;
               char *query; 
+
               asprintf(&query,"insert into keys values " 
                           "(\"%%%d.%ds/%%s\", \"%%s\", %%i, \"%%s\")",ii,ii);
   	      apop_query (query, skey,

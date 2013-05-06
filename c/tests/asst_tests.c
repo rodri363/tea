@@ -329,6 +329,9 @@ void tea_c_tests(){
    printf("Entering snowman_test()\n");
    snowman_test();
 
+   printf("Entering pastein_tests()\n");
+   pastein_tests();
+
    printf("Entering levenshtein_tests()\n");
    levenshtein_tests();
 }
