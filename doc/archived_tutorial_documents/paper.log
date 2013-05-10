@@ -1,0 +1,1067 @@
+This is pdfeTeX, Version 3.141592-1.21a-2.2 (Web2C 7.5.4) (format=pdflatex 2012.9.19)  11 MAR 2013 08:10
+entering extended mode
+**paper.tex
+(./paper.tex
+LaTeX2e <2003/12/01>
+Babel <v3.8d> and hyphenation patterns for american, french, german, ngerman, b
+ahasa, basque, bulgarian, catalan, croatian, czech, danish, dutch, esperanto, e
+stonian, finnish, greek, icelandic, irish, italian, latin, magyar, norsk, polis
+h, portuges, romanian, russian, serbian, slovak, slovene, spanish, swedish, tur
+kish, ukrainian, nohyphenation, loaded.
+
+! LaTeX Error: File `style/uneceart.cls' not found.
+
+Type X to quit or <RETURN> to proceed,
+or enter new name. (Default extension: cls)
+
+Enter file name: 
+
+! LaTeX Error: File `style/oslo2012.sty' not found.
+
+Type X to quit or <RETURN> to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+(/usr/share/texmf/tex/latex/graphics/epsfig.sty
+Package: epsfig 1999/02/16 v1.7a (e)psfig emulation (SPQR)
+
+(/usr/share/texmf/tex/latex/graphics/graphicx.sty
+Package: graphicx 1999/02/16 v1.0f Enhanced LaTeX Graphics (DPC,SPQR)
+
+(/usr/share/texmf/tex/latex/graphics/keyval.sty
+Package: keyval 1999/03/16 v1.13 key=value parser (DPC)
+\KV@toks@=\toks14
+)
+(/usr/share/texmf/tex/latex/graphics/graphics.sty
+Package: graphics 2001/07/07 v1.0n Standard LaTeX Graphics (DPC,SPQR)
+
+(/usr/share/texmf/tex/latex/graphics/trig.sty
+Package: trig 1999/03/16 v1.09 sin cos tan (DPC)
+)
+(/usr/share/texmf/tex/latex/graphics/graphics.cfg
+File: graphics.cfg 2005/02/03 v1.3 graphics configuration of teTeX/TeXLive
+)
+Package graphics Info: Driver file: pdftex.def on input line 80.
+
+(/usr/share/texmf/tex/latex/graphics/pdftex.def
+File: pdftex.def 2002/06/19 v0.03k graphics/color for pdftex
+\Gread@gobject=\count79
+))
+\Gin@req@height=\dimen102
+\Gin@req@width=\dimen103
+)
+\epsfxsize=\dimen104
+\epsfysize=\dimen105
+)
+(/usr/share/texmf/tex/latex/tools/calc.sty
+Package: calc 1998/07/07 v4.1b Infix arithmetic (KKT,FJ)
+\calc@Acount=\count80
+\calc@Bcount=\count81
+\calc@Adimen=\dimen106
+\calc@Bdimen=\dimen107
+\calc@Askip=\skip41
+\calc@Bskip=\skip42
+LaTeX Info: Redefining \setlength on input line 59.
+LaTeX Info: Redefining \addtolength on input line 60.
+\calc@denominator=\count82
+)
+(/usr/share/texmf/tex/latex/amsfonts/amsfonts.sty
+Package: amsfonts 2001/10/25 v2.2f
+\@emptytoks=\toks15
+\symAMSa=\mathgroup4
+\symAMSb=\mathgroup5
+LaTeX Font Info:    Overwriting math alphabet `\mathfrak' in version `bold'
+(Font)                  U/euf/m/n --> U/euf/b/n on input line 132.
+)
+(/usr/share/texmf/tex/latex/html/url.sty
+Package: url 1999/03/02  ver 1.4  Verb mode for urls, email addresses, and file
+ names
+)
+(/usr/share/texmf/tex/latex/tools/xspace.sty
+Package: xspace 1997/10/13 v1.06 Space after command names (DPC)
+)
+(/usr/share/texmf/tex/latex/listings/listings.sty
+\lst@mode=\count83
+\lst@gtempboxa=\box26
+\lst@token=\toks16
+\lst@length=\count84
+\lst@currlwidth=\dimen108
+\lst@column=\count85
+\lst@pos=\count86
+\lst@lostspace=\dimen109
+\lst@width=\dimen110
+\lst@newlines=\count87
+\lst@lineno=\count88
+\c@lstlisting=\count89
+\abovecaptionskip=\skip43
+\belowcaptionskip=\skip44
+\lst@maxwidth=\dimen111
+
+(/usr/share/texmf/tex/latex/listings/lstpatch.sty
+File: lstpatch.sty 2004/10/17 1.3b (Carsten Heinz)
+)
+(/usr/share/texmf/tex/latex/listings/lstmisc.sty
+File: lstmisc.sty 2004/09/07 1.3 (Carsten Heinz)
+\c@lstnumber=\count90
+\lst@skipnumbers=\count91
+\lst@framebox=\box27
+)
+(/usr/share/texmf/tex/latex/listings/listings.cfg
+File: listings.cfg 2004/09/05 1.3 listings configuration
+))
+Package: listings 2004/10/17 1.3b (Carsten Heinz)
+
+(/usr/share/texmf/tex/latex/base/ifthen.sty
+Package: ifthen 2001/05/26 v1.1c Standard LaTeX ifthen package (DPC)
+)
+(/usr/share/texmf/tex/latex/listings/lstlang1.sty
+File: lstlang1.sty 2004/09/05 1.3 listings language file
+)
+(/usr/share/texmf/tex/latex/listings/lstmisc.sty
+File: lstmisc.sty 2004/09/07 1.3 (Carsten Heinz)
+)
+(/usr/share/texmf/tex/latex/psnfss/times.sty
+Package: times 2004/09/15 PSNFSS-v9.2 (SPQR) 
+)
+(/usr/share/texmf/tex/latex/base/latexsym.sty
+Package: latexsym 1998/08/17 v2.2e Standard LaTeX package (lasy symbols)
+\symlasy=\mathgroup6
+LaTeX Font Info:    Overwriting symbol font `lasy' in version `bold'
+(Font)                  U/lasy/m/n --> U/lasy/b/n on input line 47.
+)
+(/usr/share/texmf/tex/latex/setspace/setspace.sty
+Package: setspace 2000/12/01 6.7 Contributed and Supported LaTeX2e package
+
+Package: `setspace' 6.7 <2000/12/01>
+) (/usr/share/texmf/tex/latex/base/fontenc.sty
+Package: fontenc 2004/02/22 v1.99f Standard LaTeX package
+
+(/usr/share/texmf/tex/latex/base/t1enc.def
+File: t1enc.def 2004/02/22 v1.99f Standard LaTeX file
+LaTeX Font Info:    Redeclaring font encoding T1 on input line 43.
+))
+
+! LaTeX Error: Environment thebibliography undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.106 \renewenvironment{thebibliography}
+                                        [1]
+? 
+No file paper.aux.
+\openout1 = `paper.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 128.
+LaTeX Font Info:    ... okay on input line 128.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 128.
+LaTeX Font Info:    ... okay on input line 128.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 128.
+LaTeX Font Info:    ... okay on input line 128.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 128.
+LaTeX Font Info:    ... okay on input line 128.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 128.
+LaTeX Font Info:    ... okay on input line 128.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 128.
+LaTeX Font Info:    ... okay on input line 128.
+
+! LaTeX Error: The font size command \normalsize is not defined:
+               there is probably something wrong with the class file.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.128 \begin{document}
+                      
+? 
+(/usr/share/texmf/tex/context/base/supp-pdf.tex
+(/usr/share/texmf/tex/context/base/supp-mis.tex
+loading : Context Support Macros / Miscellaneous (2004.10.26)
+\protectiondepth=\count92
+\scratchcounter=\count93
+\scratchtoks=\toks17
+\scratchdimen=\dimen112
+\scratchskip=\skip45
+\scratchmuskip=\muskip10
+\scratchbox=\box28
+\scratchread=\read1
+\scratchwrite=\write3
+\zeropoint=\dimen113
+\onepoint=\dimen114
+\onebasepoint=\dimen115
+\minusone=\count94
+\thousandpoint=\dimen116
+\onerealpoint=\dimen117
+\emptytoks=\toks18
+\nextbox=\box29
+\nextdepth=\dimen118
+\everyline=\toks19
+\!!counta=\count95
+\!!countb=\count96
+\recursecounter=\count97
+)
+loading : Context Support Macros / PDF (2004.03.26)
+\nofMPsegments=\count98
+\nofMParguments=\count99
+\MPscratchCnt=\count100
+\MPscratchDim=\dimen119
+\MPnumerator=\count101
+\everyMPtoPDFconversion=\toks20
+)
+
+! LaTeX Error: File `style/oslo2012cover.tex' not found.
+
+Type X to quit or <RETURN> to proceed,
+or enter new name. (Default extension: tex)
+
+Enter file name: 
+
+! LaTeX Error: Environment abstract undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.145 \begin{abstract}
+                      
+? 
+
+! LaTeX Error: \begin{document} ended by \end{abstract}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.152 \end{abstract}
+                    
+? 
+! Undefined control sequence.
+l.154 \section
+              {OVERVIEW}
+? 
+! Undefined control sequence.
+l.155 \paragraph
+                 TEA is a generalized system designed to unify and streamlin...
+
+? 
+LaTeX Font Info:    Try loading font information for U+msa on input line 157.
+(/usr/share/texmf/tex/latex/amsfonts/umsa.fd
+File: umsa.fd 2002/01/19 v2.2g AMS font definitions
+)
+LaTeX Font Info:    Try loading font information for U+msb on input line 157.
+
+(/usr/share/texmf/tex/latex/amsfonts/umsb.fd
+File: umsb.fd 2002/01/19 v2.2g AMS font definitions
+)
+LaTeX Font Info:    Try loading font information for U+lasy on input line 157.
+
+(/usr/share/texmf/tex/latex/base/ulasy.fd
+File: ulasy.fd 1998/08/17 v2.2e LaTeX symbol font definitions
+)
+LaTeX Font Info:    Try loading font information for T1+ptm on input line 157.
+
+(/usr/share/texmf/tex/latex/psnfss/t1ptm.fd
+File: t1ptm.fd 2001/06/04 font definitions for T1/ptm.
+)
+! Undefined control sequence.
+\@footnotetext ...pace }\reset@font \footnotesize 
+                                                  \interlinepenalty \interfo...
+l.158 while writing the system.}
+                                 It is available as an unofficial R package,...
+
+? 
+! Undefined control sequence.
+\@footnotetext ...}\color@begingroup \@makefntext 
+                                                  {\rule \z@ \footnotesep \i...
+l.158 while writing the system.}
+                                 It is available as an unofficial R package,...
+
+? 
+! Undefined control sequence.
+l.162 \paragraph
+                 Users provide a specification file for each survey, includi...
+
+? 
+! Undefined control sequence.
+l.168 \paragraph
+                 TEA first finds fields that fail the edit rules and marks t...
+
+? 
+! Undefined control sequence.
+l.173 \paragraph
+                 The imputation component allows users to specify any model for
+
+? 
+! Undefined control sequence.
+l.182 \paragraph
+                 Once the imputation models are fit against survey data, TEA...
+
+? 
+! Undefined control sequence.
+l.186 \paragraph
+                 In support of these core edit, disclosure-checking, and imp...
+
+? 
+! Undefined control sequence.
+l.192 \subsection
+                 {Separate components}
+? 
+! Undefined control sequence.
+l.193 \paragraph
+                 TEA is implemented as a set of distinct components for edit...
+
+? 
+! Undefined control sequence.
+l.199 \paragraph
+                 The first benefit is that probabilistic models for imputati...
+
+? 
+! Undefined control sequence.
+l.206 \paragraph
+                 As a corollary to the simplicity of using off-the-shelf mod...
+
+? 
+! Undefined control sequence.
+l.212 \paragraph
+                 Several examples of the specification will be shown below, ...
+
+? 
+! Undefined control sequence.
+l.215 \paragraph
+                 The probabilistic model is in contrast to imputation via ru...
+
+? 
+! Undefined control sequence.
+l.221 \paragraph
+                 TEA strives to simplify the addition of new imputation mode...
+
+? 
+! Undefined control sequence.
+l.236 \paragraph
+                 TEA focuses on probabilistic models aimed at describing the
+? 
+! Undefined control sequence.
+l.244 \paragraph
+                 Compared to having a definite answer reported by the respon...
+
+? 
+! Undefined control sequence.
+l.247 the added variance \citep
+                               {rubin:imputation}.  Because of its focus on ...
+
+? 
+! Undefined control sequence.
+l.251 \paragraph
+                
+? 
+LaTeX Font Info:    Font shape `T1/ptm/bx/n' in size <10> not available
+(Font)              Font shape `T1/ptm/b/n' tried instead on input line 252.
+! Undefined control sequence.
+<write> ...g: Reference `litsec' on page \thepage 
+                                                  \space undefined\on@line .
+l.252 ... of previous work in Section \ref{litsec}
+                                                   and an overview of TEA
+? 
+
+LaTeX Warning: Reference `litsec' on page  undefined on input line 252.
+
+! Undefined control sequence.
+<write> ...ference `overviewsec' on page \thepage 
+                                                  \space undefined\on@line .
+l.253 in Section \ref{overviewsec}
+                                  , this paper will largely follow the proce...
+
+? 
+
+LaTeX Warning: Reference `overviewsec' on page  undefined on input line 253.
+
+! Undefined control sequence.
+<write> ...: Reference `editsec' on page \thepage 
+                                                  \space undefined\on@line .
+l.254 Section \ref{editsec}
+                            discusses the editing step, Section \ref{avoidse...
+
+? 
+
+LaTeX Warning: Reference `editsec' on page  undefined on input line 254.
+
+! Undefined control sequence.
+<write> ... Reference `avoidsec' on page \thepage 
+                                                  \space undefined\on@line .
+l.254 ... the editing step, Section \ref{avoidsec}
+                                                   covers inference control,
+? 
+
+LaTeX Warning: Reference `avoidsec' on page  undefined on input line 254.
+
+! Undefined control sequence.
+<write> ...Reference `imputesec' on page \thepage 
+                                                  \space undefined\on@line .
+l.255  and Section \ref{imputesec}
+                                   covers the imputation process.
+? 
+
+LaTeX Warning: Reference `imputesec' on page  undefined on input line 255.
+
+! Undefined control sequence.
+l.257 \subsection
+                 {Previous literature}\label{litsec}
+? 
+! Undefined control sequence.
+l.259 \paragraph
+                 \citet{edit:review} gives an overview of the problem of edi...
+
+? 
+! Undefined control sequence.
+l.259 \paragraph \citet
+                       {edit:review} gives an overview of the problem of edi...
+
+? 
+! Undefined control sequence.
+l.267 \paragraph
+                
+? 
+! Undefined control sequence.
+l.269 ...l implementations of the method of \citet
+                                                  {fellegi:holt}
+? 
+! Undefined control sequence.
+l.270 ...inistic nearest-neighbor methods.  \citet
+                                                  {chen:threesystems} discus...
+
+? 
+! Undefined control sequence.
+l.275 \citep
+            {winkler:discrete} uses Fellegi-Holt's method to derive imputati...
+
+? 
+! Undefined control sequence.
+l.276 the edits; what is now CANCEIS \citep
+                                           {bankir:canceis} uses a relativel...
+
+? 
+! Undefined control sequence.
+l.279 \paragraph
+                
+? 
+! Undefined control sequence.
+l.296 \section
+              {AN OVERVIEW OF TEA}\label{overviewsec}
+? 
+! Undefined control sequence.
+l.298 \paragraph
+                 TEA provides a data pipeline that provides a series of modi...
+
+? 
+
+! LaTeX Error: Environment figure undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.313 \begin{figure}
+                    
+? 
+<dots/pepflow.png, id=1, 819.06pt x 1059.96pt>
+File: dots/pepflow.png Graphic file (type png)
+ <use dots/pepflow.png>
+
+! LaTeX Error: \caption outside float.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.317 \caption
+              {The flow of processing. First, read in the data, add artifici...
+
+? 
+
+! LaTeX Error: \begin{document} ended by \end{figure}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.327 \end{figure}
+                  
+? 
+! Undefined control sequence.
+l.341 \subsection
+                 {Environment and underlying systems}
+? 
+! Undefined control sequence.
+l.343 \paragraph
+                 TEA can be run on any POSIX-compliant system, including Win...
+
+? 
+! Undefined control sequence.
+l.350 \paragraph
+                 {\bf SQL} is designed around making fast queries from datab...
+
+? 
+! Undefined control sequence.
+l.350 \paragraph {\bf
+                      SQL} is designed around making fast queries from datab...
+
+? 
+! Undefined control sequence.
+l.355 ...y the SQL-language conditions in the {\tt
+                                                   checks} and {\tt recodes}...
+
+? 
+! Undefined control sequence.
+l.355 ...e conditions in the {\tt checks} and {\tt
+                                                   recodes} sections below.
+? 
+! Undefined control sequence.
+l.357 \paragraph
+                 The TEA system stores data using an SQL database.
+? 
+! Undefined control sequence.
+l.384 \paragraph
+                 {\bf R} is a relatively user-friendly system that makes it ...
+
+? 
+! Undefined control sequence.
+l.384 \paragraph {\bf
+                      R} is a relatively user-friendly system that makes it ...
+
+? 
+! Undefined control sequence.
+\@footnotetext ...pace }\reset@font \footnotesize 
+                                                  \interlinepenalty \interfo...
+l.397 can often be avoided via careful writing.}
+                                                
+? 
+! Undefined control sequence.
+\@footnotetext ...}\color@begingroup \@makefntext 
+                                                  {\rule \z@ \footnotesep \i...
+l.397 can often be avoided via careful writing.}
+                                                
+? 
+! Undefined control sequence.
+l.399 \paragraph
+                 {\bf C} is the fastest human-usable system available for ma...
+
+? 
+! Undefined control sequence.
+l.399 \paragraph {\bf
+                      C} is the fastest human-usable system available for ma...
+
+? 
+! Undefined control sequence.
+l.404 \paragraph
+                 Binding them all together, we can have a system that is fri...
+
+? 
+! Undefined control sequence.
+l.408 \subsection
+                 {Interactive R}
+? 
+! Undefined control sequence.
+l.410 \paragraph
+                 TEA is intended for use by analysts with limited programmin...
+
+? 
+! Undefined control sequence.
+l.421 \paragraph
+                 Given the specification file, the procedure to be executed ...
+
+? 
+! Undefined control sequence.
+\lst@basicstyle ->\small 
+                         
+l.426 \begin{lstlisting}[language=]
+                                   
+? 
+! Undefined control sequence.
+l.437 \paragraph
+                 These commands could be entered on R's command line as easi...
+
+? 
+! Undefined control sequence.
+l.444 \paragraph
+                 The remainder fo the paper will focus on the specification ...
+
+? 
+! Undefined control sequence.
+l.447 \section
+              {DATA INPUT AND PREP}
+? 
+! Undefined control sequence.
+l.449 \paragraph
+                 The first step TEA executes is reading into the SQL databas...
+
+? 
+! Undefined control sequence.
+l.451 during the {\tt
+                      read\_spec} step. There is nothing remarkable in how T...
+
+? 
+! Undefined control sequence.
+l.455 \paragraph
+                 A specification file  might begin with these lines:
+? 
+! Undefined control sequence.
+\lst@basicstyle ->\small 
+                         
+l.457 \begin{lstlisting}[language=]
+                                   
+? 
+! Undefined control sequence.
+l.473 this example, it is named {\tt
+                                     sid}. This is not necessary for input, ...
+
+? 
+! Undefined control sequence.
+l.477 The {\tt
+               input file} and {\tt output table} keys affect only the input...
+
+? 
+! Undefined control sequence.
+l.477 The {\tt input file} and {\tt
+                                    output table} keys affect only the input...
+
+? 
+! Undefined control sequence.
+l.478 grouped into the {\tt
+                            input} section. This section specifies that the ...
+
+? 
+! Undefined control sequence.
+l.478 ...s section specifies that the text of {\tt
+                                                  
+? 
+! Undefined control sequence.
+l.479 ...ritten to a new database table named {\tt
+                                                   dataset}. Like all
+? 
+! Undefined control sequence.
+l.480 ...he process, it will be stored in the {\tt
+                                                   survey.db}
+? 
+! Undefined control sequence.
+l.483 \subsection
+                 {Recodes}
+? 
+! Undefined control sequence.
+l.485 \paragraph
+                 The recode section of the specification assigns a category ...
+
+? 
+! Undefined control sequence.
+\lst@basicstyle ->\small 
+                         
+l.489 \begin{lstlisting}[language=]
+                                   
+? 
+! Undefined control sequence.
+l.518 \paragraph
+                 These recodes are generated using SQL views. The new variab...
+
+? 
+! Undefined control sequence.
+l.519 ...y can not be used for imputation--if {\tt
+                                                   agecat} in the example above
+
+? 
+! Undefined control sequence.
+l.520 were imputed to be one, what would {\tt
+                                              age} be? In the other directio...
+
+? 
+! Undefined control sequence.
+l.520 ... age} be? In the other direction, if {\tt
+                                                   age} is
+? 
+! Undefined control sequence.
+l.521 ...automatically reflects any change to {\tt
+                                                   agecat}.
+? 
+! Undefined control sequence.
+l.544 \paragraph
+                 Now that the data has been read in and useful artificial va...
+
+? 
+! Undefined control sequence.
+l.548 \section
+              {IDENTIFYING ERRORS}\label{editsec}
+? 
+! Undefined control sequence.
+l.550 \paragraph
+                 There are typically a few dozen to a few hundred checks tha...
+
+? 
+! Undefined control sequence.
+l.554 \paragraph
+                 These consistency rules are specified once, and reused in s...
+
+? 
+! Undefined control sequence.
+l.562 \subsection
+                 {Declarations}
+? 
+! Undefined control sequence.
+l.564 \paragraph
+                 The user must specify the set of valid values that a variab...
+
+? 
+! Undefined control sequence.
+l.566 DISCRETE system by Bill Winkler \citep
+                                            {winkler:discrete}, has an inter...
+
+? 
+! Undefined control sequence.
+l.568 set of edits: if {\tt
+                            age} may take on values from zero to 110, then w...
+
+? 
+! Undefined control sequence.
+l.571 \paragraph
+                 Here is a sample set of fields, including two integer-value...
+
+? 
+! Undefined control sequence.
+\lst@basicstyle ->\small 
+                         
+l.574 \begin{lstlisting}[language=]
+                                   
+? 
+! Undefined control sequence.
+l.591 \subsection
+                 {Edits}
+? 
+! Undefined control sequence.
+l.593 \paragraph
+                 Edits are unordered, and conceptually, all relevant edits a...
+
+? 
+! Undefined control sequence.
+l.595 \paragraph
+                 Edits are generated (and in the case of real-valued variabl...
+
+? 
+! Undefined control sequence.
+l.597 ...ing consistency checks was one line: {\tt
+                                                   include checks.spec}, whi...
+
+? 
+! Undefined control sequence.
+l.598 ...e consistency checks to maintain the {\tt
+                                                   checks.spec}
+? 
+! Undefined control sequence.
+l.601 (where {\tt
+                  \&\&} can be read as `and'):
+? 
+! Undefined control sequence.
+\lst@basicstyle ->\small 
+                         
+l.603 \begin{lstlisting}[language=]
+                                   
+? 
+! Undefined control sequence.
+l.608 \paragraph
+                 The simplicity of the edit specification is a consequence
+? 
+! Undefined control sequence.
+\lst@basicstyle ->\small 
+                         
+l.615 \begin{lstlisting}[language=]
+                                   
+? 
+! Undefined control sequence.
+l.624 \paragraph
+                 This is how TEA handles edits involving real-valued fields....
+
+? 
+! Undefined control sequence.
+l.662 \subsection
+                 {Editing outputs}
+? 
+! Undefined control sequence.
+l.664 \paragraph
+                 The {\tt check\_consistency} function at the core of TEA (i...
+
+? 
+! Undefined control sequence.
+l.664 \paragraph The {\tt
+                          check\_consistency} function at the core of TEA (i...
+
+? 
+! Undefined control sequence.
+\@footnotetext ...pace }\reset@font \footnotesize 
+                                                  \interlinepenalty \interfo...
+l.673 ... not have such a deterministic solution.}
+                                                  
+? 
+! Undefined control sequence.
+\@footnotetext ...}\color@begingroup \@makefntext 
+                                                  {\rule \z@ \footnotesep \i...
+l.673 ... not have such a deterministic solution.}
+                                                  
+? 
+! Undefined control sequence.
+l.678 \paragraph
+                
+? 
+! Undefined control sequence.
+l.679 Different users of the {\tt
+                                  check\_consistency} function may use this ...
+
+? 
+! Undefined control sequence.
+l.682 The R command {\tt
+                         doChecks()} uses the list of fields involved in any...
+
+? 
+! Undefined control sequence.
+l.699 \section
+              {INFERENCE CONTROL}\label{avoidsec}
+? 
+! Undefined control sequence.
+l.701 \paragraph
+                 Inference control as currently implemented in TEA is based ...
+
+? 
+! Undefined control sequence.
+\lst@basicstyle ->\small 
+                         
+l.708 \begin{lstlisting}[language=]
+                                   
+? 
+! Undefined control sequence.
+l.720 \paragraph
+                 By setting {\tt combinations} to two, the specification wil...
+
+? 
+! Undefined control sequence.
+l.720 \paragraph By setting {\tt
+                                 combinations} to two, the specification wil...
+
+? 
+! Undefined control sequence.
+l.722 wagecat). If there are fewer than {\tt
+                                             frequency} records in a given c...
+
+? 
+! Undefined control sequence.
+l.728 \section
+              {IMPUTATION} \label{imputesec}
+? 
+! Undefined control sequence.
+l.730 \paragraph
+                 At this point in the pipeline, we have found several record...
+
+? 
+! Undefined control sequence.
+l.744 ...utation (the specification above set {\tt
+                                                   draw count} to five):
+? 
+! Undefined control sequence.
+l.750 ...and categorical data declared in the {\tt
+                                                   fields} section above, if...
+
+? 
+! Undefined control sequence.
+l.759 \paragraph
+                 Because the imputations are recorded in a separate table, w...
+
+? 
+! Undefined control sequence.
+l.762 TEA's {\tt
+                 checkout\_impute} function will fill the missing elements i...
+
+? 
+! Undefined control sequence.
+l.763 ... all multiple imputations by calling {\tt
+                                                  
+? 
+! Undefined control sequence.
+l.768 Alternatively, omitting the {\tt
+                                       draw count} from the specification in...
+
+? 
+! Undefined control sequence.
+l.771 \subsection
+                 {Subuniverses}
+? 
+! Undefined control sequence.
+l.773 \paragraph
+                 The parameters of the model will be estimated using non-mis...
+
+? 
+! Undefined control sequence.
+l.781 \paragraph
+                
+? 
+! Undefined control sequence.
+\lst@basicstyle ->\small 
+                         
+l.785 \begin{lstlisting}[language=]
+                                   
+? 
+! Undefined control sequence.
+l.825 The {\tt
+               categories} subsection presents a set of subdivisions for
+? 
+! Undefined control sequence.
+l.839 \paragraph
+                 Having found the non-missing data for the category, TEA can...
+
+? 
+! Undefined control sequence.
+l.842 \subsection
+                 {Model estimation}
+? 
+! Undefined control sequence.
+l.844 \paragraph
+                 In this section, those items marked as missing are filled i...
+
+? 
+! Undefined control sequence.
+l.847 \paragraph
+                 The estimation procedure takes in a complete data set and r...
+
+? 
+LaTeX Font Info:    Font shape `U/lasy/b/n' in size <7> not available
+(Font)              Font shape `U/lasy/m/n' tried instead on input line 850.
+LaTeX Font Info:    Font shape `U/lasy/b/n' in size <5> not available
+(Font)              Font shape `U/lasy/m/n' tried instead on input line 850.
+! Undefined control sequence.
+l.852 \paragraph
+                 Apophenia \citep{klemens:modeling} is a library of C functi...
+
+? 
+! Undefined control sequence.
+l.852 \paragraph Apophenia \citep
+                                 {klemens:modeling} is a library of C functi...
+
+? 
+! Undefined control sequence.
+l.857 and Logit, et cetera. Each has an {\tt
+                                             estimate} function that takes i...
+
+? 
+! Undefined control sequence.
+l.858 parameter estimates, and a random {\tt
+                                             draw} method that takes in a se...
+
+? 
+! Undefined control sequence.
+l.868 \subsection
+                 {The range of models}
+? 
+! Undefined control sequence.
+l.870 \paragraph
+                 The intent of TEA is to not dictate to users the means by
+? 
+! Undefined control sequence.
+l.878 \paragraph
+                 Data is Missing At Random (MAR) when the probability of a f...
+
+? 
+! Interruption.
+<to be read again> 
+                   D
+l.878 \paragraph D
+                  ata is Missing At Random (MAR) when the probability of a f...
+
+? 
+! Undefined control sequence.
+l.883 \paragraph
+                 Rolando Rodr\'iguez, also at the U.S. Census Bureau, has wr...
+
+? 
+! Undefined control sequence.
+l.888 ...to fill in multiple missing fields \citep
+                                                  {ragu:srmi}.
+? 
+! Undefined control sequence.
+l.891 \section
+              {CONCLUSION}
+? 
+! Interruption.
+<to be read again> 
+                   {
+l.891 \section{
+               CONCLUSION}
+? 
+! Undefined control sequence.
+l.893 \paragraph
+                 TEA provides a single platform for editing, inference contr...
+
+? 
+! Undefined control sequence.
+l.904 \paragraph
+                 The framework advises a few obvious paths for further work,...
+
+? 
+No file paper.bbl.
+
+! LaTeX Error: The font size command \normalsize is not defined:
+               there is probably something wrong with the class file.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.920 \end{document}
+                    
+? 
+[1{/usr/share/texmf-var/fonts/map/pdftex/updmap/pdftex.map}
+! Undefined control sequence.
+<write> \newlabel{litsec}{{}{\thepage 
+                                      }}
+l.920 \end{document}
+                    
+? 
+! Undefined control sequence.
+<write> \newlabel{overviewsec}{{}{\thepage 
+                                           }}
+l.920 \end{document}
+                    
+? 
+! Undefined control sequence.
+<write> \newlabel{flowchart}{{}{\thepage 
+                                         }}
+l.920 \end{document}
+                    
+? 
+! Undefined control sequence.
+<write> \newlabel{editsec}{{}{\thepage 
+                                       }}
+l.920 \end{document}
+                    
+? 
+! Undefined control sequence.
+<write> \newlabel{avoidsec}{{}{\thepage 
+                                        }}
+l.920 \end{document}
+                    
+? 
+! Emergency stop.
+<write> \newlabel{avoidsec}{{}{\thepage 
+                                        }}
+l.920 \end{document}
+                    
+End of file on the terminal!
+
+ 
+Here is how much of TeX's memory you used:
+ 3041 strings out of 94500
+ 38224 string characters out of 1176766
+ 309613 words of memory out of 1000000
+ 6177 multiletter control sequences out of 10000+50000
+ 19300 words of font info for 43 fonts, out of 500000 for 2000
+ 580 hyphenation exceptions out of 1000
+ 32i,5n,59p,235b,933s stack positions out of 1500i,500n,5000p,200000b,5000s
+PDF statistics:
+ 17 PDF objects out of 300000
+ 0 named destinations out of 131072
+ 6 words of extra memory for PDF output out of 65536
+!  ==> Fatal error occurred, the output PDF file is not finished!

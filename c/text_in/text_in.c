@@ -1,7 +1,14 @@
 #include "internal.h"
 
 int file_read = 0;
+char * gnu_c_basename(char *);
 
+/*
+ TeaKEY(input/types, <<<Specifies the type and range of variables (which is used later in consistency checking).>>>)
+
+ TeaKEY(input, <<<The key where much of the database/input related subkeys are defined.
+ Descriptions of these subkeys can be found elsewhere in the appendix.>>>)
+*/
 apop_data *make_type_table(){
     //apop_data *types = get_key_text("input", "types");
     apop_data *types = apop_text_alloc(NULL, 1, 2);
@@ -80,7 +87,7 @@ through the input step the first time. Otherwise, the default is to overwrite.  
 
 TeaKEY(input/primary key, <<<The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.>>>)
 
-TeaKey(input/indices, <<<Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect. Remark, however, that we've moved the function generate_indices(table_out) to bridge.c:428 to after the recodes.>>>)
+TeaKEY(input/indices, <<<Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect. Remark, however, that we've moved the function generate_indices(table_out) to bridge.c:428 to after the recodes.>>>)
 
 TeaKEY(input/missing marker, <<<How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.>>>)
 */
@@ -104,6 +111,10 @@ static int text_in_by_tag(char const *tag){
     asprintf(&sas_post_script, "sas7bdat");
     file_in_copy += strlen(file_in) - 8;
 
+    Apop_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
+    Apop_stopif(!overwrite && apop_table_exists(table_out), return 0, 0,
+                        "Table %s exists; skipping the input from file %s.", table_out, file_in);
+
     // Script that converts a sas input file into a regular text file
     if(strcmp(file_in_copy, sas_post_script) == 0){
         /* Below we write a shell script to convert the user's SAS input file into a text
@@ -112,25 +123,26 @@ static int text_in_by_tag(char const *tag){
          * need to check that the given file exists because this is already handled by the
          * Apop_stopif statement above.
          */
-           apop_system(
-           "base=`basename %s .sas7bdat`; \
-           dir='${%s%%/*}'; \
-           saslib='${base##*/}'; \
-           sas -noterminal -stdio <<'XXXXXX'| apop_text_to_db -d',' '-' data_tab %s.db; \
-           libname indata '$dir'; \
-           PROC EXPORT; \
-           DATA=indata.$saslib; \
-           OUTFILE='STDOUT'; \
-           DBMS=CSV REPLACE; \
-           PUTNAMES=YES; \
-           run; \
-           XXXXXX", file_in, file_in, get_key_word("database", NULL)
-           );
+
+        char *basename = gnu_c_basename(strndup(file_in, strlen(file_in)-9));
+        char *directory = dirname(file_in);
+        if(!strcmp(directory, ".")) asprintf(&directory, " ");
+
+        if (overwrite) apop_table_exists(table_out, 'd');
+
+       return apop_system(
+           "sas -noterminal -stdio <<XXXXXX| apop_text_to_db -d',' - %s %s;\n"
+           "libname indata '%s';    \n"
+           "PROC EXPORT             \n"
+           "DATA=indata.%s          \n"
+           "OUTFILE='STDOUT'        \n"
+           "DBMS=CSV REPLACE;       \n"
+           "PUTNAMES=YES;           \n"
+           "run;                    \n"
+           "XXXXXX\n", table_out, get_key_word("database", NULL), directory, basename
+       );
     }
 
-    Apop_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
-    Apop_stopif(!overwrite && apop_table_exists(table_out), return 0, 0,
-                        "Table %s exists; skipping the input from file %s.", table_out, file_in);
 	printf("Reading text file %s into database table %s.\n", file_in, table_out);
 
     if (overwrite) apop_table_exists(table_out, 'd');
@@ -170,9 +182,17 @@ void text_in(){
     apop_data_free(tags);
 }
 
+// Hilariously, including libgen.h for dirname gives us the POSIX version of
+// basename instead of GNU C. So I just instantiated it here.
+char *gnu_c_basename(char *file_input)
+{
+            char *basename = strrchr(file_input, '/');
+                        return basename ? basename+1 : file_input;
+}
 
-/* TeaKEY(database, <<<The database to use for all of this. It must be the first line in your spec file, because 
-I need it to know where to write all the keys to come.>>>)
+
+
+/* TeaKEY(database, <<<The database to use for all of this. It must be the first line in your spec file because all the rest of the keys get written to the database you specify. If you don't specify a database than the rest of the keys have nowhere to be written and your spec file will not get read correctly.>>>)
 
 TeaKEY(id, <<<Provides a column in the data set that provides a unique identifier for each observation.
 Some procedures need such a column; e.g., multiple imputation will store imputations in a

@@ -1,9 +1,12 @@
+#define _GNU_SOURCE
 #include <apop.h>
 #include "imputation_variance.h"
 
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
+
+#include <libgen.h> // For use in text_in.c to find directory of file
 
 //I can't believe that R claims these for its own:
 #undef error

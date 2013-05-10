@@ -1,0 +1,340 @@
+\documentclass{article}
+
+\long\def\comment#1{}
+\long\def\todo#1{}
+\comment{
+    This document is a combination of "A Tutorial Introduction to PEP" and "TEA for survey processing". Both documents have important information regarding the usage of TEA and this document is meant to combine that information into one source. Clean up and correct as you see fit.
+
+-- DV
+}
+
+\usepackage{epsfig,calc,amsfonts,natbib,url,xspace,listings,ifthen}
+\newif\ifimputation
+\imputationfalse
+
+% Boldface vectors: \xv produces a boldface x, and so on for all of the following:
+\def\definevector#1{\expandafter\gdef\csname #1v\endcsname{{\bf #1}\xspace}}
+\def\definemathvector#1{\expandafter\gdef\csname #1v\endcsname{\mbox{{\boldmath$\csname #1\endcsname$}}}}
+\definevector{b} \definevector{c} \definevector{d}
+\definevector{i} \definevector{j} \definevector{k}
+\definevector{p}
+%u gets special treatment; see below
+ \definevector{v} \definevector{w} \definevector{x} \definevector{y} \definevector{z}
+\definevector{A} \definevector{B} \definevector{C} \definevector{D}
+\definevector{I} \definevector{J} \definevector{K} \definevector{M}
+\definevector{Q} \definevector{R} \definevector{S} \definevector{T} \definevector{U} \definevector{V}
+\definevector{W} \definevector{X} \definevector{Y} \definevector{Z}
+\def\uv{\mbox{{\boldmath$\epsilon$}}} 
+\definemathvector{alpha} \definemathvector{beta} \definemathvector{gamma}
+\definemathvector{delta} \definemathvector{epsilon} \definemathvector{iota} \definemathvector{mu}
+\definemathvector{theta} \definemathvector{sigma} \definemathvector{Sigma}
+\def\Xuv{\underbar{\bf X}}
+
+%code listing:
+\lstset{columns=fullflexible, basicstyle=\small, emph={size_t,apop_data,apop_model,gsl_vector,gsl_matrix,gsl_rng,FILE},emphstyle=\bfseries}
+\def\setlistdefaults{\lstset{ showstringspaces=false,%
+ basicstyle=\small, language=C, breaklines=true,caption=,label=%
+,xleftmargin=.34cm,%
+,frameshape=
+,frameshape={nnnynnnnn}{nyn}{nnn}{nnnynnnnn}
+}
+\lstset{columns=fullflexible, basicstyle=\small, emph={size_t,apop_data,apop_model,gsl_vector,gsl_matrix,gsl_rng,FILE,math_fn},emphstyle=\bfseries}
+}
+\setlistdefaults
+
+\newenvironment{items}{
+\setlength{\leftmargini}{0pt}
+\begin{itemize}
+  \setlength{\itemsep}{3pt}
+  \setlength{\parskip}{0pt}
+  \setlength{\parsep}{3pt}
+}{\end{itemize}}
+
+\renewcommand{\sfdefault}{phv}
+\usepackage{times}
+\usepackage{epsfig}
+\usepackage{latexsym}
+\usepackage{setspace}
+%I think the Computer Modern teletype is too wide.
+\usepackage[T1]{fontenc}
+\renewcommand\ttdefault{cmtt}
+\def\tab{\phantom{hello.}}
+
+\def\Re{{\mathbb R}}
+\def\tighten{ \setlength{\itemsep}{1pt}
+    \setlength{\parskip}{0pt}}
+\def\adrec{\textsc{AdRec}\xspace}
+
+\newenvironment{key}[1]{ %
+  \setlength{\parsep}{0pt} %
+\hspace{-0.5cm} \textbf{#1}:\\ %
+  \setlength{\parindent}{0pt} %
+  \setlength{\parsep}{3pt} %
+}{}
+
+
+\begin{document}
+\author{Statistical Research Division\\U.S. Census Bureau}
+\title{TEA for survey processing}
+\maketitle
+%just an idea: put silhouettes on the front cover
+
+\begin{abstract}
+TEA is a system designed to unify and streamline survey processing, from raw data to
+editing to imputation to dissemination of output. Its primary focus is in finding 
+observations that are missing data, fail consistency checks, or risk the disclosure of
+sensitive information, and then using a unified imputation process to fix all of these
+issues. Beyond this central focus, it includes tools for reading in data, generating
+fully synthetic data, and other typical needs of the survey processor.
+\end{abstract}
+
+
+\section{Overview}
+{\sc We intend} to implement the many steps of survey processing into a single
+framework, where the interface with which analysts work is common across surveys,
+the full description of how a survey is processed is summarized in one place, and the
+code implementing the procedures are internally well-documented and reasonably easy
+to maintain.
+
+Raw data is often rife with missing items, logical errors, and sensitive information. 
+To ignore these issues risks alienating respondents and data users alike, and so data 
+modification is a necessary part of the production of quality survey and census data. 
+TEA is a statistical library designed to eradicate these errors by creating a framework 
+that is friendly to interact with, effectively handles Census-sized data sets, and does 
+the processing quickly even with relatively sophisticated methods.
+
+This paper gives a detailed overview of the TEA system, its components, and how they're 
+used. If you have this tutorial you should also have a working installation of TEA and 
+a sample directory including {\tt demo.spec, demo.R}, and {\tt dc\_pums\_08.csv}. 
+Basic versions of all of the steps described below are already implemented and running,
+though the system will evolve and grow as it is applied in new surveys and environments.
+
+\section{System basics}
+TEA implements a two step process for addressing issues with raw data. The first is to
+identify those failures listed above (missing data, logical errors, or sensitive
+information), and then, having identified problem data, impute new values
+to replace the old ones. Although the term {\em imputation} is typically used only to 
+describe filling in missing data, we use it broadly to mean any modification of a 
+data item that involves choosing among alternatives, regardless of which of the 
+above failures prompted the fill-in. 
+
+In terms of how TEA is implemented, we break the process into two parts: the 
+specification of variable details---such as which file to read in, what values should 
+be top-coded, or the full description of the model used for filling in missing 
+data---and the actual prodecure to be run by the computer based on those inputs. 
+The specification of details as mentioned above will go into a plain text file, 
+herein called the {\tt spec} file. Based on your inputs to the {\tt spec} file 
+(which we will explain later as to what those inputs are/can be), you then run 
+a script in a user-friendly statistical computing framework called {\bf R}. This is 
+where the computing (editing, imputation, etc) takes place. We will explain this in 
+more detail later as well. For now, let's look closer at the {\tt spec} file: 
+
+\subsection{The spec file}\label{specsec}
+The full specification of the various steps of TEA, from input of data to final 
+production of output tables, that are performed during your implementation of TEA 
+is specified in a single file, the {\em spec file}. There are several intents to 
+this setup. First, because the spec file is separate from programming
+languages like R or SAS, it is a simpler grammar that is easier to write, and so 
+analysts can write technical specifications without the assistance of a programmer or
+a full training in a new programming language. In other words, the spec file allows 
+users whose areas of expertise are not in programming to customize and use TEA in a 
+standardized and acccessible environment. To see why this is the case, observe the 
+following script that is taken from the {\tt demo.spec} file (which you can open using 
+Vi or any other text editor):
+
+\begin{specbit}
+\begin{verbatim}
+database: test.db
+
+input {
+        input_file :dc_pums_08.csv
+        output_table: dc_pums
+}
+\end{verbatim}
+\end{specbit} 
+
+In this snippet of the {\tt demo.spec} file, we specified a database to use, an input 
+file to be parsed, and an output table to write our imputations to. Behind the scenes, 
+SQL scripts and C functions are being executed. As we will see, other scripts that are 
+run from the {\tt spec} file perform more complicated behind-the-scenes algorithms. 
+However, before we go through an example of a full {\tt spec} file, let's take a look at 
+the environment and underlying systems in which TEA runs to gain a better understanding 
+of the processes taking place in the {\tt spec} file:
+
+\subsection{Environment and underlying systems}
+TEA is based on three systems: C, R, and SQL.\comment{\footnote{C is the successor to B, which
+was the successor to BCPL: basic combined programming language. R, a successor to S,
+is named after its authors, Robert Gentleman and Ross Ihaka. SQL stands for structured
+query language.}} Each provides facilities that complement the others:
+
+{\bf SQL} is designed around making fast queries from databases, such as finding all
+observations within a given age range and income band. Any time we need a subset of the
+data, we will use SQL to describe and pull it. SQL is a relatively simple language, so
+users unfamiliar with it can probably learn the necessary SQL in a few
+minutes---in fact, a reader who claims to know no SQL will probably already be able
+to read and modify the SQL-language conditions in the {\tt checks} sections below.
+
+The TEA system stores data using an SQL database. The system queries the database as
+needed to provide input to the statistical/mathematical components (R, C function libraries, etc.).
+Currently, TEA is written to support SQLite as its database interface; however it would
+be possible to implement other interfaces such as Oracle or MySQL.
+
+Output at each step is also to the database, to be read as input into the next
+step. Therefore, the state of the data is recorded at each step in the process, so
+suspect changes may be audited.
+
+Outside the database, to control what happens and
+do the modeling, the TEA package consists of roughly 5,000 lines of R and C code.
+
+{\bf R} is a relatively user-friendly system that makes it easy to interact with data
+sets and write quick scripts to glue together segments of the survey-processing pipeline.
+R is therefore the interactive front-end for TEA. Users will want to get familiar with the basics of
+R.  As with SQL, users well-versed in R can use their additional knowledge to do additional
+analysis beyond the tools provided by the system.
+
+{\bf C} is the fastest human-usable system available for manipulating matrices, making
+draws from distributions, and other basic model manipulations. Most of the numerical
+work will be in C. The user is not expected to know any C at all, because R procedures
+are provided that do the work of running the underlying C-based procedures.
+
+Now that we have a better idea of the environments in which TEA is run, let's take a look  
+at an example of a full {\tt spec} file: {\tt demo.spec}:
+
+\comment{
+DV:  I thought it would be a good idea to include a full spec file for the reader to 
+reference while reading through the tutorial. If you guys disagree we can take it out.
+Also, as we know there are problems with demo.spec so we'll have to fix those eventually 
+before including it in the final draft of the tutorial.
+}
+\begin{figure}
+\lstset{columns=fullflexible}
+\lstinputlsting{demo.spec}
+\caption{A sample {\tt spec} file that imputes an AGEP variable using WAGP, SEX, 
+and the {\tt hot deck} and {\tt ols} imputation models. The contents of this {\tt spec} 
+file are explained below}
+\end{figure}
+
+\section{A complete look at the spec file}
+The configuration system (spec file) is a major part--perhaps in some sense, all--of 
+the user interface with TEA.
+As is evident from {\tt demo.spec}, there are many components of the {\tt spec} 
+file that all perform certain functions. We begin by explaining the concept of {\it keys}:
+
+\subsection{Keys}
+Everything in the {\tt spec} file is a key/value pair (or, as may be more familiar to 
+you, a tag: data definition). Each key in the {\tt spec} file has a specific purpose and 
+will be outlined in this tutorial.
+For example, in the header of {\tt demo.spec} we have the following code:
+\begin{lstlisting}[language=]
+database: demo.db
+id: SSN
+\end{lstlisting}
+
+Here, {\tt database: demo.db} and {\tt id: SSN} are examples of key:value pairs.
+As it were, you will always need to begin your {\tt spec} file by declaring the 
+database ({\tt database:your\_database.db}) key and the unique identifier 
+({\tt id:your\_unique\_identifier}) key. The {\tt database:} key identifies 
+the database where everything else in the {\tt spec} file will be written to and 
+absolutely must appear at the top of the {\tt spec} file.
+The {\tt id} key provides a column in the data set that provides a unique 
+identifier for each observation. The {\tt id} key is not strictly necessary, 
+although most of TEA's routines use it. More information on both of these keys can 
+be found in the appendix of this tutorial.
+You may have noticed that keys are assigned values with the following syntax:\\
+{\tt key: value}\\
+This syntax is equivalent to the following form with curly braces:
+\begin{lstlisting}[language=]
+database{
+	demo.db
+}
+
+id {
+	SSN
+}
+\end{lstlisting}
+Clearly, this form is not as convenient as the {\tt key:value} form for single values. 
+However, it allows us to have multiple values associated with a single line of data, 
+and even subkeys. For example, take the next line in {\tt demo.spec} (the computer will 
+ignore everything after a #, so those lines are comments for your fellow humans):
+
+\begin{lstlisting}[language=]
+input {
+    #As above, if you have a key with one value, you can use a colon:
+    input file: ss08pdc.csv
+    overwrite: no
+    output table: dc
+	#However, with curly braces we can associate multiple values with a single key
+        types {
+                AGEP: integer
+                CATAGE: integer
+        }
+}
+\end{lstlisting}
+
+%  DV: Here we should explain how subkeys are used (a fact of which I'm not entirely 
+%  sure myself). After explaining this we have:
+
+In the database, here is what the above will look like:
+\begin{verbatim}
+database            ourstudy.db
+checks              age > 100 => age = 100
+checks              status = 'married' and  age < 16
+input/input file    text_in.csv
+input/output table  dataset
+\end{verbatim}
+
+Observe that the subkeys are turned into a slash-separated list. It is 
+worth getting familiar with this internal form, because when you've made a 
+mistake in your {\tt spec} file, the error message that gets printed in {\tt R} 
+will display your keys in the above form. We will discuss this more later in the 
+tutorial when we talk about running your {\tt spec} file in {\tt R}.
+Here is a succint summation of the syntax rules for keys:
+
+n{itemize}
+\item You can have several values in curly braces, each on a separate line, which are added to the key/value list. Order is preserved.
+\item If there is a subkey, then its name is merged with the parent key via a slash;
+you can have as many levels of sub-sub-sub-keys as you wish.
+%\item You will almost certainly
+%need to use this group/key format to get most values. Some functions still call for
+%a group and key separately, but they'll just get merged with a slash anyway.
+\item As a shortcut, you can replace {\tt key \{single value\}} with {\tt key:single value}.
+\item Each key takes up exactly one line (unless you explicitly combine lines; see below). Otherwise, white
+space is irrelevant to the parser. Because humans will also read the spec file, you
+are strongly encouraged to use indentation to indicate what is a member of what group.
+\item If you need to continue a value over several lines, put a backslash at the end of
+each line that continues to the next; the backslash/newline will be replaced with a single space.
+\end{itemize}
+
+We now continue through our {\tt spec} file to the {\tt input} key:
+
+\subsection{input}
+The {\tt input} key is an important key in your {\tt spec} file that specifies:
+\begin{enumerate}
+\item The {\tt csv} file from which you will draw your data.
+\item The option to overwrite %Finish this item: what does overwrite do again?
+\item The {\tt output table} key that specifies the table where you would like to 
+write the data that is read in from the {\tt csv} file.
+\item The {\tt types} key that specifies what type of variables are to be written 
+into the output table.
+
+We now explain each part of the {\tt inputs} key in more detail. The {\tt input file} 
+key specifies the {\tt csv} file that contains the 
+
+\paragraph{Interactive R}
+The specification file described to this point does nothing by itself, but provides
+information to procedures written in R that do the work. The analyst would therefore write
+a script that calls the needed procedures in sequence. For example, this script loads the
+TEA library into R's memory, reads the spec file, fixes inconsistencies, and imputes
+missing values.
+
+\begin{lstlisting}[language=]
+library("tea")
+read_spec("spec")
+doChecks()
+doImpute()
+\end{lstlisting}
+
+%\bibliographystyle{harvard}
+%\bibliographystyle{plainnat}
+%\bibliography{tea}
+\end{document}

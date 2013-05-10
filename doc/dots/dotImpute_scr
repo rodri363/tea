@@ -1,0 +1,68 @@
+
+    /* Impute */
+    impute [color=purple, label="{<impute>impute | <categories>categories | \
+<min_group_size>min group size | <draw_count>draw count|<seed>seed|<input_table>input \
+table|<method>method|<output_vars>output vars}"];
+
+    "impute":<output_vars> -> output_vars [style=dotted, color=blue, 
+    label="Specifies which\nfields you would\nlike to impute"];
+
+    database -> output_vars [style=dotted, color=blue, 
+    label="(2) In impute key\nget data points\nof output vars\nfrom database"];
+
+    output_vars -> categories [style=dotted, color=blue, 
+    label="(3) And use categories\nto specify how\to recode output vars"];
+
+    output_vars [label="output vars"];
+
+    /* Should we consider making large node that lists
+     * all models available and is pointed to by method?
+     */
+
+    //If so, insert this node here
+
+
+    categories -> input_table [color=lightblue, style=dashed, 
+    label="(4) Write recoded\nvariables to\ninput table\nfor imputation"];
+
+    "impute":<input_table> -> input_table [color=blue, style=dotted, 
+    label="Specifies name\nof input table\nused in imputation"];
+
+    input_table -> method [label="(5) Impute recoded data\nstored in input table\nusing \
+specified method", style=dotted, color=blue];
+
+    method -> input_table [label="(6) Imputed data\nwritten back\nto input table",
+style=dashed, color=lightblue];
+
+    input_table -> check_diamond [label="(7) Perform edit checks\non imputed data\nstored \
+in input table", style=dotted, color=blue];
+
+input_table [label="input table"];
+
+    "var_1_checks":<param_n> -> check_diamond [label = 
+    "Check parameters\nused during\nedit checks", style=dotted, color=blue];
+    "var_2_checks":<param_n> -> check_diamond [style=dotted, color=blue];
+
+    check_diamond [label = "Pass checks?", shape=diamond];
+
+    check_diamond -> method [label="(8 a) If imputed data\nfails checks\nrepeat \
+imputation" color=blue, style=dotted];
+
+    check_diamond -> input_table [label="(8 b) If imputed data\npasses checks\nrewrite \
+to\ninput table and...", style=dashed, color=lightblue];
+
+    input_table -> database [label="(9 a) Update\ndatabase and...", style=dashed,
+color=lightblue];
+
+    input_table -> output_table [label="(9 b) Write imputed\ndata to\noutput table",
+style=dashed, color=lightblue];
+
+    output_table [label="output table"];
+
+
+    /* Finally, database values get sent to output table and output table gets sent to R
+ * */
+    output_table -> R [label=
+    "(10) Write imputed data\nfrom output table\ninto R data frame", 
+    color=lightblue, style=dashed];
+

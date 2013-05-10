@@ -176,6 +176,8 @@ static bool test_for_recodes(char const *tag){
 /* Generate the recode view using the recodes segment.
 
     Called from \c read_spec (in peptalk.y).
+    
+    (Technically do_recodes() is called from read spec but do_recodes calls make_recode_view()).
 
 We're also going to create triggers for those variables which have an imputation
 section. So far, imputation is the only way in which variables can change, so if the
@@ -188,6 +190,8 @@ TeaKEY(group recodes/group id, <<<The column with a unique ID for each group (e.
 
 Returns 0 on OK, 1 on error.
 */
+
+
 static int make_recode_view(char **tag, char **first_or_last){
     Apop_stopif(!*first_or_last, return -1, 0, "first_or_last not set. Should never happen.");
     //first_or_last may be "first", "last", "both", or "middle"

@@ -53,3 +53,4 @@ void write_a_file(char *, char *); //found in tea/c/tests/asst_tests.c
 
 
 void test_check_out_impute();//in checkout.c
+

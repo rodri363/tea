@@ -1,0 +1,155 @@
+digraph { 
+node [shape=Mrecord];
+    /* Starting with input key */
+    input [color=purple, label="{<input> input |<input_file> input file  |<overwrite> \
+overwrite |<output_table> output table|<types> types}"];
+    node [fontsize=10];
+    edge [fontsize=8];
+    id;
+    "input":<overwrite> -> overwrite [style=dotted, color=blue, label = "(1) Check to \
+see\nif overwrite\nis yes"];
+    overwrite [shape=diamond];
+    overwrite -> yes [color=blue, style=dotted];
+    overwrite -> no [color=blue, style=dotted];
+
+    input_file [label="input file"];
+    "input":<input_file> -> input_file [label="Name of\nyour csv\ninput file",
+color=blue, style=dotted];
+
+    yes -> input_file [color=blue, style=dotted];
+    input_file -> output_table [color=lightblue, style=dashed];
+
+    type_vars [label="{<type_vars_header>Type Vars|<var1>Var 1|<var2>Var \
+2|<dots>...|<var_n>Var n}"];
+    "input":<types> -> "type_vars":<type_vars_header> [style=dotted, color = blue];
+
+    "type_vars":<var_n> -> "checks":<checks> [color=blue, style=dotted, 
+            label="Check parameters for\nvariables in types\nkey declared in checks"];
+
+    "input":<output_table> -> output_table [style=dotted, color=blue, label="Specifies \
+name\nof output table"];
+
+      /* Fields */
+    fields [color=purple, label="{<fields>fields|<edit_var1>Field 1|<edit_var2>Field \
+2|<dotdot>...|<edit_varn>Field n}"];
+
+    //edit_varx points to impute
+    "fields":<edit_varn> -> output_vars [style=dotted, color = blue,
+        label="Choose output vars\nfrom variable declared\nin fields"];
+
+    //id key points to field variables to illustrate that it gives them unique identifier.
+    id -> "fields":<fields> [style=dotted, color = blue, 
+        label="Unique identifier\nfor rows\nof fields"];
+
+
+     /* Checks */
+    checks [color=purple, label="{<checks>checks|<var1>Var 1\nChecks|<var2>Var \
+2\nChecks|<dots>...|<var_n>Var n\nChecks}"];
+
+
+    var_1_checks [label="{<var_header>Var 1\nChecks|<param1>Parameter 1|<param2>Parameter \
+2|<dots>...|<param_n>Parameter n}"];
+    var_2_checks [label="{<var_header>Var 2\nChecks|<param1>Parameter 1|<param2>Parameter \
+2|<dots>...|<param_n>Parameter n}"];
+
+    "checks":<var1> -> "var_1_checks":<var_header> [style = dotted, color = blue,
+label="Check paramters\nfor variables\nin types key"];
+    "checks":<var2> -> "var_2_checks":<var_header> [style = dotted, color = blue];
+    recodes [color=purple, label="{<recodes>recodes|<recode1>recode 1|<recode2>recode \
+2|<dots>...|<recode_n>recode n}"];
+
+    recode1 [label="{<recode1>Recode 1|<parameter1>Parameter 1|<parameter2>Parameter 2}"];
+    recode2 [label="{<recode2>Recode 2|<parameter1>Parameter 1|<parameter2>Parameter \
+2|<parameter3>Parameter 3}"];
+
+    "recodes":<recode1> -> "recode1":<recode1> [label="Specify recode\nparameters \
+for\nrecode 1", style=dotted, color=blue];
+    "recodes":<recode2> -> "recode2":<recode2> [label="Specify recode\nparameters \
+for\nrecode 2", style=dotted, color=blue];
+
+    "recode1":<recode1> -> categories [style = dotted, color = blue, 
+        label="Obtain recode\nparameters from\nrecodes key"];
+    "recode2":<recode2> -> categories [style = dotted, color = blue];
+
+    /* Checks */
+    checks [color=purple, label="{<checks>checks|<var1>Var 1\nChecks|<var2>Var \
+2\nChecks|<dots>...|<var_n>Var n\nChecks}"];
+
+
+    var_1_checks [label="{<var_header>Var 1\nChecks|<param1>Parameter 1|<param2>Parameter \
+2|<dots>...|<param_n>Parameter n}"];
+    var_2_checks [label="{<var_header>Var 2\nChecks|<param1>Parameter 1|<param2>Parameter \
+2|<dots>...|<param_n>Parameter n}"];
+
+    "checks":<var1> -> "var_1_checks":<var_header> [style = dotted, color = blue,
+label="Check paramters\nfor variables\nin types key"];
+    "checks":<var2> -> "var_2_checks":<var_header> [style = dotted, color = blue];
+
+    /* Impute */
+    impute [color=purple, label="{<impute>impute | <categories>categories | \
+<min_group_size>min group size | <draw_count>draw count|<seed>seed|<input_table>input \
+table|<method>method|<output_vars>output vars}"];
+
+    "impute":<output_vars> -> output_vars [style=dotted, color=blue, 
+    label="Specifies which\nfields you would\nlike to impute"];
+
+    database -> output_vars [style=dotted, color=blue, 
+    label="(2) In impute key\nget data points\nof output vars\nfrom database"];
+
+    output_vars -> categories [style=dotted, color=blue, 
+    label="(3) And use categories\nto specify how\to recode output vars"];
+
+    output_vars [label="output vars"];
+
+    /* Should we consider making large node that lists
+     * all models available and is pointed to by method?
+     */
+
+    //If so, insert this node here
+
+
+    categories -> input_table [color=lightblue, style=dashed, 
+    label="(4) Write recoded\nvariables to\ninput table\nfor imputation"];
+
+    "impute":<input_table> -> input_table [color=blue, style=dotted, 
+    label="Specifies name\nof input table\nused in imputation"];
+
+    input_table -> method [label="(5) Impute recoded data\nstored in input table\nusing \
+specified method", style=dotted, color=blue];
+
+    method -> input_table [label="(6) Imputed data\nwritten back\nto input table",
+style=dashed, color=lightblue];
+
+    input_table -> check_diamond [label="(7) Perform edit checks\non imputed data\nstored \
+in input table", style=dotted, color=blue];
+
+input_table [label="input table"];
+
+    "var_1_checks":<param_n> -> check_diamond [label = 
+    "Check parameters\nused during\nedit checks", style=dotted, color=blue];
+    "var_2_checks":<param_n> -> check_diamond [style=dotted, color=blue];
+
+    check_diamond [label = "Pass checks?", shape=diamond];
+
+    check_diamond -> method [label="(8 a) If imputed data\nfails checks\nrepeat \
+imputation" color=blue, style=dotted];
+
+    check_diamond -> input_table [label="(8 b) If imputed data\npasses checks\nrewrite \
+to\ninput table and...", style=dashed, color=lightblue];
+
+    input_table -> database [label="(9 a) Update\ndatabase and...", style=dashed,
+color=lightblue];
+
+    input_table -> output_table [label="(9 b) Write imputed\ndata to\noutput table",
+style=dashed, color=lightblue];
+
+    output_table [label="output table"];
+
+
+    /* Finally, database values get sent to output table and output table gets sent to R
+ * */
+    output_table -> R [label=
+    "(10) Write imputed data\nfrom output table\ninto R data frame", 
+    color=lightblue, style=dashed];
+
+}

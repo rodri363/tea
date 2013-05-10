@@ -57,9 +57,12 @@ print("Exiting spec1 tests (1)")
     } else if(war$message == "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".") {
         counter1 <<- counter1 + 1
         invokeRestart("muffleWarning")
-        
 
-    } else if(war$message == "You didn't specify an output table in your input key so I don't know where to write your  recodes. Please specify an output table in your spec file."){
+    } else if(war$message == "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file.") {
+       counter1 <<- counter1 + 1 
+       invokeRestart("muffleWarning")
+
+    } else if(war$message == "You didn't specify an output table in your input key so I don't know where to write your recodes. Please specify an output table in your spec file."){
         counter1 <<- counter1 + 1
         invokeRestart("muffleWarning")
         
@@ -135,6 +138,10 @@ print("Exiting spec2 tests (2)")
     } else if(war$message == "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".") {
         counter2 <<- counter2 + 1
         invokeRestart("muffleWarning")
+
+    } else if(war$message == "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file.") {
+       counter1 <<- counter1 + 1 
+       invokeRestart("muffleWarning")
         
 
     } else if(war$message == "You didn't specify an output table in your input key so I don't know where to write your  recodes. Please specify an output table in your spec file."){
@@ -211,6 +218,9 @@ print("Exiting spec3 tests (3)")
         counter3 <<- counter3 + 1
         invokeRestart("muffleWarning")
         
+    } else if(war$message == "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file."){
+       counter1 <<- counter1 + 1
+       invokeRestart("muffleWarning")
 
     } else if(war$message == "You didn't specify an output table in your input key so I don't know where to write your  recodes. Please specify an output table in your spec file."){
         counter3 <<- counter3 + 1
@@ -288,6 +298,9 @@ print("Exiting spec4 tests (4)")
         counter4 <<- counter4 + 1
         invokeRestart("muffleWarning")
         
+    } else if(war$message == "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file.") {
+       counter1 <<- counter1 + 1 
+       invokeRestart("muffleWarning")
 
     } else if(war$message == "You didn't specify an output table in your input key so I don't know where to write your recodes. Please specify an output table in your spec file."){
         counter4 <<- counter4 + 1

@@ -1,0 +1,42 @@
+This document describes some of the techniques that we use internally to keep things
+moving. Users of the package has no reason to read this, but if you intend to modify the
+code, then we expect you will want to look over this document first.
+
+
+the active table: The output of one segment of the sequence will be the input to the next
+segment. Say we have this spec file:
+
+inputs {
+    input file: in.txt
+    output table: dataset
+}
+
+recodes {
+    Agecat {
+        0 | age between 0 and 18
+        1 | age between 19 and 64
+        1 | age >=65
+    }
+}
+
+rake {
+    [...]
+}
+
+After the input step, the R variable pepenv$active_table will be set to dataset. After the
+recode step, it will be named dataset_view. After the raking step, you'll have
+dataset_view_raked.
+
+However, the user has the option to override the active_tab in most cases by setting an
+"input table" tag in the relevant section of the spec. Rather than using pepenv$active_tab
+directly, use GetInputTable() to work out the preferred input.
+
+C functions wrapped by R will need to have R call GetInputTable() and then send in the
+table name as a string. They may change the value (as the raking fn does), in which case
+the R side will need to set the active_tab again. Sample code:
+
+    active_tab <- getInputTable("impute")
+    print (paste("input table= ", active_tab))
+    .C("impute", as.character(tag), as.character(active_tab))
+    pepenv$active_tab <- active_tab #active_tab may have changed
+

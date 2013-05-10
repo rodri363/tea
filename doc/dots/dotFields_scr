@@ -1,0 +1,14 @@
+
+      /* Fields */
+    fields [color=purple, label="{<fields>fields|<edit_var1>Field 1|<edit_var2>Field \
+2|<dotdot>...|<edit_varn>Field n}"];
+
+    //edit_varx points to impute
+    "fields":<edit_varn> -> output_vars [style=dotted, color = blue,
+        label="Choose output vars\nfrom variable declared\nin fields"];
+
+    //id key points to field variables to illustrate that it gives them unique identifier.
+    id -> "fields":<fields> [style=dotted, color = blue, 
+        label="Unique identifier\nfor rows\nof fields"];
+
+

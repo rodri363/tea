@@ -1,0 +1,8 @@
+The dotFiles in this folder are written to facilitate the composition of the 
+larger graphviz dotFile by separating it into separate dot files for each 
+main key of the spec file.
+
+When updating and/or writing a new dot file that will be part of the main 
+dot file, leave out the digraph { ... } and node [shape=Mrecord]; tags as 
+those are both included as part of the script in the main dot file output 
+(called connected_dot_file).

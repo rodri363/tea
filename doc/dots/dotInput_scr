@@ -1,0 +1,28 @@
+    /* Starting with input key */
+    input [color=purple, label="{<input> input |<input_file> input file  |<overwrite> \
+overwrite |<output_table> output table|<types> types}"];
+    node [fontsize=10];
+    edge [fontsize=8];
+    id;
+    "input":<overwrite> -> overwrite [style=dotted, color=blue, label = "(1) Check to \
+see\nif overwrite\nis yes"];
+    overwrite [shape=diamond];
+    overwrite -> yes [color=blue, style=dotted];
+    overwrite -> no [color=blue, style=dotted];
+
+    input_file [label="input file"];
+    "input":<input_file> -> input_file [label="Name of\nyour csv\ninput file",
+color=blue, style=dotted];
+
+    yes -> input_file [color=blue, style=dotted];
+    input_file -> output_table [color=lightblue, style=dashed];
+
+    type_vars [label="{<type_vars_header>Type Vars|<var1>Var 1|<var2>Var \
+2|<dots>...|<var_n>Var n}"];
+    "input":<types> -> "type_vars":<type_vars_header> [style=dotted, color = blue];
+
+    "type_vars":<var_n> -> "checks":<checks> [color=blue, style=dotted, 
+            label="Check parameters for\nvariables in types\nkey declared in checks"];
+
+    "input":<output_table> -> output_table [style=dotted, color=blue, label="Specifies \
+name\nof output table"];

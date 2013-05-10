@@ -1,0 +1,231 @@
+\begin{key}{raking/thread count}
+ You can thread either on the R side among several tables,
+     or interally to one table raking. To thread a single raking process, set this to the
+     number of desired threads. 
+     
+\end{key}
+
+\begin{key}{input/primary key}
+ A list of variables to use as the primary key for the output table.
+In SQLite, if there is only one variable in the list as it is defined as an integer,
+this will create an integer primary key and will thus be identical to the auto-generated
+ROWID variable.
+\end{key}
+
+\begin{key}{group recodes/recodes}
+ A set of recodes like the main set, but each calculation of the recode will be grouped by the group id, so you can use things like {\tt max(age)} or {\tt sum(income)}.
+Returns 0 on OK, 1 on error.
+
+\end{key}
+
+\begin{key}{raking/tolerance}
+     If the max(change in cell value) from one step to the next
+       is smaller than this value, stop. 
+\end{key}
+
+\begin{key}{input/types}
+ A list of \emph{keys} of the form:
+var: type
+where var is the name of a variable (column) in the output table and type is a valid
+database type or affinity.  The default is to read in all variables as character
+columns.
+\end{key}
+
+\begin{key}{id}
+ Provides a column in the data set that provides a unique identifier for each
+observation.
+Some procedures need such a column; e.g., multiple imputation will store imputations in a
+table separate from the main dataset, and will require a means of putting imputations in
+their proper place. Other elements of TEA, like flagging for disclosure avoidance, use the
+same identifier.
+\end{key}
+
+\begin{key}{rankSwap/max change}
+ maximal absolute change in value of x allowed.
+That is, if the swap value for $x_i$ is $y$, if $|y - x_i| >$ maxchange,
+then the swap is rejected
+
+default = 1
+\end{key}
+
+\begin{key}{raking/all vars}
+     The full list of variables that will be involved in the
+       raking. All others are ignored. 
+\end{key}
+
+\begin{key}{impute/draw count}
+   How many multiple imputations should we do? Default: 5.
+\end{key}
+
+\begin{key}{rankSwap/seed}
+ The random number generator seed for the rank swapping setup.
+\end{key}
+
+\begin{key}{impute/earlier output table}
+   If this imputaiton depends on a previous one, then give the fill-in table from the previous output here.
+ 
+\end{key}
+
+\begin{key}{impute/input table}
+The table holding the base data, with missing values. Giving a value for this key is optional. If it's not given, then TEA automatically relies on the sytem having an active table already recorded. For example, if you've already called {\tt doInput()} in \textbf{R}, TEA will consider the output from that routine (which may be a view, not the table itself) as the input table for the {\tt impute} group.
+\end{key}
+
+\begin{key}{impute/output table}
+   Where the fill-ins will be written. You'll still need {\tt checkOutImpute} to produce a completed table.
+\end{key}
+
+\begin{key}{impute/seed}
+   The RNG seed
+\end{key}
+
+\begin{key}{raking/contrasts}
+ The sets of dimensions whose column/row/cross totals must be kept constant. One contrast to a row; pipes separating variables on one row.
+\begin{lstlisting}
+raking{
+    contrasts{
+        age | sex | race
+        age | block
+    }
+}
+\end{lstlisting} 
+\end{key}
+
+\begin{key}{input/indices}
+ Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect.
+\end{key}
+
+\begin{key}{rankSwap/swap range}
+ proportion of ranks to use for swapping interval, that is
+if current rank is r, swap possible from r+1 to r+floor(swaprange*length(x))
+
+default = 0.5
+
+\end{key}
+
+\begin{key}{raking/count col}
+     If this key is not present take each row to be a
+		single observation, and count them up to produce the cell counts to which the
+		system will be raking. If this key is present, then this column in the data set
+		will be used as the cell count.
+\end{key}
+
+\begin{key}{input/input file}
+ The text file from which to read the data set. This should be in
+the usal comma-separated format with the first row listng column names.
+\end{key}
+
+\begin{key}{recodes}
+ New variables that are deterministic functions of the existing data sets.
+There are two forms, one aimed at recodes that indicate a list of categories, and one
+aimed at recodes that are a direct calculation from the existing fields.
+For example (using a popular rule that you shouldn't date anybody who is younger than
+(your age)/2 +7),
+\begin{lstlisting}[language=]
+recodes { 
+    pants {
+        yes | leg_count = 2
+        no  |                   #Always include one blank default category at the end.
+    }
+    youngest_date {
+        age/2 + 7
+    }
+}
+\end{lstlisting}
+You may chain recode groups, meaning that recodes may be based on previous recodes. Tagged
+recode groups are done in the sequence in which they appear in the file. [Because the
+order of the file determines order of execution, the tags you assign are irrelevant, but
+I still need distinct tags to keep the groups distinct in my bookkeeping.]
+\begin{lstlisting}
+recodes [first] {
+    youngest_date: (age/7) +7        #for one-line expressions, you can use a colon.
+    oldest_date: (age -7) *2
+}
+recodes [second] {
+    age_gap {
+        yes | spouse_age > youngest_date && spouse_age < oldest_date
+        no  | 
+    }
+}
+\end{lstlisting}
+If you have edits based on a formula, then I'm not smart enough to set up the edit table
+from just the recode formula. Please add the new field and its valid values in the \c
+fields section, as with the usual variables.
+If you have edits based on category-style recodes, I auto-declare those, because the
+recode can only take on the values that you wrote down here.
+\end{key}
+
+\begin{key}{raking/input table}
+ The table to be raked. 
+\end{key}
+
+\begin{key}{input/missing marker}
+ How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.
+
+\end{key}
+
+\begin{key}{timeout}
+ Once it has been established that a record has failed a consistency
+   check, the search for alternatives begins. Say that variables one, two, and three each have 100
+    options; then there are 1,000,000 options to check against possibly thousands
+    of checks. If a timeout is present in the spec (outside of all groups), then the
+    alternative search halts and returns what it has after the given number of seconds
+    have passed.
+   
+\end{key}
+
+\begin{key}{raking/max iterations}
+     If convergence to the desired tolerance isn't 
+       achieved by this many iterations, stop with a warning. 
+\end{key}
+
+\begin{key}{input/output table}
+ The name of the table in the database to which to write the data read in.
+\end{key}
+
+\begin{key}{database}
+ The database to use for all of this. It must be the first thing on your line.
+I need it to know where to write all the keys to come.
+\end{key}
+
+\begin{key}{raking/run number}
+     If running several raking processes simultaneously via
+        threading on the R side, specify a separate run\_number for each. If
+        single-threading (or if not sure), ignore this.
+     
+\end{key}
+
+\begin{key}{input/overwrite}
+ If {\tt n} or {\tt no}, I will skip the input step if the output table already exists. This makes it easy to re-run a script and only sit through the input step the first time.
+\end{key}
+
+\begin{key}{group recodes}
+ Much like recodes (qv), but for variables set within a group, like
+eldest in household.
+For example,
+\begin{lstlisting}[language=]
+group recodes { 
+    group id : hh_id
+    eldest: max(age)
+    youngest: min(age)
+    household_size: count(*)
+    total_income: sum(income)
+    mean_income: avg(income)
+}
+\end{lstlisting}
+
+\end{key}
+
+\begin{key}{raking/structural zeros}
+ A list of cells that must always be zero, 
+     in the form of SQL statements. 
+     
+\end{key}
+
+\begin{key}{input/primary key}
+ The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.
+\end{key}
+
+\begin{key}{group recodes/group id}
+ The column with a unique ID for each group (e.g., household number).
+\end{key}
+

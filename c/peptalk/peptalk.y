@@ -483,8 +483,8 @@ void moreblob(char **out, char* so_far, char *more){
             else           asprintf(&var_list, "%s, %s", more, var_list);
             if (!isreal){
                 if (!datatab) datatab = get_key_word("input","output table");
-                Apop_stopif(!datatab, return, 0, "I need the name of the data table so I can set up the recodes. "
-                                     "Put an 'output table' key in the input segment of the spec.");
+                Apop_stopif(!datatab, return, 0, "I need the name of the data table so I can set up the recodes."
+                                     " Put an 'output table' key in the input segment of the spec.");
                 if (!apop_table_exists(more))
                     apop_query( "create table %s as "
                                 "select distinct %s.rowid as %s from %s;"

@@ -5,6 +5,9 @@
 void init_edit_list();
 void xprintf(char **q, char *format, ...); //in ../impute/parse_sql.c
 
+/*   TeaKEY(checks, <<<Where the user specifies on which variables she would like to perform consistency checks. The parameters for the variables declared in checks are obtained from input/types.>>>)
+ */
+
 /* A great deal of the pain that went into writing this file was from letting
    the user provide variables in any order, and only a few. We thus have one
    numbering system for the user's list of variables, and one for the edit

@@ -1,0 +1,35 @@
+
+digraph {
+    /* Recodes key */
+    node [shape=Mrecord];
+    recodes [color=purple, label="{<recodes>recodes|<recode1>recode 1|<recode2>recode
+2|<dots>...|<recode_n>recode n}"];
+
+    recode1 [label="{<recode1>Recode 1|<parameter1>Parameter 1|<parameter2>Parameter 2}"];
+    recode2 [label="{<recode2>Recode 2|<parameter1>Parameter 1|<parameter2>Parameter
+2|<parameter3>Parameter 3}"];
+
+    "recodes":<recode1> -> "recode1":<recode1> [label="Specify recode\nparameters
+for\nrecode 1", style=dotted, color=blue];
+    "recodes":<recode2> -> "recode2":<recode2> [label="Specify recode\nparameters
+for\nrecode 2", style=dotted, color=blue];
+
+    "recode1":<recode1> -> categories [style = dotted, color = blue, label="Obtain
+recode\nparameters from\nrecodes key"];
+    "recode2":<recode2> -> categories [style = dotted, color = blue];
+
+    /* Checks */
+    checks [color=purple, label="{<checks>checks|<var1>Var 1\nChecks|<var2>Var
+2\nChecks|<dots>...|<var_n>Var n\nChecks}"];
+
+
+    var_1_checks [label="{<var_header>Var 1\nChecks|<param1>Parameter 1|<param2>Parameter
+2|<dots>...|<param_n>Parameter n}"];
+    var_2_checks [label="{<var_header>Var 2\nChecks|<param1>Parameter 1|<param2>Parameter
+2|<dots>...|<param_n>Parameter n}"];
+
+    "checks":<var1> -> "var_1_checks":<var_header> [style = dotted, color = blue,
+label="Check paramters\nfor variables\nin types key"];
+    "checks":<var2> -> "var_2_checks":<var_header> [style = dotted, color = blue];
+
+}

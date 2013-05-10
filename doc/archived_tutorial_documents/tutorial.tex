@@ -1,0 +1,1194 @@
+\documentclass{article}
+
+\long\def\comment#1{}
+\long\def\todo#1{}
+\comment{
+    BK pasted the header from a paper, whose header was pasted from another paper, and
+    so on for years. Thus, there's a lot of cruft; clean up as you prefer.
+}
+
+\usepackage{epsfig,calc,amsfonts,natbib,url,xspace,listings,ifthen}
+\newif\ifimputation
+\imputationfalse
+
+% Boldface vectors: \xv produces a boldface x, and so on for all of the following:
+\def\definevector#1{\expandafter\gdef\csname #1v\endcsname{{\bf #1}\xspace}}
+\def\definemathvector#1{\expandafter\gdef\csname #1v\endcsname{\mbox{{\boldmath$\csname #1\endcsname$}}}}
+\definevector{b} \definevector{c} \definevector{d}
+\definevector{i} \definevector{j} \definevector{k}
+\definevector{p}
+%u gets special treatment; see below
+ \definevector{v} \definevector{w} \definevector{x} \definevector{y} \definevector{z}
+\definevector{A} \definevector{B} \definevector{C} \definevector{D}
+\definevector{I} \definevector{J} \definevector{K} \definevector{M}
+\definevector{Q} \definevector{R} \definevector{S} \definevector{T} \definevector{U} \definevector{V}
+\definevector{W} \definevector{X} \definevector{Y} \definevector{Z}
+\def\uv{\mbox{{\boldmath$\epsilon$}}} 
+\definemathvector{alpha} \definemathvector{beta} \definemathvector{gamma}
+\definemathvector{delta} \definemathvector{epsilon} \definemathvector{iota} \definemathvector{mu}
+\definemathvector{theta} \definemathvector{sigma} \definemathvector{Sigma}
+\def\Xuv{\underbar{\bf X}}
+
+%code listing:
+\lstset{columns=fullflexible, basicstyle=\small, emph={size_t,apop_data,apop_model,gsl_vector,gsl_matrix,gsl_rng,FILE},emphstyle=\bfseries}
+\def\setlistdefaults{\lstset{ showstringspaces=false,%
+ basicstyle=\small, language=C, breaklines=true,caption=,label=%
+,xleftmargin=.34cm,%
+,frameshape=
+,frameshape={nnnynnnnn}{nyn}{nnn}{nnnynnnnn}
+}
+\lstset{columns=fullflexible, basicstyle=\small, emph={size_t,apop_data,apop_model,gsl_vector,gsl_matrix,gsl_rng,FILE,math_fn},emphstyle=\bfseries}
+}
+\setlistdefaults
+
+\newenvironment{items}{
+\setlength{\leftmargini}{0pt}
+\begin{itemize}
+  \setlength{\itemsep}{3pt}
+  \setlength{\parskip}{0pt}
+  \setlength{\parsep}{3pt}
+}{\end{itemize}}
+
+\renewcommand{\sfdefault}{phv}
+\usepackage{times}
+\usepackage{epsfig}
+\usepackage{latexsym}
+\usepackage{setspace}
+%I think the Computer Modern teletype is too wide.
+\usepackage[T1]{fontenc}
+\renewcommand\ttdefault{cmtt}
+\def\tab{\phantom{hello.}}
+
+\def\Re{{\mathbb R}}
+\def\tighten{ \setlength{\itemsep}{1pt}
+    \setlength{\parskip}{0pt}}
+\def\adrec{\textsc{AdRec}\xspace}
+
+\newenvironment{key}[1]{ %
+  \setlength{\parsep}{0pt} %
+\hspace{-0.5cm} \textbf{#1}:\\ %
+  \setlength{\parindent}{0pt} %
+  \setlength{\parsep}{3pt} %
+}{}
+
+
+\begin{document}
+\author{Statistical Research Division\\U.S. Census Bureau}
+\title{TEA for survey processing}
+\maketitle
+%just an idea: put silhouettes on the front cover
+
+\begin{abstract}
+TEA is a system designed to unify and streamline survey processing, from raw data to
+editing to imputation to dissemination of output. Its primary focus is in finding 
+observations that are missing data, fail consistency checks, or risk the disclosure of
+sensitive information, and then using a unified imputation process to fix all of these
+issues. Beyond this central focus, it includes tools for reading in data, generating
+fully synthetic data, and other typical needs of the survey processor.
+\end{abstract}
+
+
+\section{Overview}
+{\sc We intend} to implement the many steps of survey processing into a single
+framework, where the interface with which analysts work is common across surveys,
+the full description of how a survey is processed is summarized in one place, and the
+code implementing the procedures are internally well-documented and reasonably easy
+to maintain.
+
+Raw data is often rife with missing items, logical errors, and sensitive information. 
+To ignore these issues risks alienating respondents and data users alike, and so data 
+modification is a necessary part of the production of quality survey and census data.  
+
+This paper gives a detailed overview of the TEA system and its components. 
+Basic versions of all of the steps described below are already implemented and running,
+though the system will evolve and grow as it is applied in new surveys and environments.
+
+TEA implements a two step process for addressing issues with raw data. The first is to
+identify those failures listed above (missing data, logical errors, or sensitive
+information), and then, having identified problem data, impute new values
+to replace the old. Although the term
+{\em imputation} is typically used only to describe filling in missing data, we use it broadly to mean any modification of a data item that involves choosing
+among alternatives, regardless of which of the above failures prompted the fill-in. 
+
+\begin{figure}
+\includegraphics[scale=0.42]{dots/pepflow}
+\caption{The flow of processing. First, read in the data, add artificial variables
+(recodes) and do mechanical edits on the data. Then, flag data that needs to be processed,
+because it is missing, fails a consistency check, or puts personally identifiable
+information at risk. Having found the data points that need to be fixed, apply an
+imputation process---there are many that one can choose from---to fill in multiple candidates for a new value. Once those imputations are stored, report a final value and its total variance calculated via the imputation set.}
+\end{figure}
+\comment{
+With this definition, we can identify many instances of imputation
+with the production processes of our demographic surveys. In the American Community
+Survey (ACS), for instance, imputation occurs in at least three production steps:
+\begin{itemize}
+\tighten
+    \item Editing
+    \item Missing data
+    \item Disclosure avoidance (DA)
+\end{itemize}
+}
+
+Most steps simply mark elements to be changed; the imputation section
+does the actual changing, based on a model the user specifies. Model specification is
+itself not a trivial task, and so this is the most complex section, and where much of the
+real statistical work happens.
+
+The consistency-checking system is complex for efficiency purposes: there are typically a
+few dozen to a few hundred checks that every observation must pass, from sanity checks
+like {\em fail if age < 0} to real-world constraints like {\em fail if age < 16 and
+status='married'}. Further, every time a change is made (such as by the imputation system)
+we need to re-check that the new value does not fail checks. An OLS imputation of age
+could easily generate negative age values, so the consistency checks are essential
+for producing valid imputations. Given the list of consistency checks, we can also use
+them for other purposes, such as setting {\em structural zeros} for the raking procedure.
+
+\paragraph{How to read this document} The next section will give an overview of the
+environment in which TEA lives. In short, it is an R library that makes heavy use of a
+database. The user's main interaction with the system will be via a specification file
+describing the many details of each procedure, so the syntax of the spec file is covered
+in Section \ref{specsyntax}. 
+
+Once the overall baseline is drawn, there are a set of procedural blocks that form the
+core of the system, including the imputation subsystem, the recode step, and the raking
+procedure; these are each given a section in turn. For the standard survey processing
+pipeline, the two must-read sections are consistency checking (Section \ref{consistencysection})
+and imputation (Section \ref{imputesec}). However, we have used TEA for a project that
+used only the raking step, and another that used only the fingerprinting step. Once
+you get to know the basic ideas in the first sections, you will see that TEA provides
+a box of tools, and even if our idea of the typical survey processing pipeline does
+not match your situation, we expect that you will still find useful tools in the box.
+
+\section{Environment and underlying systems}
+TEA is based on three systems: C, R, and SQL.\comment{\footnote{C is the successor to B, which
+was the successor to BCPL: basic combined programming language. R, a successor to S,
+is named after its authors, Robert Gentleman and Ross Ihaka. SQL stands for structured
+query language.}} Each provides facilities that complement the others:
+
+{\bf SQL} is designed around making fast queries from databases, such as finding all
+observations within a given age range and income band. Any time we need a subset of the
+data, we will use SQL to describe and pull it. SQL is a relatively simple language, so
+users unfamiliar with it can probably learn the necessary SQL in a few
+minutes---in fact, a reader who claims to know no SQL will probably already be able
+to read and modify the SQL-language conditions in the {\tt checks} sections below.
+
+The TEA system stores data using an SQL database. The system queries the database as
+needed to provide input to the statistical/mathematical components (R, C function libraries, etc.).
+Currently, TEA is written to support SQLite as its database interface; however it would
+be possible to implement other interfaces such as Oracle or MySQL. 
+
+Output at each step is also to the database, to be read as input into the next
+step. Therefore, the state of the data is recorded at each step in the process, so
+suspect changes may be audited.
+
+Outside the database, to control what happens and
+do the modeling, the TEA package consists of roughly 5,000 lines of R and C code.
+\comment{
+% find . -name '*.c' -or -name '*.l' -or -name '*.y' | xargs wc -l
+% find . -name '*.R' | xargs wc -l
+
+%  find . -type f -name '*.h' -exec cat {} \; | sed '/^\s*#/d;/^\s*$/d;/^\s*\/\//d' | wc -l
+% 138
+%  find . -type f -name '*.l' -exec cat {} \; | sed '/^\s*#/d;/^\s*$/d;/^\s*\/\//d' | wc -l
+% 77
+%  find . -type f -name '*.y' -exec cat {} \; | sed '/^\s*#/d;/^\s*$/d;/^\s*\/\//d' | wc -l
+% 472
+%  find . -type f -name '*.c' -exec cat {} \; | sed '/^\s*#/d;/^\s*$/d;/^\s*\/\//d' | wc -l
+% 2761
+%  rpncalc 138 77 472 2761 +++
+%  1: 3448
+%  find . -type f -name '*.R' -exec cat {} \; | sed '/^\s*#/d;/^\s*$/d;/^\s*\/\//d' | wc -l
+% 1630
+}
+
+{\bf R} is a relatively user-friendly system that makes it easy to interact with data
+sets and write quick scripts to glue together segments of the survey-processing pipeline.
+R is therefore the interactive front-end for TEA. Users will want to get familiar with the basics of
+R.  As with SQL, users well-versed in R can use their additional knowledge to do additional
+analysis beyond the tools provided by the system.
+
+{\bf C} is the fastest human-usable system available for manipulating matrices, making
+draws from distributions, and other basic model manipulations. Most of the numerical
+work will be in C. The user is not expected to know any C at all, because R procedures
+are provided that do the work of running the underlying C-based procedures.
+
+Binding them all together, we can have a system that is friendly to interact with, effectively handles Census-sized data sets, and does the processing quickly, even with relatively sophisticated methods.
+
+
+\comment
+{	
+	DV: I think there should be some kind of overview of the flow of the spec file 
+	in this section (or in section 3). From the perspective of someone getting used to the 
+	layout and flow of the spec file who may be unfamiliar with how everything 
+	is implemented in the system (yours truly), I think it would make the proceeding 
+	information more coherent. Maybe we could include some kind of figure as we did on 
+	page 2 of the tutorial (where we give an overview of the survey processing imputation 
+	procedure)?
+}
+
+\subsection{The spec file} \label{specsec}
+The full specification of the various steps, from input of data to final production of
+output tables, is specified in a single file, herein the {\em spec file}. There are
+several intents to this setup. First, because the spec file is separate from programming
+languages like R or SAS, it is a simpler grammar that is easier to write, and so 
+analysts can write technical specifications without the assistance of a programmer or
+a full training in a new programming language. In other words, the spec file allows 
+users whose areas of expertise are not in programming to customize and use TEA in a 
+standardized and acccessible environment. 
+
+As a logistic matter, edits, recodes, or specification of imputation model can easily
+take several pages to express in full, so there is benefit to separating these parts.
+One analyst can work on the spec for the edit part of the pipeline, another on the recode
+part, and so on, and there is a simple mechanism to tie those parts together into a
+complete spec.
+
+To give an image of the relative simplicity of the specification syntax,
+here is a brief spec file snippet, based upon a typical data set with {\tt age} and {\tt
+rel} variables. It indicates that a too-large age is a failure, as is marrying too young;
+and generates a new variable named {\tt agecat} that recodes age into three categories.
+
+\begin{lstlisting}[language=]
+checks {
+    age > 110
+    rel='married' and age < 16
+}
+
+recodes {
+    agecat {
+        0 | age between 0 and 18
+        1 | age between 19 and 64
+        2 | age > 64
+    }
+}
+\end{lstlisting}
+
+%DV: Adding some more detail about recodes and how they're used in the spec file
+The agecat variable recode variable can now be used as input to an imputation model 
+which is specified at a later point in the spec file. Other possible recode variables 
+could be income, education level, etc... It's up to the user to decide what recode variables 
+make sense to use for the data being imputed.
+
+\paragraph{Interactive R}
+The specification file described to this point does nothing by itself, but provides
+information to procedures written in R that do the work. The analyst would therefore write
+a script that calls the needed procedures in sequence. For example, this script loads the
+TEA library into R's memory, reads the spec file, fixes inconsistencies, and imputes
+missing values.
+
+\begin{lstlisting}[language=]
+library("tea")
+read_spec("spec")
+doChecks()
+doImpute()
+\end{lstlisting}
+
+The script is so simple because the specification file gave all of the details of the
+procedure, so at run-time, the analyst need only indicate what to run.
+
+These commands could be entered on R's command line as easily as in a script file, so an
+analyst who needs to verify the results of the consistency-checking step could copy and
+paste the first three lines of the script onto the R command prompt, where they will run and
+then return the analyst to the command prompt, where he or she could print subsections of
+the output tables, check values, modify the spec files and re-run, continue to the
+imputation step, et cetera.
+
+The next section will go over the formatting of the spec file. It is a complete
+description of the options, many of which will not be necessary for a typical project, so
+the reader may wish to skim it on a first reading. Subsequent sections will cover the 
+steps users can execute, such as consistency checking or raking, and will list
+specifications under the assumption that users know the syntax for putting them in the
+file.
+
+The next section will go over the formatting of the spec file. It is a complete
+description of the options, many of which will not be necessary for a typical project, so
+the reader may wish to skim it on a first reading. Subsequent sections will cover the 
+steps users can execute, such as consistency checking or raking, and will list
+specifications under the assumption that users know the syntax for putting them in the
+file.
+
+
+\section{The specification setup}\label{specsyntax}
+%  DV: By the configuration system we mean the spec file, correct?
+%      If so we should specify that so as not to confuse the user.
+The configuration system is a major part---perhaps in some senses, all---of the
+user interface. 
+
+Further, most of the process of using the system is in setting
+settings: we provide the algorithm, and the user provides the location of the
+data set, the variables to work on, the constraints, the tolerances, the choice
+of method, and so on. \comment{There is a principle in the design of computer code that
+the data and procedures should be kept separate, because doing so makes it easy
+to tweak the data as desired, and clarifies the flow of the procedure.
+
+The next complication is that some users will not want a user interface on top of
+the familiar R command prompt. R encourages all-on-one-line writing, wherein the
+full inputs for a function are put on a single line [part of R's Lisp
+tradition.]}
+
+\paragraph{Inputs} 
+Everything in the spec file is a key/value pair. For example, you will need to begin
+your spec file by giving the database file to use and the name of the unique identifier.
+
+\begin{lstlisting}[language=]
+database: data_on_disk.db
+id: soc_security_number
+\end{lstlisting}
+
+The {\tt id} is not strictly necessary, although most of TEA's routines use it. But the
+first non-comment, not-blank line must specify a {\tt database}, because the spec file
+gets parsed into a database table, and we need to know what file to write that table to.
+
+The {\tt key:value} form is equivalent to this form with curly braces:
+
+\begin{lstlisting}[language=]
+database{ 
+    data_on_disk.db
+}
+
+id { 
+    soc_security_number
+}
+\end{lstlisting}
+
+This is obviously not as simple for a single value, but it allows us to have multiple
+values associated with a single line of data, and even subkeys. For example, here is
+a spec file with a variety of key/subkey/value combinations. The computer will ignore
+everything after a {\tt \#}, so those lines are comments for your fellow humans.
+
+%  DV: Again, some of this could be made more accessible to the reader by 
+%  first explaining how checks, input, etc get used. Although much of the 
+%  syntax in the spec is SQLite stuff that the reader is told to learn it 
+%  would give the code context to explain what's happening.
+\begin{lstlisting}[language=]
+#As above, if you have a key with one value, you can use a colon
+database: ourstudy.db
+
+# With the curly braces, you can associate multiple values with a single key
+# These are two checks that will go with the "checks" key.
+checks {
+    age > 100 => age = 100            #top code ages over 100 to just 100.
+    status = 'married' and  age < 16  #Mark the error; impute a fix later
+}
+
+# Instead of just a list of values, we can have more key/value pairs inside 
+# a key's #curly braces--subkeys
+input { 
+    input file: text_in.csv
+    output table: dataset
+}
+
+\end{lstlisting}
+
+In the database, here is what the above will look like:
+\begin{verbatim}
+database            ourstudy.db
+checks              age > 100 => age = 100
+checks              status = 'married' and  age < 16
+input/input file    text_in.csv
+input/output table  dataset
+\end{verbatim}
+You can see how the subkeys are turned into a slash-separated list. It is worth getting
+familiar with this internal form, because error messages will look like this. When you
+see an error like {\tt Missing "input/file input" key}, you should know that the sort of
+thing the machine is looking for is as above.
+
+Here are the rules, stated a little more precisely:
+\begin{itemize}
+\item You can have several values in curly braces, each on a separate line, which are added to the key/value list. Order is preserved.
+\item If there is a subkey, then its name is merged with the parent key via a slash;
+you can have as many levels of sub-sub-sub-keys as you wish. 
+%\item You will almost certainly
+%need to use this group/key format to get most values. Some functions still call for 
+%a group and key separately, but they'll just get merged with a slash anyway.
+\item As a shortcut, you can replace {\tt key \{single value\}} with {\tt key:single value}. 
+\item Each key takes up exactly one line (unless you explicitly combine lines; see below). Otherwise, white
+space is irrelevant to the parser. Because humans will also read the spec file, you
+are strongly encouraged to use indentation to indicate what is a member of what group.
+\item If you need to continue a value over several lines, put a backslash at the end of
+each line that continues to the next; the backslash/newline will be replaced with a single space.
+\end{itemize}
+
+Most options have defaults, meaning that only those keys that have no default or differ from the defaults 
+need be mentioned.  Defaults can be looked up in the R documentation, and are listed below
+where appropriate.
+\comment{
+    The inputs to the R
+    function with the above documentation should match the parameters listed, which
+    gives one more opportunity to set settings. 
+
+    \begin{verbatim}
+    sample_fn <- function(sub=NULL, subtwo=NULL, three= NULL){
+    set_key("first", "sub", sub);
+    set_key("first", "subtwo", subtwo);
+    set_key("first/subtwo", "three", three);
+
+    #Do actual math here.
+    }
+    \end{verbatim}
+    The parameter name should match whatever you set in the {\tt @param} lines in
+    the documentation, and the group/key distinction is again irrelevant, being
+    that, for example, both {\tt "first/subtwo", "three"} and {\tt "first",
+    "subtwo/three"} will both turn into the key {\tt "first/subtwo/three"}.
+    \comment{
+    \paragraph{Getting} Now that the inputs have been presented, via the spec
+    file, the R documentation's default listings, and the {\tt set\_key} function, the {\tt get\_key}
+    function is both necessary and sufficient to correctly pull the three types of 
+    input. On the C side, there are the {\tt get\_key\_float} and {\tt
+    get\_key\_text} functions.
+
+    As above, there may be multiple values stored under a single key; if so, then a
+    correctly-ordered list is included. This makes it possible to give an ordered list of
+    steps in a procedure, for example.
+    }
+}
+
+\paragraph{Tags} You can label a group with a name that will be used by some routines to
+distinguish different versions of the same group. For example, if you have a second recode
+that is based on the first, then the first recode has to be in the
+database for the second to use it. You will need two groups in the spec file named {\tt
+recodes}; by tagging them, you can then call them in two steps in R. To extend the example from the
+recode sample above, consider how one would generate a variable contatenating age categories
+with sex. The spec file would have to have two recode sections:
+
+\begin{lstlisting}[language=]
+recodes (ages) {
+    agecat {
+        0   | age between 0 and 18
+        1   | age between 19 and 64
+        2   | age > 64
+        NaN |
+    }
+}
+
+recodes (second_step) {
+    agecatsex {
+        age || sex
+    }
+}
+\end{lstlisting}
+
+Then {\tt readSpec} will call these in turn.
+
+Because they are read in a slightly different manner, the {\tt fields} group can not be tagged.
+
+
+\paragraph{Including} You can mark subsidiary files to include in the main
+spec file, so that analysts can each work on their own separate files and then
+easily combine them into one project. For
+example, if the consistency checks are in a file named {\tt consistency}, and
+the entire rank swapping configuration was in a file named {\tt swap}, then you
+could use this parent spec file:
+\begin{verbatim}
+database: test.db
+
+include: swap
+
+checks {
+    include: consistency
+}
+\end{verbatim}
+
+\section{Recodes}
+
+A recode is a new variable that is entirely defined by existing values. This includes 
+mechanistic groupings, like binning into the 0--18, 19--64, and 65+ age groups; or joining of
+variables, like creating a variable whose value for an eighteen year old male is {\tt
+18M}. For households and other such groups, we may want to have the value of the youngest
+parent, the total income, and other statistics tacked on to each individual record; this
+is a group recode, which is handled in a very similar manner.
+
+There are two types of recode syntax. The first explicitly specifies the value the recode
+will take on given certain conditions, while the second is a plain SQL statement to be
+used to generate a variable. Here are examples of both:
+
+\begin{lstlisting}[language=]
+recodes {
+    agecat {
+        0    | age between 0 and 18
+        1    | age between 19 and 64
+        2    | age > 64
+        NULL |
+    }
+
+    agesex {
+        age || sex
+    }
+}
+\end{lstlisting}
+
+The first recode generates a variable named {\tt agecat} that has four possible values: 0,
+1, 2, or {\tt NULL}, where {\tt NULL} is encoded as a missing value. The first three
+values are given when the corresponding SQL statement to the right of the pipe
+holds. Each recode may have one value that has blank SQL associated, and that is
+the default value, which is assigned should none of the other conditions turn out to
+hold. 
+
+The second recode is a single SQL statement. It is used as-is to generate the variable you
+name, which in this case contatenates age and sex to form values like 23F or 69M. Yes, the
+system can distinguish between the single pipes used to indicate an option and the double
+pipe that SQLite uses to indicate concatenation.
+
+We use an SQL {\tt view} to generate these variables. A view is a sort of virtual table
+whose values are generated when requested, not on initialization. So the view takes up
+almost no new space on disk, needs almost zero time to generate, and if the base data is
+changed later queries will still get correctly-updated values of the generated variables. 
+You will see that in the impute part of the spec file, the first key you specify is the 
+view table.
+%  DV: Where do you specify what view table to write to? Is it in the input section of 
+%  the spec file as the key "output table"? If so, does the outpu of the impute 
+%  functions get written to the view table as well or directly to the database?
+
+
+
+%  DV: By declaration list (line 550), do we mean the declaration of the variable type 
+%  in the database that we specified in the first line of the spec file or the declaration 
+%  type that we specify in field?
+In the consistency-checking section below, you will see that you need to declare the
+possible values of the variables on which consistency checks will be run. Recodes will
+be auto-declared for you. For cases like {\tt agecat} where you specified a list of
+possible values, that list of values is the declaration list. For cases like {\tt agesex}
+where the values are taken from the data, all distinct values are taken from the data
+set ({\tt get\_key("input\_data")}) and those values put into the declarations. Thus,
+values that are not found in the data are considered to be invalid; this may be changed
+in the future.
+
+Recodes may build on prior recodes, but this must be done by tagging each recode group,
+and then calling the tagged groups in sequence. A subsequent recode may then make use of a
+recode from a prior call.
+
+\section{Field declarations} The edit-checking system needs to know the type and range
+of every variable that has an associated edit. As above, recodes are auto-declared (but
+you can explicitly declare them if needed). If a variable does not have an associated
+edit, there is no need to declare its range.
+
+The declaration consists of the field name, an
+optional type ({\tt int}, {\tt text}, or {\tt real}) to be discussed further below, and a
+lsit of valid values. Here is an example:
+
+\begin{lstlisting}[language=]
+fields {
+    age: 0-100
+    sex: M, F
+    hh_type: int 1, 2, 4, 8
+    income: real
+}
+\end{lstlisting}
+
+You can see that the list of values may be text or numeric, and the range 0--100 will be
+converted into the full sequence 0, 1, 2, \dots, 100.  
+
+The first word may be a type. The default is to treat the entry as plain text (which means
+that numeric entries get converted to text categories, like {\tt "1"}, {\tt "2"}, \dots).
+
+\paragraph{Auto-detect} If your field list consists of a single star, {\tt *}, then the
+data set will be queried for the list of values used in the input data. All values the
+variable takes on will be valid; all values not used by the variable will not be valid.
+This may be useful when quickly assembling a first draft of a spec, but we recommend
+giving an explicit set of values for production. You may precede the {\tt *}
+with a type designation, like {\tt age: real *}.
+
+
+
+\section{Consistency checking}\label{consistencysection}
+TEA implements editing in two distinct steps:
+\begin{itemize}
+\tighten
+\item Identify records and fields that fail an edit.
+\item Fill in edit-passing values for those fields.
+\end{itemize}
+
+This section of the overview covers the first part: consistency checking. 
+The second step could be via any of a number of methods, such as hot deck or
+regression in single or multiple imputation, and is given its own section below. 
+
+Internally, the edit system breaks down into two steps: reading in the
+configuration file to produce a single matrix marking down all possible edit
+failures, and a {\tt consistency\_check} function to compare a single record to
+the matrix of edit failures, returning the list of allowable values. 
+
+The consistency-checking function can be used internally by all of the other steps, such as
+imputation of missing data or generation of synthetic data for DA, to ensure
+that the new value to be inserted into the data passes all edits. 
+
+
+As per the simple example above, validity rules are given in SQL syntax, and they
+indicate combinations of variable values that are not allowed in edit-compliant data. The
+syntax allows for arbitrarily complex combinations of variables, with forms like:
+\begin{lstlisting}
+checks {
+   VAR1 = 'y' and not VAR2 in ('w','z');
+   VAR3 between 3 and 7 and VAR5 is not NULL;
+}
+\end{lstlisting}
+
+The system generates a matrix that encodes all possible edit failures, and finds
+those parts of a record that may clash with the matrix of edit failures. The matrix
+is generated once, and is designed to be fast to check, so as new observations come
+in or are synthesized, they can be checked whenver and as often as needed.
+
+Once a field or set of fields have been shown to fail the edit, there is the question of
+how one finds substitute values that fit the consistency rules and are somehow optimal.
+The question of filling in a value is distinct from the  question of finding the
+inconsistencies, and the definition of the optimum fill-in value easily changes from
+situation to situation. The choice of fill-in method is thus relegated to the separate
+problem of imputation.
+
+\comment{
+One already needs a model for filling in missing data in the missing data step.
+Therefore, the edit step, given no further options, will simply set inconsistent
+data to missing and then allow the imputation to find the consistent values.
+
+\paragraph{Writing the spec file}
+Declaration of the variables and edits are common to all sections of the
+analysis, and so are listed without a section header. [We may change this.]
+
+The edit consistency section delineates data validity rules for the synthetic data
+system. The section consists of two main types of statements: variable definitions and
+the validity rules themselves. This is a sample declaration:
+\begin{lstlisting}
+|VAR v1,v2,v3-v4,'v5'
+\end{lstlisting}
+The pipe begins the declaration and is followed by the variable name and space. These
+are followed by the allowed values of the variable, separated by commas. The values
+can be numbers, a range of numbers, or single-quoted text.
+
+Validity rules are given in SQL syntax, and they indicate combinations of variable values
+that are not allowed in edit-compliant data. The following are syntactic examples:
+\begin{lstlisting}
+VAR1 = 'y' and not VAR2 in ('w','z');
+VAR3 between 3 and 7 and VAR5 is not NULL;
+\end{lstlisting}
+
+\subsection{Discrete}
+For data with a small number of integer values (including age), we use the
+DISCRETE system by Bill Winkler. The system generates a matrix that encodes all
+possible edit failures, and finds those parts of a record that may clash with
+the matrix of edit failures.
+
+\subsection{Continuous}
+
+\section{Flagging for disclosure avoidance}
+[cut for the sake of focusing on imputation]
+
+}
+
+\section{Imputation} \label{imputesec}
+A single imputation would produce a list of replacement values for certain data
+items. For the case of editing, the replacements would be for data that fails consistency
+checks; for the case of basic imputation, the replacements would be for elements that
+initially had no values.
+
+Any stochastic imputation method could be repeated to produce multiple lists
+of replacement values. Variance of a given statistic, such as average income for a
+subgroup, is then the sum of within-imputation variance and across-imputation variance.
+
+To give a concrete example, consider a randomized hot deck routine, where missing values are
+filled in by pulling values from similar records. For each record with a missing income:
+
+\begin{enumerate}
+\tighten
+\item Find the universe of which the record is a member.
+\item For each variable in turn:
+    \begin{itemize}
+    \item Make a draw from model chosen for the variable, based on the specific universe from (1).
+    \end{itemize}
+\item For multiple imputation, repeat (2).
+\end{enumerate}
+
+The simplest and most common example is the randomized hot deck, in which each survey respondent has
+a universe of other respondents whose data can be used to fill in the respondent's missing
+values. The hot deck model is a simple random draw from the given universe for the given variable.
+
+Given this framework, there are a wealth of means by which universes are formed, and
+a wealth of models by which a missing value can be filled in using the data in the chosen universe.
+
+\paragraph{Universes}
+The various models described above are typically fit not for the whole data set, but for
+smaller {\em universes}, such as a single county, or all males in a given age group.
+A universe definition is an assertion that the variable set for the records in the
+universe was generated in a different manner than the variables for other universes.
+
+An assertion that two universes have different generative processes could be construed in
+several ways:
+\begin{itemize}\tighten
+\item different mathematical forms, like CART vs.\ logistic regression
+\item One broad form, like logistic regression, but with different variables chosen
+    (that is, the stochastic form is the same but the structural form differs).
+\item A unified form, like a logistic regression with age, sex, and ancestry
+    as predictors, with different parameter estimates in each universe.
+\end{itemize}
+
+Universe definitions play a central role in the current ACS edit and imputation system.
+Here, universes allow data analysts to more easily specify particular courses of
+action in the case of missing or edit-inconsistent data items. To give an extreme example, for the
+imputation of marital status in ACS group quarters (2008), respondents are placed
+in two major universes: less than 15 years of age (U1) and 15 or more years of age
+(U2). The assertion here, thus, is that people older than 15 have a marital status
+that comes from a different generative process than those people younger than 15.
+This is true: people younger than 15 years of age cannot be married!  Thus in the
+system, any missing value of marital status in U1 can be set to ``never married'',
+and missing values in U2 can be allocated via the ACS hot-deck imputation system.
+
+
+\paragraph{Models}
+
+Given an observation with a missing data point and a universe, however specified, there is
+the problem of using the universe to fill in a value. Randomized hot-deck is again
+the simplest model: simply randomly select an observation from the universe of acceptable
+values and fill in. Other models make a stronger effort to find a somehow-optimal value:
+
+$\bullet$ One could find the nearest neighbor to the data point to be imputed (using any
+of a number of metrics).
+
+$\bullet$ Income is typically log-Normally distributed, and log of this year's income, last
+year's income, and if available, income reports from administrative records (\adrec) may 
+be modeled as Multivariate Normal (with a high correlation
+coefficient among variables). After estimating the appropriate Multivariate
+distribution for the universe, one could make draws from the distribution.
+
+$\bullet$ If the Multivariate Normal seems implausible, one could simply aggregate the
+data into an empirical multivariate PDF, then smooth the data into a kernel
+density estimator (KDE). Draws from a specified KDE can be made as easily as
+draws from a standard Multivariate Normal.
+
+$\bullet$ Count data, such as the number of hospital visits over a given period, are
+typically modeled as a Poisson distribution. In a manner similar to fitting a Normal, one
+could find the best-fitting Poisson distribution and draw from that distribution to fill
+in the missing observation.
+
+$\bullet$ Bayesian methods: if \adrec are available, they may be used to generate a prior distribution 
+on a variable, which is then updated using non-missing data from the survey.
+
+$\bullet$ One could do a simple regression using the data on hand. For example,
+within the universe, regress income on  age, race, sex, and covariates from \adrec.
+Once the regression coefficients are calculated, use them to impute income for
+the record as the predicted value plus an error term. \comment{ Note that OLS assumes
+a Normally-distributed error term and therefore gives a distribution of values for
+the predicted income, not just a single number; therefore one could draw multiple
+imputations.}
+
+$\bullet$ Discrete-outcome models, like the Probit or Logit, could be used in a similar
+manner.
+
+$\bullet$ To expand upon running a single regression, one can conduct a structured search 
+over regression models for the best-fitting regression.\footnote{Because the imputation 
+step is not an inference step, such a search presents few conceptual difficulties.}  
+Such a search is currently in use for disclosure avoidance in ACS group quarters.
+
+A unified framework would allow comparison across the various imputation
+schemes and structured tests of the relative merits of each. Different surveys
+are likely to use different models for step (2) of the above process, but the
+remainder of the overall routine would not need to be rewritten across surveys.
+
+\paragraph{Multiple imputation} A single imputation would produce a list of replacement
+values for certain data items. Any stochastic imputation method could be repeated
+to produce multiple lists of replacement values. Variance of a given statistic,
+such as average income for a subgroup, is then the sum of within-imputation variance and
+across-imputation variance.
+
+
+\begin{itemize}
+\tighten
+\item For each imputation:
+    \begin{itemize}
+\tighten
+    \item fill in the data set using the given set of imputed values
+    \item calculate the within-imputation variance
+    \end{itemize}
+\item Sum the across-imputation and average within-imputation variances to
+produce an overall variance figure that takes into account uncertainty due to imputation.
+\end{itemize}
+
+The question of what should be reported to the public from a sequence of imputations
+remains open. The more extensive option would be to provide multiple data sets; the less
+extensive option would be to simply provide a variance measure for each data point that
+is not a direct observation.
+
+
+\ifimputation
+        \paragraph{Interface} Figure \ref{sippconfig} shows a (slightly abbreviated) 
+        configuration file describing the hot deck process for a variable in the SIPP.
+        It is intended to be reasonably readable, and maintainable by an analyst who is
+        a statistician but not a programmer. 
+
+        Lines 11--18 of the configuration specify the
+        categories used for step (1) above: draws are made from the universe of records with an
+        age in the same age category as the record to be filled in and {\tt num\_sipp\_jobs\_2008} in the same
+        category as well.
+
+        Of course, different surveys would have different classification schemes, but
+        this means that each survey would need a new configuration file, not new code.
+
+        Line eight indicates that five imputations are to be done for each missing
+        value. Those with extensive experience with multiple imputation often advise
+        that a handful of imputations are sufficient for most purposes.
+
+        The sample from 
+        Figure \ref{sippconfig} focused on the determination of categories in which to
+        do imputation. Figure \ref{acsconfig} focuses on regression models that go
+        beyond the simple randomized hot deck of Figure \ref{sippconfig}. Lines 5--8
+        specify the variables that need imputation, and the form of model to be used.
+        The current system will search the set of models of the given form for the one
+        that best fits the known data; Lines 9--14 show the list of variables that could be
+        used as explanatory variables, although a typical model will likely wind up
+        using only around four or five.
+
+        \paragraph{Edits} The system as written includes a component that checks consistency
+        against a sequence of edits. In line three of the sample spec file of Figure
+        \ref{sippconfig}, the {\tt flagearn} variable is declared to have possible values of 0,
+        1, 3, or 4, but line four specifies that if an imputation returns 4, then it is rejected.
+        The imputation routine sketched above does not need to include any edit rules, because
+        this edit step will take those into account; the separation of edits and imputations
+        simplifies the routine.
+
+        \begin{figure}
+        \begin{lstlisting}[language=,numbers=left,numberstyle=\scshape]
+        database: sipp.db
+
+        |flagearn 0, 1, 3, 4
+        flagearn = 4
+
+        impute_by_groups {
+            min_group_size  {20}
+            iteration_count  {5}
+            datatab  {sippdata}
+
+            categories {
+               15<=agesipp200812<18;
+               18<=agesipp200812<22;
+               22<=agesipp200812<40;
+               40<=agesipp200812<62;
+               62<=agesipp200812;
+               num_sipp_jobs_2008 = 0;
+               num_sipp_jobs_2008 = 1;
+               num_sipp_jobs_2008 => 2;
+            }
+
+            imputes{
+               flagearn~ flagearn;
+            };
+        }
+        \end{lstlisting}
+        \caption{A sample configuration file, for use in hot deck imputation of the {\em
+        has earnings} flag of the SIPP. }
+        \label{sippconfig}
+        \end{figure}
+
+        \begin{figure}
+        \begin{lstlisting}[language=,numbers=left,numberstyle=\scshape]
+        database: acs2008.db
+
+        impute{
+            seqRegAIC{
+                vars{
+                    TI{ model: gam }
+                    DIS{ model: multinom }
+                }
+                predlist{ #Sample of predictors that could used for regressions
+                    SEX; YOE; WKL; MIL; UR;
+                    SCH; RCGP; POV; SS; MAR;
+                    LANX; JWTR; TYPGRP; GQINST; FER;
+                    ESR; DIS; COW; CIT; OCC2;
+                }
+            }
+        }
+
+        \end{lstlisting}
+        \caption{A sample configuration file for imputation of values for ACS GQ
+        disclosure avoidance. A Generalized Additive Model is fit for total income (TI),
+        and a polytomous regression is fit for disability status (DIS). }
+        \label{acsconfig}
+        \end{figure}
+\else \fi
+
+\subsection{Models} This section describes the models available for use in imputing
+missing data.
+
+\paragraph{Hot deck} This is randomized hot deck. Missing values are filled in by
+drawing from nonmissing values in the same subset. The assumption underlying the model
+is {\em missing completely at random} (MCAR), basically meaning that nonrespondents
+do not differ in a systematic way from respondents.
+
+This model has no additional keys or options, although the user will probably want an
+extensive set of category subsets. Example:
+
+\begin{lstlisting}
+impute{
+    input table: dc
+    min group size: 3
+    draw count: 5
+    id: serialno
+
+    categories {
+        agecat
+        sex
+    }
+    output vars: sex
+    method: hot deck
+}
+
+impute{
+    input table: dc
+    min group size: 3
+    draw count: 5
+    id: serialno
+
+    categories {
+        agecat
+        sex
+    }
+    method: ols
+    output vars: agep
+    input vars: rac1p, nativity||sex
+}
+\end{lstlisting}
+
+\paragraph{Ordinary least squares (aka regression)}  This is the familiar $y = \beta_0 
++ \beta_1 x_1  + \beta_2 x_2 + \dots +\epsilon$ form. The parameters (including the
+variance of $\epsilon$) are estimated for the subset of the category where all variables
+used in the regression are not missing. For a point where $y$ is missing but $(x_1, x_2, \dots)$ are not,
+find $\beta_1 x_1  + \beta_2 x_2 + \dots$, then add a random draw from the distribution of
+$\epsilon$.
+
+The variables may be specified via the usual SQL, with two exceptions to accommodate the
+fact that so many survey variables are categorical.
+
+Unless otherwise noted, all dependent variables are taken to be categorical, and so are expanded to 
+a set of dummies. The first category is taken to be the numeraire, and others are broken
+down into dummy variables that each have a separate term in the regression. The
+independent variable will always be calculated as a real number, but depending on the type
+of variable may be rounded to an integer.
+
+If a dependent variable is numeric, list it with a \#, such as {\tt variables:
+\#age, sex}.
+
+An {\em interaction} term is the product of the variables, where for catgories {\em
+product} means the smaller subsets generated by the cross of the two variables, such as
+a sex-age cross of $(M, 0--18), (F, 0--18), (M, 18--35), (F, 18--35)$; for continuous
+variables {\em product} has its typical meaning.
+
+
+
+\comment{
+Because every dependent variable must be complete for the regression to calculate the
+independent variable, it makes sense to put regressions in a sequence, with a spec file like:
+
+\begin{lstlisting}
+impute (first){
+	models{
+        rac1p { method: hot deck }
+        nativity { method: hot deck }
+        sex { method: hot deck }
+	}
+}
+
+impute (second){
+	models{
+        agep { method: ols
+               vars:  rac1p, nativity||sex
+        }
+	}
+}
+\end{lstlisting}
+
+and then two steps in R:
+
+\begin{lstlisting}
+doMImpute(first)
+doMImpute(second)
+\end{lstlisting}
+}
+
+\paragraph{Probit and Logit} These models behave like OLS, but are aimed at categorical
+variables. The output variable is not restricted to twoc categories.
+
+\paragraph{seqRegAIC}
+
+
+\paragraph{Distributions} The Normal (aka Gaussian) distribution is the archetype of this
+type of model. First, estimate the mean and standard deviation using the non-missing data
+in the category. Then fill in the missing data via random draws from the Normal
+distribution with the calculated parameters. You may use either {\tt method: normal} or
+{\tt method: gaussian}.
+
+For other situations, other distributions may be peferable. For example, income is
+typically modeled via {\tt method: lognormal}. Count data may best be modeled via {\tt
+method: poisson}.
+
+Hot deck is actually a fitting of the Multinomial distribution, in which each bin has
+elements in proportion to that observed in the data; {\tt method: hot deck} and {\tt
+method: multinomial} are synonyms.
+
+The {\em method: multivariate normal} doesn't work yet.
+
+The distribution models have no additional options or keys.
+
+\paragraph{Kernel smoothing} A kernel density estimate overlays a Normal distribution over
+every data point. For example, if a data set consisted of two data points at 10 and one at
+12, then there would be a large hump in the final distribution at 10, a smaller hump at
+12, and the distribution would be continuous over the entire space of reals.
+
+Thus, kernel smoothing will turn a discrete distribution consisting of values on a
+few values into a continuous distribution.
+
+Invoke this model using either {\tt method: kernel} or {\tt method: kernel density}.
+
+
+
+\section{Overlaying}
+Each record in a data set might have several data items which require imputation for
+different reasons:
+\begin{itemize}
+\item a record could have several inconsistent items that we must replace
+\item an otherwise consistent record could have a blank item that we wish to impute.
+\item a record could have a combination of consistent items that could lead to personal identification
+\end{itemize}
+Each scenario implies slightly different knowledge about the data, and thus each scenario
+might require a different imputation method to properly use this knowledge.
+
+An overlay is a secondary data table (or set of tables) that gives information regarding
+the \emph{reason} for imputation.  Using missing data as an example, a simple overlay
+could have an entry for each item in the data, indicating if that item is missing or not.
+A more complicated overlay could delineate the type of non-response for each data item.
+
+\todo{We have written but not incorporated an HTML viewer for data using overlay
+information.}
+
+\section{Raking}
+Raking fills in a table where the totals for each column or row are known, but
+individual cell values may vary. It can be shown to find the optimum given a
+log-linear model on certain contrasts (i.e., a series of sets of dimensions).
+
+The contrasts indicate which values are to remain fixed (while others may vary).
+To give an example, 
+let us say that our data set is (age $\times$ se$\times$ $\times$ race $\times$ block), but
+our log linear model is over the (race $\times$ block) contrast. A sample data set:
+
+\begin{tabular}{rrrr}
+age &sex &race &block\\
+10  &M   &A    &1\\
+20  &F   &A    &2\\
+30  &M   &B    &3\\
+40  &F   &B    &3
+\end{tabular}
+
+The raking algorithm would never be able to fill in a value in the cell (40, F, C, 3), for example, because
+there are no Cs in block 3, and the (race X block) contrast guarantees that the counts of
+each (race, block) total won't change. But that's our only assurance: (50, M, B, 3) is
+possible, because age and sex totals could be raked into any value.
+
+For this example, the set of cells that could have a value are:\\
+(any age) $\times$ (M, F) $\times$ A $\times$ 1\\
+(any age) $\times$ (M, F) $\times$ A $\times$ 2\\
+(any age) $\times$ (M, F) $\times$ B $\times$ 3\\
+
+The algorithm takes in the location of a data table in the database and a set of
+contrasts, then rakes the data to fit the given contrasts.
+
+\paragraph{Internals}
+The Census Bureau often deals with tables that would have 1.5 million cells if written
+out in full, but where only maybe 20,000 surveys are in hand. Therefore, the algorithm
+is heavily oriented toward sparse data.
+
+It begins with a long and tedious routine to write SQL to generate the set of
+possibly-nonzero values, as per the example above. SQL is the appropriate language
+for generating this list because it is optimized for generating the cross of several
+variables and for pruning out values that match our criteria. The tedium turns out
+to be worth it: our test data set takes about 25 seconds to run using the original
+full-cross `72 algorithm, and runs in under two seconds using the SQL-pruned matrix.
+
+\comment{
+\section{Synthesis}
+Group quarters data in the 2010 Decennial census will be protected via
+a method known as ``synthetic data''. This method uses statistical models to modify
+records in need of confidentiality protection. Such a method has already been applied to
+group quarters records in the American Community Survey for collection years 2006--2009.
+
+\section{Weighting}
+We use the {\em survey} package for R to calculate and modify weights for a
+survey. The package is fully documented in \citet{lumley:surveys}.
+
+\section{Models and Universes}
+Statistical models are, in essence, an assertion about the \emph{process} that generates
+the data. As such, useful models for imputation are those that imply processes that
+we believe generate ACS GQ data items. Models are typically prescribed at the level
+of variables; that is, we seek to describe the generative process of a set of variables
+for a certain population.
+
+A given variable set could have several distinct processes by which its values
+are generated. In this case, it would be suboptimal to use only a single model to
+perform imputation for this variable set. We group respondent records together into a
+``universe'' when we believe their values for a given set of variables are generated
+by the same process. Different sets of variables that require imputation could thus
+require different universe definitions.
+
+\subsection{Models}
+Here, we list several models used to predict or fill in a missing element of
+a record. The element could be missing because it was not reported (imputation),
+because it was incorrectly reported (editing), or because leaving the correct value
+as it lays would create disclosure risk. For any of these cases, any of the models to
+follow could be applied. Note that these models are typically inserted into a larger
+procedure; for example, a series of models could be used to fill in various data items.
+
+{\bf Note on MI: to be ``proper'' MI models, they would need to produce
+posterior predictive densities, so we might mention that deterministic
+procedures don't fit the bill}
+
+\subsubsection{Randomized hot deck/multinomial} This is a univariate method, that 
+randomly draws a value from the list of nonmissing values for the variable.
+{\bf you can have a multivariate hot deck: we could get a value of A and B
+from a cell defined by C and D}
+
+\subsubsection{Nearest-neighbor} Based upon some metric defined by the user, find the
+record closest to the record to be filled in, and copy the value(s) from that
+record.
+
+\subsubsection{Probabilistic nearest-neighbor} Define the odds of selecting a record
+as inversely proportional to the record's distance to the record to be filled
+in. That is, the nearest neighbor is the most likely to be selected, but others
+may also be selected. After selecting a record, copy the value(s) as with
+the deterministic nearest-neighbor model.
+
+\subsubsection{Linear models} Given a complete-data subset, fit a generalized linear
+model (GLM) to be specified by the user. The predictors used for a model could
+be selected by hand or could be chosen automatically based on a given
+criterion, such as the Akaike/Bayesian Information Criterion.
+{\bf we could also suggest sequential models that start of predicting based
+upon complete items; that is, if V1 is complete in the subset, first do
+V2 \~{} V1, then V3 \~{} V1 + V2, etc; if nothing in complete, we could
+always pick one to fill in randomly (that is, just use a prior)}
+
+}
+
+
+
+\section*{Appendix: keys}
+
+This is a reference list of all of the available keys that could appear in a spec file.
+As a reference, descriptions are brief and assume you already know the narrative of the
+relevant procedures, in the main text. 
+
+Keys are listed using the {\tt group/key/value} notation described in Section \ref{specsec}. As described there, one could write a key as either 
+\begin{lstlisting}[language=]
+group {
+    key : value
+}
+
+#or as
+group {
+    key { 
+        value
+    }
+}
+\end{lstlisting}
+
+Here are the keys, in alphabetical order.
+
+\input keys.tex
+
+
+%\bibliographystyle{harvard}
+%\bibliographystyle{plainnat}
+%\bibliography{tea}
+\end{document}

@@ -782,7 +782,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
     apop_name_free(clean_names);
 }
 
-/* TeaKEY(impute/method, <<<This key is where the user specifies what model she would like to use to impute output vars for a given impute key>>>)
+/* TeaKEY(impute/method, <<<Specifies what model to use to impute output vars for a given impute key.>>>)
  */
 apop_model tea_get_model_by_name(char *name, impustruct *model){
     static get_am_from_registry_type *rapop_model_from_registry;
@@ -926,8 +926,15 @@ int do_impute(char **tag, char **idatatab){
                      "find that table in the db.", configbase, *idatatab);
 
     char *underlying = get_key_word_tagged(configbase, "underlying table", *tag);
+
+
+
+/* TeaKEY(impute/categories, <<<Denotes the categorized set of variables by which to impute your output vars.>>>)
+ */
     apop_data *category_matrix = get_key_text_tagged(configbase, "categories", *tag);
 
+/* TeaKEY(impute/min group size, <<<Specifies the minimum number of known inputs that must be present in order to perform an imputation on a set of data points.>>>)
+ */
     float min_group_size = get_key_float_tagged(configbase, "min group size", *tag);
     if (isnan(min_group_size)) min_group_size = 1;
 
@@ -1004,6 +1011,9 @@ int do_impute(char **tag, char **idatatab){
 }
 
 
+
+/* TeaKEY(impute, <<<The key where the user defines all of the subkeys related to the doMImpute() part of the imputation process. For details on these subkeys, see their descriptions elsewhere in the appendix.>>>)
+ */
 void impute(char **idatatab){ 
     /* At the beginning of this function, we check the spec file to verify that the
      * user has specified all of the necessary keys for impute(...) to function correctly.
