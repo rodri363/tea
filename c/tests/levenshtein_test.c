@@ -40,7 +40,13 @@ asprintf(&spec5, "5.spec");
      " \n"
      "fields { \n"
      "SCHL: int 0-24 \n"
-     "WAGP: real}"
+     "WAGP: real\n"
+     "}\n"
+     "impute { \n"
+     "  min group size: 3\n"
+     "  draw count: 3\n"
+     "  seed: 2332\n"
+     "}\n"
      );
 
      write_a_file(spec2,
@@ -66,7 +72,7 @@ asprintf(&spec5, "5.spec");
 
      write_a_file(spec3,
      "\n"
-     "databassee: demo.db\n"
+     "database: demo.db\n"
      "\n"
      "inptu{\n"
      "input file: dc_pums_08.csv\n"
@@ -75,7 +81,13 @@ asprintf(&spec5, "5.spec");
      " \n"
      "fields { \n"
      "SCHL: int 0-24 \n"
-     "WAGP: real}"
+     "WAGP: real\n"
+     "}\n"
+     "impute {\n"
+     "  sed: 2332:\n"
+     "  min gruop size: 3\n"
+     "  draw count: 3\n"
+     "}\n"
      );
 
 
@@ -95,11 +107,12 @@ asprintf(&spec5, "5.spec");
      "checkkkks {\n"
      "AGEP < 0 \n"
      "\n"
-     "AGEP > 95 => AGEP = 95 }"
+     "AGEP > 95 => AGEP = 95 }\n"
      );
 
 
      write_a_file(spec5,
+     "database: demo.db\n"
      "\n"
      "impute {\n"
      "inupt tabl: dc \n"
@@ -111,31 +124,28 @@ asprintf(&spec5, "5.spec");
     
 char *db_dummy;
 
-     /* Will have to re-adjust this test. Right now, read_spec doesn't support
-        returning the number of typos so this code will not execute.
-     */
      read_spec(&spec1, &db_dummy);
      int num_typos_spec1 = get_num_typos();
      printf("There were %d typos when reading %s\n", num_typos_spec1, spec1);
-     //assert_equals(get_num_typos(), 0);
+     assert_equals(get_num_typos(), 0);
 
      read_spec(&spec2, &db_dummy);
      int num_typos_spec2 = get_num_typos();
      printf("There were %d typos when reading %s\n", num_typos_spec2, spec2);
-     //assert_equals(get_num_typos(), 1);
+     assert_equals(get_num_typos(), 1);
 
      read_spec(&spec3, &db_dummy);
      int num_typos_spec3 = get_num_typos();
      printf("There were %d typos when reading %s\n", num_typos_spec3, spec3);
-     //assert_equals(get_num_typos(), 5);
+     assert_equals(get_num_typos(), 3);
      
      read_spec(&spec4, &db_dummy);
      int num_typos_spec4 = get_num_typos();
      printf("There were %d typos when reading %s\n", num_typos_spec4, spec4);
-     //assert_equals(get_num_typos(), 3);
+     assert_equals(get_num_typos(), 1);
 
      read_spec(&spec5, &db_dummy);
      int num_typos_spec5 = get_num_typos();
      printf("There were %d typos when reading %s\n", num_typos_spec5, spec5);
-     //assert_equals(get_num_typos(), 6);
+     assert_equals(get_num_typos(), 3);
 }

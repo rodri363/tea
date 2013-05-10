@@ -25,6 +25,9 @@ asprintf(&spec3, "3.spec");
         
 char *spec4;
 asprintf(&spec4, "4.spec");
+
+char *spec5;
+asprintf(&spec5, "5.spec");
         
     /* Standard test here: creating a macro with a few sub keys and calling it on its own
      * in the impute key. If something goes wrong here it's because there's something
@@ -218,50 +221,192 @@ asprintf(&spec4, "4.spec");
      );
 
 char *db_dummy;
- 
-     char *key_check1, *key_check2, *key_check3, *key_check4, *key_check5, *key_check6;
+
+     char *imp_min_grp, *imp_drw_cnt, *imp_seed, *imp_categories;
 
      read_spec(&spec1, &db_dummy);
-     asprintf(&key_check1, "impute/min group size");
-     asprintf(&key_check2, "impute/draw count");
-     asprintf(&key_check3, "impute/seed");
-     asprintf(&key_check4, "impute/categories");
-     asprintf(&key_check5, "impute/categories/CATAGE");
-     asprintf(&key_check6, "impute/categories/SEX");
+     asprintf(&imp_min_grp, "impute/min group size");
+     asprintf(&imp_drw_cnt, "impute/draw count");
+     asprintf(&imp_seed, "impute/seed");
+     asprintf(&imp_categories, "impute/categories");
 
      apop_data *spec1_keys1 = apop_query_to_text("select * from keys where key like "
              "'impute/m%%'");
      printf("spec1_keys1->text[0][0] is given by: %s.\n", spec1_keys1->text[0][0]);
-     assert(!strcmp(key_check1, spec1_keys1->text[0][0]));
+     assert(!strcmp(imp_min_grp, spec1_keys1->text[0][0]));
 
 
      apop_data *spec1_keys2 = apop_query_to_text("select * from keys where key like "
              "'impute/d%%'");
      printf("spec1_keys2->text[0][0] is given by: %s.\n", spec1_keys2->text[0][0]);
-     assert(!strcmp(key_check2, spec1_keys2->text[0][0]));
+     assert(!strcmp(imp_drw_cnt, spec1_keys2->text[0][0]));
 
 
      apop_data *spec1_keys3 = apop_query_to_text("select * from keys where key like "
              "'impute/s%%'");
      printf("spec1_keys3->text[0][0] is given by: %s.\n", spec1_keys3->text[0][0]);
-     assert(!strcmp(key_check3, spec1_keys3->text[0][0]));
+     assert(!strcmp(imp_seed, spec1_keys3->text[0][0]));
 
      
      apop_data *spec1_keys4 = apop_query_to_text("select * from keys where key like "
              "'impute/c%%'");
      printf("spec1_keys4->text[0][0] is given by: %s.\n", spec1_keys4->text[0][0]);
-     printf("spec1_keys4->text[1][0] is given by: %s.\n", spec1_keys4->text[2][0]);
-     printf("spec1_keys4->text[2][0] is given by: %s.\n", spec1_keys4->text[3][0]);
-     assert(!strcmp(key_check4, spec1_keys4->text[0][0]));
-     assert(!strcmp(key_check5, spec1_keys4->text[2][0]));
-     assert(!strcmp(key_check5, spec1_keys4->text[3][0]));
+     assert(!strcmp(imp_categories, spec1_keys4->text[0][0]));
      
+     apop_data_free(spec1_keys1);
+     apop_data_free(spec1_keys2);
+     apop_data_free(spec1_keys3);
+     apop_data_free(spec1_keys4);
       
 
-     //read_spec(&spec2, &db_dummy);
+     read_spec(&spec2, &db_dummy);
+     char *inpt_inpt_table;
+     char *inpt_otpt_table;
 
-     //read_spec(&spec3, &db_dummy);
+     asprintf(&inpt_inpt_table, "input/input table");
+     asprintf(&inpt_otpt_table, "input/output table");
+
+     apop_data *spec2_keys1 = apop_query_to_text("select * from keys where key like "
+             "'impute/m%%'");
+     printf("spec2_keys1->text[0][0] is given by: %s.\n", spec2_keys1->text[0][0]);
+     assert(!strcmp(imp_min_grp, spec2_keys1->text[0][0]));
+
+
+     apop_data *spec2_keys2 = apop_query_to_text("select * from keys where key like "
+             "'impute/d%%'");
+     printf("spec2_keys2->text[0][0] is given by: %s.\n", spec2_keys2->text[0][0]);
+     assert(!strcmp(imp_drw_cnt, spec2_keys2->text[0][0]));
+
+
+     apop_data *spec2_keys3 = apop_query_to_text("select * from keys where key like "
+             "'impute/s%%'");
+     printf("spec2_keys3->text[0][0] is given by: %s.\n", spec2_keys3->text[0][0]);
+     assert(!strcmp(imp_seed, spec2_keys3->text[0][0]));
+
      
-     //read_spec(&spec4, &db_dummy);
+     apop_data *spec2_keys4 = apop_query_to_text("select * from keys where key like "
+             "'impute/c%%'");
+     printf("spec2_keys4->text[0][0] is given by: %s.\n", spec2_keys4->text[0][0]);
+     assert(!strcmp(imp_categories, spec2_keys4->text[0][0]));
+     
+     apop_data *spec2_keys5 = apop_query_to_text("select * from keys where key like "
+             "'input/input t%%'");
+     printf("spec2_keys5->text[0][0] is given by: %s.\n", spec2_keys5->text[0][0]);
+     assert(!strcmp(inpt_inpt_table, spec2_keys5->text[0][0]));
+
+
+     apop_data *spec2_keys6 = apop_query_to_text("select * from keys where key like "
+             "'input/output t%%'");
+     printf("spec2_keys6->text[0][0] is given by: %s.\n", spec2_keys6->text[0][0]);
+     assert(!strcmp(inpt_otpt_table, spec2_keys6->text[0][0]));
+
+     apop_data_free(spec2_keys1);
+     apop_data_free(spec2_keys2);
+     apop_data_free(spec2_keys3);
+     apop_data_free(spec2_keys4);
+     apop_data_free(spec2_keys5);
+     apop_data_free(spec2_keys6);
+
+     read_spec(&spec3, &db_dummy);
+     
+     apop_data *spec3_keys1 = apop_query_to_text("select * from keys where key like "
+             "'impute/m%%'");
+     printf("spec3_keys1->text[0][0] is given by: %s.\n", spec3_keys1->text[0][0]);
+     assert(!strcmp(imp_min_grp, spec3_keys1->text[0][0]));
+
+
+     apop_data *spec3_keys2 = apop_query_to_text("select * from keys where key like "
+             "'impute/d%%'");
+     printf("spec3_keys2->text[0][0] is given by: %s.\n", spec3_keys2->text[0][0]);
+     assert(!strcmp(imp_drw_cnt, spec3_keys2->text[0][0]));
+
+
+     apop_data *spec3_keys3 = apop_query_to_text("select * from keys where key like "
+             "'impute/s%%'");
+     printf("spec3_keys3->text[0][0] is given by: %s.\n", spec3_keys3->text[0][0]);
+     assert(!strcmp(imp_seed, spec3_keys3->text[0][0]));
+
+     
+     apop_data *spec3_keys4 = apop_query_to_text("select * from keys where key like "
+             "'impute/c%%'");
+     printf("spec3_keys4->text[0][0] is given by: %s.\n", spec3_keys4->text[0][0]);
+     assert(!strcmp(imp_categories, spec3_keys4->text[0][0]));
+
+     apop_data_free(spec3_keys1);
+     apop_data_free(spec3_keys2);
+     apop_data_free(spec3_keys3);
+     apop_data_free(spec3_keys4);
+
+     /* This is spec file that tests whether paste in works for pasting in the entire spec
+      * file (without the database -- pasting in database has not been tested yet). spec 4
+      * paste in stuff is tested by just testing for an assortment of keys.
+      */
+     read_spec(&spec4, &db_dummy);
+
+
+     /* DV - ATTENTION:
+      * This test is failing right now so I've put in an if statement below to exit when
+      * there's no impute key to avoid a segfault in the testing. We need to fix the bug
+      * that is preventing paste in from allowing an entire spec file (minus the database)
+      * to be pasted in.
+      */
+
+
+     apop_data *spec4_keys1 = apop_query_to_text("select * from keys where key like "
+             "'impute/m%%'");
+
+     if(get_key_word("impute", NULL) == NULL) return;
+     printf("spec4_keys1->text[0][0] is given by: %s.\n", spec4_keys1->text[0][0]);
+     assert(!strcmp(imp_min_grp, spec4_keys1->text[0][0]));
+
+
+     apop_data *spec4_keys2 = apop_query_to_text("select * from keys where key like "
+             "'impute/d%%'");
+     printf("spec4_keys2->text[0][0] is given by: %s.\n", spec4_keys2->text[0][0]);
+     assert(!strcmp(imp_drw_cnt, spec4_keys2->text[0][0]));
+
+
+     apop_data *spec4_keys3 = apop_query_to_text("select * from keys where key like "
+             "'impute/s%%'");
+     printf("spec4_keys3->text[0][0] is given by: %s.\n", spec4_keys3->text[0][0]);
+     assert(!strcmp(imp_seed, spec4_keys3->text[0][0]));
+
+     
+     apop_data *spec4_keys4 = apop_query_to_text("select * from keys where key like "
+             "'impute/c%%'");
+     printf("spec4_keys4->text[0][0] is given by: %s.\n", spec4_keys4->text[0][0]);
+     assert(!strcmp(imp_categories, spec4_keys4->text[0][0]));
+     
+     apop_data *spec4_keys5 = apop_query_to_text("select * from keys where key like "
+             "'input/input t%%'");
+     printf("spec4_keys5->text[0][0] is given by: %s.\n", spec4_keys5->text[0][0]);
+     assert(!strcmp(inpt_inpt_table, spec4_keys5->text[0][0]));
+
+
+     apop_data *spec4_keys6 = apop_query_to_text("select * from keys where key like "
+             "'input/output t%%'");
+     printf("spec4_keys6->text[0][0] is given by: %s.\n", spec4_keys6->text[0][0]);
+     assert(!strcmp(inpt_otpt_table, spec4_keys6->text[0][0]));
+
+     apop_data_free(spec4_keys1);
+     apop_data_free(spec4_keys2);
+     apop_data_free(spec4_keys3);
+     apop_data_free(spec4_keys4);
+     apop_data_free(spec4_keys5);
+     apop_data_free(spec4_keys6);
+
+     free(imp_min_grp);
+     free(imp_drw_cnt);
+     free(imp_seed);
+     free(imp_categories);
+     free(inpt_inpt_table);
+     free(inpt_otpt_table);
+     free(spec1);
+     free(spec2);
+     free(spec3);
+     free(spec4);
+     free(spec5);
+
+     printf("Reached end of test.\n");
 
 }

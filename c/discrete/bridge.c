@@ -22,7 +22,7 @@ int total_var_ct, *optionct;
 char *database;
 apop_data *settings_table, *ud_queries;
 int max_lev_distance = 2;
-int num_typos = 0;
+int num_typos;
 
 /* The implicit edit code has been removed---it never worked. The last edition that had it was 
 git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
@@ -332,6 +332,7 @@ void start_over(){ //Reset everything in case this wasn't the first call
     explicit_ct = 0;
     total_var_ct = 0;
     impute_is_prepped = 0;
+    num_typos = 0;
 }
 
 void setup_findxbe(){

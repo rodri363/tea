@@ -518,6 +518,9 @@ Return: 1=input wasn't in the list, was modified to nearest value
   If text or real, there's no rounding to be done: it's valid or it ain't. If numeric, then we can do rounding as above.
   I only check for 't' for text; suggest 'n' for numeric but it's up to you.
 */
+
+/* TeaKEY(checks, <<<This key is where the user specifies the parameters for the variables she declared in types. The parameters given here are checked during each round of imputation.>>>)
+ */
 int check_bounds(double *val, char const *var, char type){
 //Hey, B: Check the SQL that is about only this variable. This will need to be modified for multi-variable models.
 //After checking the SQL, check the declarations.

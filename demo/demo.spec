@@ -96,7 +96,7 @@ impute{
 	output vars: WAGP
 }
 
-impue{
+impute{
     input table: viewdc
     earlier output table: imputes
     paste in: catagesex

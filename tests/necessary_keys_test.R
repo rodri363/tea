@@ -28,6 +28,7 @@ counter1 <- 0
 withCallingHandlers({
 # Execute function:
 print("Entering spec1 tests (1)")
+browser()
 readSpec("spec1")
 print("Exiting spec1 tests (1)")
 # Make a counter for when expected "need xxx key" occurs and 
@@ -62,6 +63,10 @@ print("Exiting spec1 tests (1)")
         counter1 <<- counter1 + 1
         invokeRestart("muffleWarning")
         
+        
+    } else if(war$message == "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file.") {
+        counter1 <<- counter1 + 1
+        invokeRestart("muffleWarning")
     }
 
 # For any errors, leave the scope of readSpec(...) and
@@ -136,7 +141,12 @@ print("Exiting spec2 tests (2)")
         counter2 <<- counter2 + 1
         invokeRestart("muffleWarning")
         
+
+    } else if(war$message == "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file.") {
+        counter2 <<- counter2 + 1
+        invokeRestart("muffleWarning")
     }
+
 
 # For any errors, leave the scope of readSpec(...) and
 # execute the following error function:
@@ -206,7 +216,12 @@ print("Exiting spec3 tests (3)")
         counter3 <<- counter3 + 1
         invokeRestart("muffleWarning")
 
+
+    } else if(war$message == "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file.") {
+        counter3 <<- counter3+ 1
+        invokeRestart("muffleWarning")
     }
+
 
 # For any errors, leave the scope of readSpec(...) and
 # execute the following error function:
@@ -277,7 +292,13 @@ print("Exiting spec4 tests (4)")
     } else if(war$message == "You didn't specify an output table in your input key so I don't know where to write your recodes. Please specify an output table in your spec file."){
         counter4 <<- counter4 + 1
         invokeRestart("muffleWarning")
+
+
+    } else if(war$message == "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file.") {
+        counter4 <<- counter4 + 1
+        invokeRestart("muffleWarning")
     }
+
 
 # For any errors, leave the scope of readSpec(...) and
 # execute the following error function:

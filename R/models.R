@@ -248,7 +248,7 @@ TEA.MCMCmnl.est <- function(env){
 #' set of probabilities re-weighted.  If FALSE, errors due to negative probabilities
 #' will occur. Default is TRUE.
 #' verbose = logical constant.  If TRUE, print more on progress. Default is FALSE.
-#' debug = logical constant. If TRUE, enter browser upon function entry.  Default is FALSE.
+#' debug = logical constant. If TRUE, enter browser() upon function entry.  Default is FALSE.
 #' @return a data frame, having drawn values for the LHS of Formula
 #' substituted into Newdata.
 
