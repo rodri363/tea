@@ -1,4 +1,5 @@
 #include "internal.h"
+void test_has_sqlite3_index();//text_in/text_in.c
 
 //Just for the fun of it.
 #define foreach(s, ...) for (char **s = (char*[]){__VA_ARGS__, NULL}; *s; s=&s[1])
@@ -306,12 +307,9 @@ void test_ols(gsl_rng *r){
     use a startsat page thing.
     */
 
-
 void tea_c_tests(){
-   printf("Entering apop_rng_alloc(134124) test\n");
-   gsl_rng *r = apop_rng_alloc(134124);
-
    printf("Entering test_ols(r)\n");
+   gsl_rng *r = apop_rng_alloc(134124);
    test_ols(r);
 
    printf("Entering test_check_out_impute()\n");
@@ -334,6 +332,8 @@ void tea_c_tests(){
 
    printf("Entering levenshtein_tests()\n");
    levenshtein_tests();
+
+    test_has_sqlite3_index();
 }
 
 #ifdef TESTING

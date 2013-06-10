@@ -3,12 +3,55 @@
 int file_read = 0;
 char * gnu_c_basename(char *);
 
-/*
- TeaKEY(input/types, <<<Specifies the type and range of variables (which is used later in consistency checking).>>>)
+/** Use SQLite3's pragmas to determine whether a column in a table is indexed. 
 
- TeaKEY(input, <<<The key where much of the database/input related subkeys are defined.
- Descriptions of these subkeys can be found elsewhere in the appendix.>>>)
+  \param table The table name.
+  \param column The column name.
+  \param make_idx If nonzero, and the index doesn't exist, create it now, with the form IDX_yrtable_yrcol. Barring errors, return 1, because an index now exists.
+
+  \return 1==yes, is indexed. \\
+          0==no, not indexed.\\
+          -2==no such table.\\
+          -1==query error.
 */
+int has_sqlite3_index(char const *table, char const *column, char make_idx){
+    if (!apop_table_exists(table)) return -2;
+    apop_data *indices = apop_query_to_data("pragma index_list(%s)", table);
+    if (!indices) return 0;
+    Apop_stopif(indices->error, apop_data_free(indices); return -1, 0, "error running "
+            " 'pragma index_list(%s)'. Check table name? Running SQLite?", table);
+
+    apop_data *coldata = apop_query_to_mixed_data("vttttt", "pragma table_info(%s)", table);
+    Apop_col(indices, 0, indexed_columns);
+    int has_it=0;
+    for(int j=0; j< coldata->vector->size; j++)
+        for(int i=0; i< indexed_columns->size; i++)
+            if (apop_data_get(coldata, j, -1) == gsl_vector_get(indexed_columns, i)
+                && !strcmp(column, *coldata->text[i])) {
+                    has_it=1;
+                    goto out;
+                }
+out:
+    if(!has_it && make_idx){
+       apop_query("create index IDX_%s_%s on %s(%s)"
+                            , table, column
+                            , table, column);
+
+        has_it = has_sqlite3_index(table, column, 0);
+    }
+    return has_it;
+}
+
+void test_has_sqlite3_index(){
+    apop_query("create table ab(a, b)");
+    apop_query("create index abi on ab(a)");
+    assert(has_sqlite3_index("ab", "a", 0));
+    assert(!has_sqlite3_index("ab", "b", 0));
+    assert(!has_sqlite3_index("ab", "c", 0));
+    assert(has_sqlite3_index("ac", "b", 1)==-2);
+    apop_query("drop table ab");
+}
+
 apop_data *make_type_table(){
     //apop_data *types = get_key_text("input", "types");
     apop_data *types = apop_text_alloc(NULL, 1, 2);
@@ -25,7 +68,6 @@ apop_data *make_type_table(){
 }
 
 void generate_indices(char const *tag){
-
     char const *table_holder = get_key_word_tagged("input", "output table", tag);
     char *table_out;
 
@@ -33,50 +75,54 @@ void generate_indices(char const *tag){
      
     apop_data *indices = get_key_text("input", "indices");
     char *id_column = get_key_word(NULL, "id");
-   if (id_column){
-       apop_query("create index IDX_%s_%s on %s(%s)"
-                            , table_out, id_column
-                            , table_out, id_column);
-   } else id_column = "rowid"; //SQLite-specific.
-    if (indices)
-        for (int i = 0; i< indices->textsize[0]; i++){
-            if (apop_strcmp(indices->text[i][0], id_column)) continue;
-            apop_query("create index IDX_%s_%s on %s(%s)"
-                             , table_out, indices->text[i][0]
-                             , table_out, indices->text[i][0]);
-        }
+   if (id_column) has_sqlite3_index(table_out, id_column, 'y');
+   else id_column = "rowid"; //SQLite-specific.
+   if (indices)
+       for (int i = 0; i< *indices->textsize; i++){
+           if (apop_strcmp(*indices->text[i], id_column)) continue;
+           has_sqlite3_index(table_out, *indices->text[i], 'y');
+       }
 }
 
 /* TeaKEY(join/host, <<<The main data set to be merged with.>>>)
 TeaKEY(join/add, <<<The set to be merged in to join/host.  Both data sets need to have a
 field with the id you gave at the top of the spec file.>>>)
+TeaKEY(join/add database, <<<The dabase holding the set to be merged in to join/host. You need this only if that database is different from the main database.>>>)
 */
 int join_tables(){
     char *jointo = get_key_word("join", "host");
     if (!jointo) return 0;
 
     char *thistab = get_key_word("join", "add");
+    char *add_db = get_key_word("join", "add database");
     char *idcol = get_key_word("id", NULL);
     Apop_stopif(!jointo || !thistab, return -1, 0, "If you have a 'join' segment in the spec, it has to have "
                     "a 'host' key and an 'add' key.");
     Apop_stopif(!idcol, return -1, 0, "You asked me to join %s and %s, but I have no 'id' column name "
                         "on which to join (put it outside of all groups in the spec, "
                         "and until we get to implementing otherwise, it has to be the same for both tables).", thistab, jointo);
-    apop_query("create index j%sidx on %s(%s);\n"
-               "create index j%sidx on %s(%s);\n",
-                thistab, thistab, idcol,
-                jointo, jointo, idcol);
+    if (add_db) apop_query("attach database %s as joindb", add_db);
+    char *addtab; 
+    asprintf(&addtab, "%s.%s", add_db ? "joindb" : "main", idcol);
+    has_sqlite3_index(jointo, idcol, 'y');
+    has_sqlite3_index(addtab, idcol, 'y');
     return apop_query("create table tea_temptab as select * from "
                "%s, %s join on %s;\n"
                "drop table %s;\n"
                "create table %s as select * from tea_temptab;\n"
                "drop table tea_temptab;",
-                thistab, jointo, idcol,
+                addtab, jointo, idcol,
                 jointo,
                 jointo);
 }
 
-/* TeaKEY(input/input file, <<<The text file from which to read the data set. This should be in
+/*
+TeaKEY(input/types, <<<Specifies the type and range of variables (which is used later in consistency checking).>>>)
+
+TeaKEY(input, <<<The key where much of the database/input related subkeys are defined.
+Descriptions of these subkeys can be found elsewhere in the appendix.>>>)
+
+TeaKEY(input/input file, <<<The text file from which to read the data set. This should be in
 the usual comma-separated format (CSV) with the first row of the file listng column names. We recommend separating|fields|with|pipes, because pipes rarely appear in addresses or other such data.>>>)
 
 TeaKEY(input/output table, <<<Name for the database table generated from the input file.>>>)
