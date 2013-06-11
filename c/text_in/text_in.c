@@ -16,29 +16,31 @@ char * gnu_c_basename(char *);
 */
 int has_sqlite3_index(char const *table, char const *column, char make_idx){
     if (!apop_table_exists(table)) return -2;
-    apop_data *indices = apop_query_to_data("pragma index_list(%s)", table);
-    if (!indices) return 0;
+    apop_data *indices = apop_query_to_mixed_data("mtm", "pragma index_list(%s)", table);
+    int has_it = 0;
+    if (!indices) goto out;
     Apop_stopif(indices->error, apop_data_free(indices); return -1, 0, "error running "
             " 'pragma index_list(%s)'. Check table name? Running SQLite?", table);
-
-    apop_data *coldata = apop_query_to_mixed_data("vttttt", "pragma table_info(%s)", table);
-    Apop_col(indices, 0, indexed_columns);
-    int has_it=0;
-    for(int j=0; j< coldata->vector->size; j++)
-        for(int i=0; i< indexed_columns->size; i++)
-            if (apop_data_get(coldata, j, -1) == gsl_vector_get(indexed_columns, i)
-                && !strcmp(column, *coldata->text[i])) {
-                    has_it=1;
-                    goto out;
-                }
+    for (int i=0; i<*indices->textsize; i++){
+        apop_data *coldata = apop_query_to_mixed_data("mmt", "pragma index_info(%s)", *indices->text[i]);
+        if (!coldata || !*coldata->textsize) continue;
+        Apop_stopif(coldata->error, apop_data_free(coldata); return -1, 0, "error running "
+                " 'pragma index_info(%s)'. Check table/index name?", *indices->text[i]);
+        if (!strcasecmp(*coldata->text[0], column)) { 
+            has_it=1; 
+            apop_data_free(coldata);
+            goto out;
+        }
+        apop_data_free(coldata);
+    }
 out:
-    if(!has_it && make_idx){
+    if(has_it==0 && make_idx){
        apop_query("create index IDX_%s_%s on %s(%s)"
                             , table, column
                             , table, column);
-
         has_it = has_sqlite3_index(table, column, 0);
     }
+    apop_data_free(indices);
     return has_it;
 }
 
@@ -85,35 +87,31 @@ void generate_indices(char const *tag){
 }
 
 /* TeaKEY(join/host, <<<The main data set to be merged with.>>>)
-TeaKEY(join/add, <<<The set to be merged in to join/host.  Both data sets need to have a
-field with the id you gave at the top of the spec file.>>>)
-TeaKEY(join/add database, <<<The dabase holding the set to be merged in to join/host. You need this only if that database is different from the main database.>>>)
+TeaKEY(join/add, <<<The set to be merged in to join/host.>>>)
+TeaKEY(join/output table, <<<The name of the table (actually, a view) with the join of both tables. Use this as the basis for subsequent steps.>>>)
+TeaKEY(join/field, <<<The name of the field appearing in both tables on which the join takes place. If you don't provide this, use the id key.>>>)
 */
 int join_tables(){
     char *jointo = get_key_word("join", "host");
     if (!jointo) return 0;
 
-    char *thistab = get_key_word("join", "add");
-    char *add_db = get_key_word("join", "add database");
-    char *idcol = get_key_word("id", NULL);
-    Apop_stopif(!jointo || !thistab, return -1, 0, "If you have a 'join' segment in the spec, it has to have "
-                    "a 'host' key and an 'add' key.");
+    char *addtab = get_key_word("join", "add");
+    char *specid = get_key_word("join", "field");
+    char *idcol = specid ? specid : get_key_word("id", NULL);
+    char *outview = get_key_word("join", "output table");
+    Apop_stopif(!jointo || !addtab || !outview, return -1, 0, "If you have a 'join' segment in the spec, it has to have "
+                    "a 'host' key, an 'add' key, and an 'output table' key.");
     Apop_stopif(!idcol, return -1, 0, "You asked me to join %s and %s, but I have no 'id' column name "
                         "on which to join (put it outside of all groups in the spec, "
-                        "and until we get to implementing otherwise, it has to be the same for both tables).", thistab, jointo);
-    if (add_db) apop_query("attach database %s as joindb", add_db);
-    char *addtab; 
-    asprintf(&addtab, "%s.%s", add_db ? "joindb" : "main", idcol);
+                        "and until we get to implementing otherwise, it has to be the same for both tables).", addtab, jointo);
     has_sqlite3_index(jointo, idcol, 'y');
     has_sqlite3_index(addtab, idcol, 'y');
-    return apop_query("create table tea_temptab as select * from "
-               "%s, %s join on %s;\n"
-               "drop table %s;\n"
-               "create table %s as select * from tea_temptab;\n"
-               "drop table tea_temptab;",
-                addtab, jointo, idcol,
-                jointo,
-                jointo);
+    return apop_query("create view %s as select * from "
+               "%s join %s "
+               "on %s.%s = %s.%s;",
+                outview,
+                addtab, jointo, 
+                addtab, idcol, jointo, idcol);
 }
 
 /*
