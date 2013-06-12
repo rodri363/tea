@@ -106,7 +106,7 @@ int join_tables(){
                         "and until we get to implementing otherwise, it has to be the same for both tables).", addtab, jointo);
     has_sqlite3_index(jointo, idcol, 'y');
     has_sqlite3_index(addtab, idcol, 'y');
-    return apop_query("create view %s as select * from "
+    return apop_query("create table %s as select * from "
                "%s join %s "
                "on %s.%s = %s.%s;",
                 outview,

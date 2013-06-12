@@ -2,6 +2,7 @@
 #define __USE_POSIX //for strtok_r
 #include <rapophenia.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "internal.h"
 extern char *datatab;
 void qxprintf(char **q, char *format, ...); //bridge.c
@@ -575,8 +576,9 @@ void R_check_bounds(double *val, char **var, int *fails){
 static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char *datatab){
     //db_name_column may be rowid, which would srsly screw us up.
     //first pass: get the full list of NaNs; no not-NaNs yet.
-    apop_data *nanvals = apop_query_to_data("select %s, %s from %s where %s is null",
-									 id_col, is.depvar, datatab, is.depvar);
+    apop_data *nanvals = apop_query_to_data("select %s, %s from %s where %s is null "
+                                            "order by %s",
+									 id_col, is.depvar, datatab, is.depvar, id_col);
     if (!nanvals) return NULL; //query worked, nothing found.
     Apop_stopif(nanvals->error, return NULL, 0, "Error querying for missing values.");
     if (verbose){
@@ -586,17 +588,14 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
     return nanvals;
 }
 
-//we're guaranteed to find it, so this will run fast---and we're gonzo and don't
-//do checks. We start the ctr at the last found value and allow it to loop around.
-static void mark_an_id(int *ctr, const char *target, char * const *list, int len){
-    int tries=0;
-    for (int tries=0; tries < len && !apop_strcmp(target, list[*ctr]); tries++)
-        (*ctr)= (*ctr+1) % len;
-    if (tries == len){
-        *ctr = 0;
-        Apop_assert_c(0,  , 0, "%s isn't in the main list of nans.", target);
-    }
-    sprintf(list[*ctr], ".");
+static int forsearch(const void *a, const void *b){return strcmp(a, *(char**)b);}
+
+static int mark_an_id(const char *target, char * const *list, int len, char just_check){
+    char **found = bsearch(target, list, len, sizeof(char*), forsearch);
+    if(!found) return -1;
+    if (just_check) return 0;
+    asprintf(found, "%s.", *found);
+    return 0;
 }
 
 typedef struct {
@@ -658,11 +657,20 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 //a shell for do onedraw() while (!done).
 static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
                         int model_id, int draw, apop_data *nanvals, char *filltab){
-    int done_ctr = 0; //for marking what's done.
     char type = get_coltype(is->depvar);
     int col_of_interest=apop_name_find(is->isnan->names, is->depvar, type !='c' && is->isnan->names->colct ? 'c' : 't');
     Apop_stopif(col_of_interest < -1, return, 0, "I couldn't find %s in the list of column names.", is->depvar);
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
+        char *name = is->isnan->names->row[rowindex];
+        if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)==-1) {
+            //Then this is already done. Verify in the main list; continue.
+            char *pd; asprintf(&pd, "%s.", name);
+            Apop_stopif(mark_an_id(pd, nanvals->names->row, nanvals->names->rowct, 'y')==-1,
+                free(pd); continue, 0, "A sublist asked me to impute for ID %s, but I couldn't "
+                    "find that ID in the main list of NaNs.", name);
+            free(pd);
+            continue;
+        }
         int tryctr=0;
         int id_number = atoi(is->isnan->names->row[rowindex]);
         a_draw_struct drew;
@@ -686,11 +694,11 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
                        filltab,  draw, final_value, is->isnan->names->row[rowindex], is->depvar);
         free(final_value);
         free(drew.textx);
-        mark_an_id(&done_ctr,is->isnan->names->row[rowindex], nanvals->names->row, nanvals->names->rowct);
     }
 }
 
-double still_is_nan(apop_data *in){return strcmp(*in->names->row, ".");}
+double still_is_nan(apop_data *in){return in->names->row[0][strlen(*in->names->row)-1]!= '.';}
+
 
 /* As named, impute a single variable.
    We check bounds, because those can be done on a single-variable basis.
@@ -723,6 +731,8 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
 
     apop_name *clean_names = NULL;
     if (outermax > 1) clean_names = apop_name_copy(nanvals->names);
+    has_sqlite3_index(datatab, is->depvar, 'y');
+    has_sqlite3_index(datatab, id_col, 'y');
 
     for (int outerdraw=0; outerdraw < outermax; outerdraw++){
         if (previous_filltab){
@@ -736,7 +746,8 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         bool still_has_missings=true, hit_zero=false;
         do {
             for (int i=0; i < nanvals->names->rowct; i++){ //see notes above.
-                if (!strcmp(nanvals->names->row[i], ".")) continue; //already got this person.
+                Apop_data_row(nanvals, i, row_i);
+                if (!still_is_nan(row_i)) continue;
                 get_nans_and_notnans(is, nanvals->names->row[i] /*ego_id*/, 
                         dt, underlying, min_group_size, category_matrix, fingerprint_vars, id_col);
 
@@ -899,6 +910,12 @@ Raking: needs all the variables, in numeric format
 int impute_is_prepped; //restarts with new read_specs.
 char *configbase = "impute";
 
+void index_cats(char *tab, apop_data *category_matrix){
+    char *cats = apop_text_paste(category_matrix, .between=", ");
+    char *c2 = apop_text_paste(category_matrix, .between="_");
+    apop_query("create index idx_%s_%s on %s(%s)", tab, c2, tab, cats);
+}
+
 /* TeaKEY(impute/input table, <<<The table holding the base data, with missing values. 
   Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called {\tt doInput()} in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one.>>>)
   TeaKEY(impute/seed, <<<The RNG seed>>>)
@@ -959,15 +976,17 @@ int do_impute(char **tag, char **idatatab){
     char *tmp_db_name_col = strdup(apop_opts.db_name_column);
     sprintf(apop_opts.db_name_column, "%s", id_col);
 
+    index_cats(*idatatab, category_matrix);
+
     static gsl_rng *r;
     if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r);
     //I depend on this column order in a few other places, like check_out_impute_base.
     if (!apop_table_exists(out_tab))
         apop_query("create table %s ('draw', 'value', '%s', 'field');"
-                "create index %sind   on %s (%s);"
-                "create index %sindx  on %s (field);"
-                "create index %sindex on %s (draw);",
-                    out_tab, id_col, out_tab, out_tab, id_col,
+                "create index idx_%s_%s   on %s (%s);"
+                "create index idx_%s_field  on %s (field);"
+                "create index idx_%s_draw on %s (draw);",
+                    out_tab,id_col, id_col, out_tab, out_tab, id_col,
                     out_tab, out_tab, out_tab, out_tab);
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
 
@@ -980,10 +999,10 @@ int do_impute(char **tag, char **idatatab){
         apop_data_free(precontrasts);
         apop_data *catlist=NULL;
         if (category_matrix){
-            char *cats= apop_text_paste(category_matrix, .between=", ");
+            char *cats = apop_text_paste(category_matrix, .between=", ");
             catlist = apop_query_to_text("select distinct %s from %s", cats, *idatatab);
             Apop_stopif(!catlist || catlist->error, return -1, 0, 
-                    "Trouble querying for categories [select distinct %s from %s].", cats, *idatatab);
+                "Trouble querying for categories [select distinct %s from %s].", cats, *idatatab);
         }
         for (int i=0; i< (catlist ? *catlist->textsize: 1); i++){
             char *wherecat = NULL;
@@ -1022,7 +1041,7 @@ void impute(char **idatatab){
     Apop_stopif(get_key_word("impute", "input table") == NULL, return, 0, "You need to specify an input table in your impute key.");
     Apop_stopif(get_key_word("impute", "output vars") == NULL, return, 0, "You need to specify your output vars (the variables that you would like to impute). Recall that output vars is a subkey of impute.");
     Apop_stopif(get_key_word("impute", "method") == NULL, return, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
-    Apop_stopif(get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name than specify one in your spec file.");
+    Apop_stopif(get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
     
     //The actual function starts here:
     apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");

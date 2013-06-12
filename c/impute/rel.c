@@ -40,6 +40,7 @@ impute {
 static apop_model *rel_est(apop_data *d, apop_model *m){
     begin_transaction();
     apop_data_print(d, .output_file="tea_hhs", .output_type='d', .output_append='w');
+    apop_query("create index idx_tea_hhs_mafid on tea_hhs(mafid)");
     commit_transaction();
     return m;
 }
@@ -49,8 +50,8 @@ static void rel_draw(double *out, gsl_rng *r, apop_model *m){
     static apop_data *this_hh;
     if (ctr == 0){
         //All HHs appear in equal numbers, so uniform draw works.
-        int hh_id = apop_query_to_float("select mafid from tea_hhs where oid+0.0 = 1+%i",
-              (int)(gsl_rng_uniform(r)*apop_query_to_float("select count(*) from tea_hhs")));
+        int hh_id = apop_query_to_float("select mafid from tea_hhs where oid = '%i'",
+                1+ (int)(gsl_rng_uniform(r)*apop_query_to_float("select count(*) from tea_hhs")));
         this_hh = apop_query_to_data("select rel from tea_hhs where "
                     "mafid = %i", hh_id);
         Apop_stopif (!this_hh || this_hh->error, *out=GSL_NAN; return,
