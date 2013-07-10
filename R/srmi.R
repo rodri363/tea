@@ -47,7 +47,7 @@ tea.klcoda <- function(M1,M2){
 #	del = convergence criterion; sum((th1-th0)^2) < del results in convergence
 tea.srmi.est <- function(env){
 	if(env$debug>0) browser()
-	if(is.null(env$eps)) env$eps <- 1e-3
+	if(is.null(env$eps)) env$eps <- 1e-4
 	#x and y variables
 	vyvar <- attr(terms(env$LHS),"term.labels")
 	vxvar <- attr(terms(env$RHS),"term.labels")
@@ -80,6 +80,7 @@ tea.srmi.est <- function(env){
 		kvar <- vyvar[idx]
 		formmod <- as.formula(paste(kvar,
 			paste(c(vxvar,vyvar[-(idx:length(vyvar))]),collapse="+"),sep="~"))
+		print(paste(idx,formmod,sep=": "))
 		emod <- as.environment(list(Data=env$Newdata[-lna[[kvar]],],Formula=formmod))
 		if(vcat[idx]) lfit[[kvar]] <- RapopModelEstimate(emod,modmnl)
 		else lfit[[kvar]] <- RapopModelEstimate(emod,modreg)
