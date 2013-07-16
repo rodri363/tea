@@ -10,17 +10,17 @@
 
 //I can't believe that R claims these for its own:
 #undef error
-#undef Apop_assert_c
 //#undef warning
 
 #define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
+#undef Apop_assert_c
 #define Apop_assert_c(test, returnval, level, ...) if (!(test)) \
 			{if (apop_opts.verbose >= level) warning(__VA_ARGS__); return returnval;}
 
 #undef Apop_stopif
 #define Apop_stopif(test, returnop, level, ...) if (test) \
-			{if (apop_opts.verbose >= level) warning(__VA_ARGS__); Apop_maybe_abort(level);  returnop;}
+			{if (apop_opts.verbose >= level) Rf_warning(__VA_ARGS__); Apop_maybe_abort(level);  returnop;}
 
 
 /*
