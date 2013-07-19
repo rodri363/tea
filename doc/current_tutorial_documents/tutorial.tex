@@ -123,7 +123,6 @@ that is user-friendly, effectively handles Census-sized data sets, and processes
 quickly even with relatively sophisticated methods.
 
 This document is a detailed overview of the Tea system, its components, and their usage.
-
 Section \ref{basicssec} is an overview of the basic mechanics of the system, including the
 underlying platforms and the format of the spec file used to describe a survey.
 Because Tea uses R as a front-end, Section \ref{rsec} gives a brief overview of using R
@@ -133,7 +132,7 @@ including its basic procedure, the specific models available, and the use of mul
 
 If you have this tutorial you should also have a working installation of Tea and 
 a sample directory including {\tt demo.spec, demo.R}, and {\tt dc\_pums\_08.CSV}. 
-Basic versions of all of the steps described below are already implemented and running,
+All of the steps described below are already implemented and running,
 though the system will evolve and grow as it is applied in new surveys and environments.
 
 \section{System basics}\label{basicssec}
@@ -157,8 +156,8 @@ The full specification of the various steps of Tea's process, from input of data
 production of output tables, is specified in a single file, the {\em spec file}. There
 are several benefits to such a work flow.  First, because the spec file is separate from
 programming languages like R or SAS, it is a simpler grammar that is easier to
-write and analysts whose areas of expertise are not in programming can customize Tea
-and write technical specifications without the assistance of a programmer or extensive
+write, and analysts whose areas of expertise are not in programming can customize Tea
+and write technical specifications without the assistance of a programmer or 
 training in a new programming language. Consider the following script that is taken
 from the {\tt demo.spec} file (which you can open using Kate or any other text editor):
 
@@ -201,7 +200,7 @@ step. Thus the state of the data can be recorded at each step in the process to 
 for auditing of suspect changes.
 
 Outside the database, to control what happens and do the modeling, the Tea package
-consists of roughly 5,000 lines of R and C code.
+consists of roughly 6,000 lines of R and C code.
 
 {\bf R} is a relatively user-friendly system that makes it easy to interact with data
 sets and write quick scripts to glue together segments of the survey-processing pipeline.

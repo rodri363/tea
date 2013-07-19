@@ -63,6 +63,13 @@ int blank_fingerprints(char const **datatab){
 ////////////////////////
 
 
+void index_cats(char const *tab, apop_data const *category_matrix){
+    if (!category_matrix||!*category_matrix->textsize) return;
+    char *cats = apop_text_paste(category_matrix, .between=", ");
+    char *c2 = apop_text_paste(category_matrix, .between="_");
+    apop_query("create index idx_%s_%s on %s(%s)", tab, c2, tab, cats);
+}
+
 
 
 ///// second method: via raking
@@ -83,13 +90,29 @@ double cull(apop_data *onerow, void *subject_row_in){
     return 0;
 }
 
+/* OK, exact matching didn't work? Use this function to find
+ * the difference count between the reference record and each row in the raked table. */
+double count_diffs(apop_data *onerow, void *subject_row_in){
+    apop_data *subject_row = subject_row_in;
+    int diffs=0;
+    for (int i=0; i< subject_row->matrix->size2; i++){
+        double this = apop_data_get(subject_row, .col=i);
+        if (isnan(this)) continue;
+        if (apop_data_get(onerow, .col=i) != this) {
+            diffs++;
+        }
+    }
+    return diffs;
+}
+
+
 /* We're depending on the data columns and the draw columns to
    be the same fields, and we aren't guaranteed that the raking
    gave us data in the right format(BK: check this?). Copy the 
    raked output to explicitly fit the data format. */
 apop_data *copy_by_name(apop_data *data, apop_data *form){
     apop_data *out= apop_data_copy(form);
-    gsl_matrix_set_all(form->matrix, NAN);
+    gsl_matrix_set_all(out->matrix, NAN);
     for (int i=0; i< data->matrix->size2; i++){
         double this = apop_data_get(data, .col=i);
         if (isnan(this)) continue; //don't bother.
@@ -104,46 +127,55 @@ apop_data *copy_by_name(apop_data *data, apop_data *form){
    So it needs to be a PMF of the right format to match the data point
    we're trying to match.  
    
-   It may be that the row in the data has no match in the raked outout, due to structural
+   It may be that the row in the data has no match in the raked output, due to structural
    zeros and the inputs. E.g., if a person is married and has missing age, and everybody
    else in the data set is under 15, and (age <15 && married) is an edit failure, there will
    be no entries in the rake table with married status. In this case, blank out the existing married status.
    
    */
-apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector *orig){
+apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *orig){
     Apop_stopif(!raked, return NULL, 0, "NULL raking results.")
     Apop_stopif(isnan(apop_sum(raked->weights)), return NULL, 0, "NaNs in raking results.")
     Apop_stopif(!apop_sum(raked->weights), return NULL, 0, "No weights in raking results.")
     bool done=false;
     Apop_data_row(raked, 0, firstrow);
-    while (!done) {
-        apop_data *cp = copy_by_name(fin, firstrow);
-        apop_data_free_base(
-            apop_map(raked, .fn_rp=cull, .param=cp) );
-        done=apop_sum(raked->weights);
-        if (!done){
-            gsl_vector_memcpy(raked->weights, orig);
-            for (int i=0; i< fin->matrix->size2; i++) 
-                if (!isnan(apop_data_get(fin, 0, i))) {
-                    apop_data_set(fin, 0, i, NAN);    //modify the input data.
-                    Apop_notify(1, "Blanking the %s field because I couldn't "
-                            "find a match otherwise.", fin->names->column[i]);
-                    break;
-                }
-        }
-        apop_data_free(cp);
+    apop_data *cp = copy_by_name(fin, firstrow);
+    apop_data_free_base(
+        apop_map(raked, .fn_rp=cull, .param=cp) );
+    done=apop_sum(raked->weights);
+    if (!done){
+        //gsl_vector_memcpy(raked->weights, orig);
+        apop_data *distances = apop_map(raked, .fn_rp=count_diffs, .param=cp);
+        double min = gsl_vector_min(distances->vector);
+        for (int i=0; i< raked->weights->size; i++)
+            gsl_vector_set(raked->weights, i,
+                    apop_data_get(distances, i, -1)> min+1
+                        ? 0
+                        : gsl_vector_get(orig, i));
+        apop_data_free(distances);
+        /*
+        for (int i=0; i< fin->matrix->size2; i++) 
+            if (!isnan(apop_data_get(fin, 0, i))) {
+                apop_data_set(fin, 0, i, NAN);    //modify the input data.
+                Apop_notify(1, "Blanking the %s field because I couldn't "
+                        "find a match otherwise.", fin->names->column[i]);
+                break;
+            }
+            */
     }
+    apop_data_free(cp);
     return apop_estimate(raked, apop_pmf);
 }
 
-//An edit that uses variables not in our current raking table
-//will cause SQL failures.
-bool vars_in_edit_are_in_rake_table(used_var_t* vars_used, size_t ct,
-        apop_data rake_vars){
-    for (int i=0; i< ct; i++)
-        for (int j=0; j< rake_vars.textsize[1]; j++)
-            if (!strcmp(vars_used[i].name, rake_vars.text[0][j])) return true;
-    return false;
+//An edit that uses variables not in our current raking table will cause SQL failures.
+bool vars_in_edit_are_in_rake_table(used_var_t* vars_used, size_t ct, apop_data rake_vars){
+    for (int i=0; i< ct; i++){
+        bool pass=false;
+        for (int j=0; j< rake_vars.textsize[1] && !pass; j++)
+            if (!strcmp(vars_used[i].name, rake_vars.text[0][j])) pass=true;
+        if (!pass) return false;
+    }
+    return true;
 }
 
 static void rake_to_completion(const char *datatab, const char *underlying, 
@@ -151,12 +183,17 @@ static void rake_to_completion(const char *datatab, const char *underlying,
         const int draw_count, char *catlist, 
         const apop_data *fingerprint_vars, const char *id_col, 
         char const *weight_col, char const *fill_tab, char const *margintab,
-        apop_data *contrasts){
+        apop_data *contrasts, char *previous_filltab){
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
     char *varlist = apop_text_paste(&as_data, .between=", ");
+
+    char *dt="tea_co", *dxx=(char*)datatab;
+    int zero=0;
+    //if (previous_filltab) check_out_impute(&dxx, /*&dt*/ NULL, &zero, NULL, &previous_filltab);
+
     apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s", id_col, varlist, 
                     weight_col ? ',' : ' ',
-                    XN(weight_col), datatab, catlist ? "where": " ", XN(catlist));
+                    XN(weight_col), /*previous_filltab ? dt :*/datatab, catlist ? "where": " ", XN(catlist));
     Apop_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
     Apop_stopif(d->error, return, 0, "query error.");
     apop_data *notnan = apop_data_listwise_delete(d);
@@ -171,29 +208,44 @@ static void rake_to_completion(const char *datatab, const char *underlying,
     }
 
     char *zeros=NULL, *or="";
-    for (int i=0; edit_list[i].clause; i++)
-        if (vars_in_edit_are_in_rake_table(edit_list[i].vars_used,
-                edit_list[i].var_ct, as_data)){
-            asprintf(&zeros, "%s%s(%s)", XN(zeros), or, edit_list[i].clause);
-            or = " or ";
-        }
+    if (edit_list)
+        for (int i=0; edit_list[i].clause; i++)
+            if (vars_in_edit_are_in_rake_table(edit_list[i].vars_used,
+                    edit_list[i].var_ct, as_data)){
+                asprintf(&zeros, "%s%s(%s)", XN(zeros), or, edit_list[i].clause);
+                or = " or ";
+            }
+    for (int i=0; i< is.allvars_ct; i++){
+        asprintf(&zeros, "%s%s(%s=='nan' or %s is null)", 
+                        XN(zeros), or, is.allvars[i], is.allvars[i]);
+        or = " or ";
+    }
 
+
+    char *cutname=NULL; 
     begin_transaction();
+    if (catlist) {
+        asprintf(&cutname, "%s_cut", datatab);
+        apop_table_exists(cutname, 'd');
+        apop_query("create table %s as select * from %s where %s", cutname, datatab, catlist);
+        index_cats(cutname, &as_data);
+    }
     apop_data *raked =
-        apop_rake(.margin_table=margintab ? margintab : datatab,
+        apop_rake(.margin_table=margintab ? margintab : (catlist? cutname : datatab),
                 .var_list=is.allvars, .var_ct=is.allvars_ct,
                 .contrasts=contrasts? *contrasts->text : is.allvars, 
                 .contrast_ct=contrasts? contrasts->textsize[1] : is.allvars_ct,
                 .count_col=weight_col, .init_table=notnan_tab_big_enough ? "notnan": NULL, 
-                .structural_zeros=zeros,
+                .structural_zeros=zeros, /*.nudge=0.01,*/
                 .init_count_col=notnan_tab_big_enough ? weight_col: NULL);
+    free(cutname);
     commit_transaction();
     Apop_stopif(!raked, return, 
                 0, "Raking returned a blank table. This shouldn't happen.");
     Apop_stopif(raked->error, return,
                 0, "Error (%c) in raking.", raked->error);
 
-    int batch_size=1000; //just in case...
+    int batch_size=10000; //just in case...
     gsl_vector *original_weights=apop_vector_copy(raked->weights);
     gsl_vector *cp_to_fill = gsl_vector_alloc(d->matrix->size2);
     apop_data *fillins = apop_data_alloc();
@@ -576,7 +628,7 @@ void R_check_bounds(double *val, char **var, int *fails){
 static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char *datatab){
     //db_name_column may be rowid, which would srsly screw us up.
     //first pass: get the full list of NaNs; no not-NaNs yet.
-    apop_data *nanvals = apop_query_to_data("select %s, %s from %s where %s is null "
+    apop_data *nanvals = apop_query_to_data("select distinct %s, %s from %s where %s is null "
                                             "order by %s",
 									 id_col, is.depvar, datatab, is.depvar, id_col);
     if (!nanvals) return NULL; //query worked, nothing found.
@@ -588,7 +640,8 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
     return nanvals;
 }
 
-static int forsearch(const void *a, const void *b){return strcmp(a, *(char**)b);}
+//static int forsearch(const void *a, const void *b){return strcmp(a, *(char**)b);}
+static int forsearch(const void *a, const void *b){return atoi(a) - atoi(*(char**)b);}
 
 static int mark_an_id(const char *target, char * const *list, int len, char just_check){
     char **found = bsearch(target, list, len, sizeof(char*), forsearch);
@@ -770,9 +823,11 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
             /*shrink the category matrix by one, then loop back and try again if need be. This could be more efficient, 
               but take recourse in knowing that the categories that need redoing are the ones with 
               few elements in them.*/
-            if (category_matrix && *category_matrix->textsize>0)
+            if (category_matrix && *category_matrix->textsize>0){
                 apop_text_alloc(category_matrix, category_matrix->textsize[0]-1, category_matrix->textsize[1]);
-            else {
+                index_cats(datatab, category_matrix);
+
+            } else {
                 hit_zero++;
                 nans_no_constraints= is->isnan;
                 notnans_no_constraints= is->notnan;
@@ -910,12 +965,6 @@ Raking: needs all the variables, in numeric format
 int impute_is_prepped; //restarts with new read_specs.
 char *configbase = "impute";
 
-void index_cats(char *tab, apop_data *category_matrix){
-    char *cats = apop_text_paste(category_matrix, .between=", ");
-    char *c2 = apop_text_paste(category_matrix, .between="_");
-    apop_query("create index idx_%s_%s on %s(%s)", tab, c2, tab, cats);
-}
-
 /* TeaKEY(impute/input table, <<<The table holding the base data, with missing values. 
   Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called {\tt doInput()} in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one.>>>)
   TeaKEY(impute/seed, <<<The RNG seed>>>)
@@ -995,7 +1044,7 @@ int do_impute(char **tag, char **idatatab){
 
     if (model.is_rake) {
         apop_data *precontrasts = get_key_text_tagged(configbase, "contrasts", *tag);
-        apop_data *contrasts = apop_data_transpose(precontrasts);
+        apop_data *contrasts = precontrasts ? apop_data_transpose(precontrasts): NULL;
         apop_data_free(precontrasts);
         apop_data *catlist=NULL;
         if (category_matrix){
@@ -1016,7 +1065,8 @@ int do_impute(char **tag, char **idatatab){
             }
             char *margintab = get_key_word_tagged(configbase, "margin table", *tag);
             rake_to_completion(*idatatab, underlying, model, min_group_size, 
-                        r, draw_count, wherecat, fingerprint_vars, id_col, weight_col, out_tab, margintab, contrasts);
+                        r, draw_count, wherecat, fingerprint_vars, id_col, 
+                        weight_col, out_tab, margintab, contrasts, previous_fill_tab);
         }
         apop_data_free(contrasts);
     }

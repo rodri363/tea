@@ -1,6 +1,6 @@
 
 plotWage <- function(outname){
-    checkOutImpute("viewdc", "ok", filled="imputes")
+    checkOutImpute("viewdc", "ok", filltab="imputes")
     dfok <-teaTable("ok", cols="WAGP")
     dfdc <-teaTable("dc", cols="WAGP", where="WAGP is not null")
     dfok$WAGP <- log10(as.integer(dfok$WAGP)+1)
@@ -23,7 +23,7 @@ plotWage <- function(outname){
 }
 
 plotAge <- function(outname){
-    checkOutImpute("viewdc", "ok", filled="imputes")
+    checkOutImpute("viewdc", "ok", filltab="imputes")
     dfok <-teaTable("ok", cols="AGEP")
     dfdc <-teaTable("dc", cols="AGEP", where="AGEP is not null")
     #dfok$WAGP <- as.integer(dfok$WAGP)
@@ -43,4 +43,4 @@ plotAge <- function(outname){
     bitmap(file=paste(outname,"png", sep=""),width=11*(10/11),height=8.5*(10/11),units="in",res=150)
     print(p)
     dev.off()
-
+}
