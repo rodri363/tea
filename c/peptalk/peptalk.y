@@ -92,6 +92,7 @@ The functions here are all run by the yyparse() function. To see the context in 
 int yylex(void);
 int yyerror(const char *s) ;
 int add_keyval(char *, char*);
+int genbnds_();                                /* ********* SPEER **********/
 void add_to_num_list_seq(char *min, char*max);
 void extend_key(char *in);
 void reduce_key();
@@ -434,6 +435,7 @@ void add_to_num_list_seq(char *min, char*max){
 }
 
 //Queries.
+     
 
 void moreblob(char **out, char* so_far, char *more){
     //if (pass==0 && !apop_strcmp(current_key, "checks")) {
@@ -441,14 +443,13 @@ void moreblob(char **out, char* so_far, char *more){
 		asprintf(out, "%s%s", XN(so_far), more);
         return;
     }
-    
+     
     
 /************************************************************************/ 
 // SPEER bounds generating routine
-    if( pass == 1 ){ GenBnds }
+    if( pass == 1 ) genbnds_();
     
-    
-    
+  
     //more = strip(more);  //leak?
     if(pass==1 && apop_strcmp(current_key, "checks")){
         /*If you're here, you're in query mode and extending a query.

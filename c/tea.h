@@ -121,3 +121,5 @@ void check_out_impute(char **origin, char **dest, int *imputation_number, char *
 char * strip(const char *in); //Remove leading/trailing white space
 void add_to_num_list(char *v);
 void add_var(char const *var, int, char);
+
+int genbnds_();
