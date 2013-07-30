@@ -200,6 +200,23 @@ blob_elmt : TEXT
 void xprintf(char **q, char *format, ...); //impute/parse_sql.c
 #define XN(in) ((in) ? (in) : "")          //same.
 
+
+
+/************************************************************************/ 
+// SPEER bounds generating variables
+/************************************************************************/ 
+#include "f2c.h"
+#include "stdio.h"
+
+struct {
+    real lower[81]	/* was [9][9] */, upper[81]	/* was [9][9] */;
+} comgen_;
+#define comgen_1 comgen_
+/* Table of constant values */
+static integer c__1 = 1;
+/************************************************************************/ 
+
+
 void extend_q(char **, char*, char*);
 
 int query_ct;
@@ -424,6 +441,14 @@ void moreblob(char **out, char* so_far, char *more){
 		asprintf(out, "%s%s", XN(so_far), more);
         return;
     }
+    
+    
+/************************************************************************/ 
+// SPEER bounds generating routine
+    if( pass == 1 ){ GenBnds }
+    
+    
+    
     //more = strip(more);  //leak?
     if(pass==1 && apop_strcmp(current_key, "checks")){
         /*If you're here, you're in query mode and extending a query.
