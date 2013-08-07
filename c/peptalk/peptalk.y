@@ -93,6 +93,7 @@ int yylex(void);
 int yyerror(const char *s) ;
 int add_keyval(char *, char*);
 int genbnds_();                                /* ********* SPEER **********/
+int speer_();                                  /* ********* SPEER **********/
 void add_to_num_list_seq(char *min, char*max);
 void extend_key(char *in);
 void reduce_key();
@@ -447,7 +448,10 @@ void moreblob(char **out, char* so_far, char *more){
     
 /************************************************************************/ 
 // SPEER bounds generating routine
-    if( pass == 1 ) genbnds_();
+    if( pass == 1 ) {
+        genbnds_();
+        speer_();
+      }
     
   
     //more = strip(more);  //leak?
