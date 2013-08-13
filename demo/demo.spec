@@ -1,6 +1,31 @@
 database: demo.db
 id: SSN
 
+SPEERfields { FEMP: real
+              FAPR: real
+              FQPR: real
+              FFBR: real
+              FSLS: real
+              FAET: real
+              FTOT: real
+              FRPT: real
+              FADE: real
+            }                                             
+ 
+ExpRatios {   .0212400  FEMP/FAPR     .0711125        .0369900
+             1.5369120  FAPR/FQPR    6.8853623       3.2590401
+              .1670480  FQPR/FAPR     .5273000        .3068400
+              .0202880  FFBR/FAPR     .2717625        .0929800    
+              .0019120  FSLS/FAPR   17.9646122       3.7883501
+              .4114320  FTOT/FAET    2.7373001       1.3070800
+              .0007280  FRPT/FSLS     .0356625        .0071700
+              .1512560  FADE/FAET     .7307250        .4357100
+              .0430320  FEMP/FQPR     .3661875        .1237300
+            13.6115752  FAPR/FEMP   46.3278246      27.0331402
+             2.9163521  FQPR/FEMP   15.6438375       8.0822201
+            37.1182704  FSLS/FEMP  559.9335861     105.2866974
+          }
+
 input {
     overwrite: yes
     input file: dc_pums_08.csv
