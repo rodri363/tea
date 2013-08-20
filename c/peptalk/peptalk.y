@@ -439,8 +439,7 @@ void moreblob(char **out, char* so_far, char *more){
 	/*********  FIX ME!!!!   SPEER runs too often here *************/
 	bool ExpRatios_exist = true;
     if( pass == 0 && ExpRatios_exist ) {
-        /* printf("********  Runing SPEER **************.\n"); */
-        genbnds_();
+        genbnds_(); 
         speer_();
     }
     
