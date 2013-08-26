@@ -3,6 +3,7 @@
 /* *** BASIC ITEM'S EXPLICIT BOUNDS.                     **** */
 
 #include <stdio.h>
+#include <apop.h>
 
 /* 10 = BFLD + 1, to compensate for the zero element in C ( not in FORTRAN ) */	
 struct { double lower[10][10]; double upper[10][10]; } bnds;
@@ -10,10 +11,12 @@ struct { double lower[10][10]; double upper[10][10]; } bnds;
 extern int genbnds_(void);
 
 
+
 int genbnds_(void)
 /******************************************************/ 
 {
   static int i;
+
   
   /* Subroutines */
   extern int readpa_(void), genlim_(void), rattab_(void);
@@ -26,11 +29,11 @@ int genbnds_(void)
     rattab_();
   }
 
-  /* 
-  printf("*** IMPLICITS: %11.6f  < fld1/fld4 < %11.6f \n", bnds.lower[1][4],bnds.upper[1][4]);
-  printf("*** IMPLICITS: %11.6f  < fld3/fld5 < %11.6f \n", bnds.lower[3][5],bnds.upper[3][5]);
-  printf("*** IMPLICITS: %11.6f  < fld7/fld9 < %11.6f \n", bnds.lower[7][9],bnds.upper[7][9]);
- */
+   /* 
+  printf("** IMPLICITS: %11.6f  < fld1/fld4 < %11.6f \n", bnds.lower[1][4],bnds.upper[1][4]);
+  printf("** IMPLICITS: %11.6f  < fld3/fld5 < %11.6f \n", bnds.lower[3][5],bnds.upper[3][5]);
+  printf("** IMPLICITS: %11.6f  < fld7/fld9 < %11.6f \n", bnds.lower[7][9],bnds.upper[7][9]);
+  */
 
   return 0;
 }

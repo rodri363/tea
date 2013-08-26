@@ -1,16 +1,5 @@
 database: demo.db
 id: SSN
-
-SPEERfields { FEMP: real
-              FAPR: real
-              FQPR: real
-              FFBR: real
-              FSLS: real
-              FAET: real
-              FTOT: real
-              FRPT: real
-              FADE: real
-            }                                             
  
 ExpRatios {   .0212400  FEMP/FAPR     .0711125        .0369900
              1.5369120  FAPR/FQPR    6.8853623       3.2590401
@@ -25,6 +14,7 @@ ExpRatios {   .0212400  FEMP/FAPR     .0711125        .0369900
              2.9163521  FQPR/FEMP   15.6438375       8.0822201
             37.1182704  FSLS/FEMP  559.9335861     105.2866974
           }
+
 
 input {
     overwrite: yes
@@ -49,6 +39,8 @@ fields  {
     # SCHL represents "educational attainment"
     SCHL: int 0-24
     logWAGP: real
+    
+    SPEERfields: cat FEMP, FAPR, FQPR, FFBR, FSLS, FAET, FTOT, FRPT, FADE
 }
 
 recodes  {

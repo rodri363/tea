@@ -1,236 +1,162 @@
-/* SPEER.f -- translated by f2c (version 20061008).
-   You must link the resulting object file with libf2c:
-	on Microsoft Windows system, link with libf2c.lib;
-	on Linux or Unix systems, link with .../path/to/libf2c.a -lm
-	or, if you install libf2c.a in a standard place, with -lf2c -lm
-	-- in that order, at the end of the command line, as in
-		cc *.o -lf2c -lm
-	Source for libf2c is in /netlib/f2c/libf2c.zip, e.g.,
+/* SPEER.c */
+/* *** THE SUBROUTINES IN THIS FILE WILL BE USED FOR **** */
+/* *** EVERY APPLICATION OF SPEER                    **** */
+/* ************************************************************* */
+/* *** IF THE MAJOR PARAMETER VALUES IN PARAMS PROC CHANGE, **** */
+/* *** DATA STATEMENTS THROUGHOUT THE PROGRAM MUST ALSO BE  **** */
+/* *** CHANGED.  THEY ARE THE FOLLOWING:                    **** */
+/* ***                                                      **** */
+/* *** IF THE VALUE OF BFLD CHANGES ( OR THE IMPUTATION     **** */
+/* *** ORDER OF THE BASIC ITEMS CHANGE ), CHANGE DATA FOR:  **** */
+/* ***      BNAMES( ) IN DATADECL PROC                      **** */
+/* ************************************************************* */
 
-		http://www.netlib.org/f2c/libf2c.zip
-*/
+#include <stdio.h>
+#include <apop.h>
 
-#include "f2c.h"
+const int BFLD   = 9;
+const int NEDIT  = ( 11 ) * 10 / 2;                       
+const int TOTSIC = 2;
 
-/* Common Block Declarations */
+extern int speer_(void);
 
-struct {
-    real basitm[9];
-} comed1_;
+/* BFLD + 1, to compensate for the zero element in C ( not in FORTRAN ) */	
+struct { double basitm[10]; } comed1_;
 
 #define comed1_1 comed1_
 
-struct {
-    real bm[81]	/* was [9][9] */;
-    integer cntdel[9], cycle, frcomp[72]	/* was [36][2] */;
-} comed2_;
+struct { double bm[10][10];
+         int cntdel[10], frcomp[55][3];
+       } comed2_;
 
 #define comed2_1 comed2_
 
-struct {
-    real lwbd[162]	/* was [2][9][9] */;
-    integer nblank, nf, numdel, numsic;
-    real tm[81]	/* was [9][9] */, upbd[162]	/* was [2][9][9] */;
-} comed3_;
+struct { double lwbd[3][10][10], upbd[3][10][10];
+         int nblank, nf, numdel, numsic;
+         double tm[10][10];
+       } comed3_;
 
 #define comed3_1 comed3_
 
-/* ***  SPEER.FOR  **** */
-/* *** THE SUBROUTINES IN THIS FILE WILL BE USED FOR **** */
-/* *** EVERY APPLICATION OF SPEER                    **** */
-/* Subroutine */ int speer_(void)
+
+
+int speer_(void)
+/******************************************************/ 
+/**** THIS IS THE DRIVER PORTION OF THE SPEER EDIT ****/
 {
-    extern /* Subroutine */ int edchek_(void), locate_(void), impsub_(void);
+  extern int edchek_(void), locate_(void), impsub_(void);
 
-/*     ********************************************************** */
-/* *** THIS IS THE DRIVER PORTION OF THE SPEER EDIT **** */
-/* *** INCREMENT RECORD CYCLE NUMBER -- USED IN INTERACTIVE MODE **** */
-/* ***  PARAMS  **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER **** */
-/* *** DECLARE VARIABLES THAT ARE USED THROUGHOUT THE PROGRAM. **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER  **** */
-/* *** MOST WIDELY USED PARAMETER STATEMENTS. **** */
-/* ************************************************************************ */
-/* ************************************************************* */
-/* *** IF THE MAJOR PARAMETER VALUES IN PARAMS PROC CHANGE, **** */
-/* *** DATA STATEMENTS THROUGHOUT THE PROGRAM MUST ALSO BE  **** */
-/* *** CHANGED.  THEY ARE THE FOLLOWING:                    **** */
-/* ***                                                      **** */
-/* *** IF THE VALUE OF BFLD CHANGES ( OR THE IMPUTATION     **** */
-/* *** ORDER OF THE BASIC ITEMS CHANGE ), CHANGE DATA FOR:  **** */
-/* ***      BASCUT( ) IN SUBROUTINE CHKSTA                  **** */
-/* ***      BNAMES( ) IN DATADECL PROC                      **** */
-/* ***      DATA STATEMENTS IN IMPSUBDATA PROC              **** */
-/* ***      GO TO ( . . . ) K  IN SUBROUTINE IMPSUB         **** */
-/* ***      FLGHI( ), FLGLO( ) & FLGMID( ) IN               **** */
-/* ***                SUBROUTINE IMPDEF                     **** */
-/* ************************************************************* */
-/* *** DECLARE & INITIALIZE POINTERS FOR BASIC ITEM ARRAY. **** */
-/* *** THIS IS THE ORDER OF IMPUTATION, ALSO.              **** */
-    ++comed2_1.cycle;
-/* ************************************ */
-/*    START SPEER PROCESSING HERE    * */
-/* ************************************ */
-    edchek_();
-    if (comed3_1.nf > 0) {
-	locate_();
-    }
-    if (comed3_1.nf > 0 || comed3_1.nblank > 0) {
-	impsub_();
-    }
-    return 0;
-} /* speer_ */
+  edchek_();
+  if (comed3_1.nf > 0) { locate_(); }
+  if (comed3_1.nf > 0 || comed3_1.nblank > 0) { impsub_(); }
 
-/* Subroutine */ int edchek_(void)
+  return 0;
+}
+
+
+
+int edchek_(void)
+/******************************************************/ 
+/* *** DETERMINE WHICH FIELDS FAIL EDIT RATIOS AND  **** */
+/* ***  FLAG THOSE FIELDS  **** */
 {
-    static integer i__, j;
-    static real lower, upper;
-    static integer bblank[9];
+  static int i, j;
+  static double lower, upper;
+  static int bblank[10];
 
-/*     ********************************************************** */
-/* *** DETERMINE WHICH FIELDS FAIL EDIT RATIOS AND FLAG THOSE FIELDS **** */
-/* ***  PARAMS  **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER **** */
-/* *** DECLARE VARIABLES THAT ARE USED THROUGHOUT THE PROGRAM. **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER  **** */
-/* *** MOST WIDELY USED PARAMETER STATEMENTS. **** */
-/* ************************************************************************ */
-/* ************************************************************* */
-/* *** IF THE MAJOR PARAMETER VALUES IN PARAMS PROC CHANGE, **** */
-/* *** DATA STATEMENTS THROUGHOUT THE PROGRAM MUST ALSO BE  **** */
-/* *** CHANGED.  THEY ARE THE FOLLOWING:                    **** */
-/* ***                                                      **** */
-/* *** IF THE VALUE OF BFLD CHANGES ( OR THE IMPUTATION     **** */
-/* *** ORDER OF THE BASIC ITEMS CHANGE ), CHANGE DATA FOR:  **** */
-/* ***      BASCUT( ) IN SUBROUTINE CHKSTA                  **** */
-/* ***      BNAMES( ) IN DATADECL PROC                      **** */
-/* ***      DATA STATEMENTS IN IMPSUBDATA PROC              **** */
-/* ***      GO TO ( . . . ) K  IN SUBROUTINE IMPSUB         **** */
-/* ***      FLGHI( ), FLGLO( ) & FLGMID( ) IN               **** */
-/* ***                SUBROUTINE IMPDEF                     **** */
-/* ************************************************************* */
-/* *** DECLARE & INITIALIZE POINTERS FOR BASIC ITEM ARRAY. **** */
-/* *** THIS IS THE ORDER OF IMPUTATION, ALSO.              **** */
-    comed3_1.nf = 0;
-    comed3_1.nblank = 0;
-/* *** EDIT BASIC ITEMS **** */
-    for (i__ = 1; i__ <= 8; ++i__) {
-/* *** CHECK FOR BLANK BASIC ITEMS **** */
-	if (comed1_1.basitm[i__ - 1] < 0.f) {
+  comed3_1.nf = 0;
+  comed3_1.nblank = 0;
+
+  /* *** EDIT BASIC ITEMS **** */
+  for (i = 1; i <= BFLD-1; ++i) {
+
+     /* *** CHECK FOR BLANK BASIC ITEMS **** */
+	 if (comed1_1.basitm[i] < (double)0.0) {
 	    ++comed3_1.nblank;
-	    bblank[comed3_1.nblank - 1] = i__;
-/* *** FLAG EACH RATIO THAT FAILS AN EDIT **** */
-	} else {
-	    for (j = i__ + 1; j <= 9; ++j) {
-		lower = comed3_1.lwbd[comed3_1.numsic + (i__ + j * 9 << 1) - 
-			21] * comed2_1.bm[i__ + j * 9 - 10];
-		upper = comed3_1.upbd[comed3_1.numsic + (i__ + j * 9 << 1) - 
-			21] * comed3_1.tm[i__ + j * 9 - 10];
-		if (comed1_1.basitm[j - 1] == 0.f && lower > 0.f && upper < 
-			99999.f || comed1_1.basitm[j - 1] > 0.f && (lower > 
-			0.f && comed1_1.basitm[j - 1] * lower > 
-			comed1_1.basitm[i__ - 1] || upper < 99999.f && 
-			comed1_1.basitm[j - 1] * upper < comed1_1.basitm[i__ 
-			- 1])) {
+	    bblank[comed3_1.nblank] = i;
+     
+	 /* *** FLAG EACH RATIO THAT FAILS AN EDIT **** */
+	 } else {
+	    for (j = i+1; j <= BFLD; ++j) {
+		   lower = comed3_1.lwbd[comed3_1.numsic][i][j] * comed2_1.bm[i][j];
+		   upper = comed3_1.upbd[comed3_1.numsic][i][j] * comed3_1.tm[i][j];
+	       if ((comed1_1.basitm[j] == (double)0.0  
+			   &&  lower > (double)0.0  &&  upper < (double)99999.0 )
+			        || 
+			   comed1_1.basitm[j] > (double)0.0 
+			   && (lower > (double)0.0  &&  comed1_1.basitm[j]*lower > comed1_1.basitm[i] 
+			   || upper < (double)99999.0  &&  comed1_1.basitm[j]*upper < comed1_1.basitm[i]))
+		   {
 		    ++comed3_1.nf;
-		    comed2_1.frcomp[comed3_1.nf - 1] = i__;
-		    comed2_1.frcomp[comed3_1.nf + 35] = j;
-		}
-/* L300: */
+		    comed2_1.frcomp[comed3_1.nf][1] = i;
+		    comed2_1.frcomp[comed3_1.nf][2] = j;
+		   }
 	    }
-	}
-/* L400: */
-    }
+	 }
+  }
+
 /* *** CHECK LAST BASIC ITEM FOR BLANKS **** */
-    if (comed1_1.basitm[8] < 0.f) {
-	++comed3_1.nblank;
-	bblank[comed3_1.nblank - 1] = 9;
-    }
-    return 0;
-} /* edchek_ */
+  if (comed1_1.basitm[BFLD] < (double)0.0) {
+    ++comed3_1.nblank;
+    bblank[comed3_1.nblank] = BFLD;
+  }
 
-/* Subroutine */ int impsub_(void)
-{
+  return 0;
+}
 
-    static integer i__, k;
-    static real bl, bu, bup, blow;
-    static integer nimp;
-    static real bwgt[9];
 
-/*     ********************************************************** */
+
+int impsub_(void)
+/******************************************************/ 
 /* *** CALCULATE A MISSING/DELETED FIELD'S IMPUTATION RANGE AND **** */
 /* *** IMPUTE A VALUE USING THAT FIELD'S IMPUTATION HIERARCHY.  **** */
-/* ***  PARAMS  **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER **** */
-/* *** DECLARE VARIABLES THAT ARE USED THROUGHOUT THE PROGRAM. **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER  **** */
-/* *** MOST WIDELY USED PARAMETER STATEMENTS. **** */
-/* ************************************************************************ */
-/* ************************************************************* */
-/* *** IF THE MAJOR PARAMETER VALUES IN PARAMS PROC CHANGE, **** */
-/* *** DATA STATEMENTS THROUGHOUT THE PROGRAM MUST ALSO BE  **** */
-/* *** CHANGED.  THEY ARE THE FOLLOWING:                    **** */
-/* ***                                                      **** */
-/* *** IF THE VALUE OF BFLD CHANGES ( OR THE IMPUTATION     **** */
-/* *** ORDER OF THE BASIC ITEMS CHANGE ), CHANGE DATA FOR:  **** */
-/* ***      BASCUT( ) IN SUBROUTINE CHKSTA                  **** */
-/* ***      BNAMES( ) IN DATADECL PROC                      **** */
-/* ***      DATA STATEMENTS IN IMPSUBDATA PROC              **** */
-/* ***      GO TO ( . . . ) K  IN SUBROUTINE IMPSUB         **** */
-/* ***      FLGHI( ), FLGLO( ) & FLGMID( ) IN               **** */
-/* ***                SUBROUTINE IMPDEF                     **** */
-/* ************************************************************* */
-/* *** DECLARE & INITIALIZE POINTERS FOR BASIC ITEM ARRAY. **** */
-/* *** THIS IS THE ORDER OF IMPUTATION, ALSO.              **** */
-/* *** INITIALIZE VARIABLES **** */
-/* ***  DATADECL **** */
-/* *** THIS PROC CONTAINS DATA STATEMENTS USED THROUGHTOUT SPEER.       **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER **** */
-    bwgt[8] = 1.6f;
-    bwgt[5] = 1.4f;
-    bwgt[1] = .25f;
-    bwgt[0] = .06f;
-    bwgt[3] = .75f;
-    bwgt[2] = .3f;
-    bwgt[7] = 1.9f;
-    bwgt[4] = .5f;
-    bwgt[6] = 1.f;
-    nimp = 0;
+{
+  static int i, k;
+  static double bl, bu, bup, blow;
+  static int nimp;
+  static double bwgt[10];
+
+/* Basic item weights */
+/******  FIX ME:   put in .spec file  ******/
+  bwgt[1] = (double)0.06;
+  bwgt[2] = (double)0.25;
+  bwgt[3] = (double)0.3;
+  bwgt[4] = (double)0.75;
+  bwgt[5] = (double)0.5;
+  bwgt[6] = (double)1.4;
+  bwgt[7] = (double)1.0;
+  bwgt[8] = (double)1.9;
+  bwgt[9] = (double)1.6;
+
+  nimp = 0;
 /* *** BASE THE RANGE OF THE DELETED FIELD ON ITS RELATIONSHIP **** */
 /* *** TO ALL OTHER EXISTING BASIC ITEMS.                      **** */
-    for (k = 1; k <= 9; ++k) {
-	blow = -1.f;
-	bup = 99999999.9f;
-	if (comed1_1.basitm[k - 1] <= -1.f) {
+  for (k = 1; k <= BFLD; ++k) {
+	blow = (double)-1.0;
+	bup = (double)99999999.9;
+	if (comed1_1.basitm[k] <= (double)-1.0) {
 	    ++nimp;
-/* *** CALCULATE IMPUTATION RANGE/REGION **** */
-	    for (i__ = 1; i__ <= 9; ++i__) {
-		if (comed1_1.basitm[i__ - 1] >= 0.f) {
-		    bl = comed1_1.basitm[i__ - 1] * comed2_1.bm[k + i__ * 9 - 
-			    10] * comed3_1.lwbd[comed3_1.numsic + (k + i__ * 
-			    9 << 1) - 21];
-		    if (bl > blow) {
-			blow = bl;
-		    }
-		}
-		if (comed1_1.basitm[i__ - 1] > 0.f) {
-		    bu = comed1_1.basitm[i__ - 1] * comed3_1.tm[k + i__ * 9 - 
-			    10] * comed3_1.upbd[comed3_1.numsic + (k + i__ * 
-			    9 << 1) - 21];
-		    if (bu < bup) {
-			bup = bu;
-		    }
-		}
-/* *** IF IMPUTATION RANGE IS NOT AVAILABLE, EXIT LOOP **** */
-		if (blow >= bup) {
-		    goto L800;
-		}
-/* L100: */
+
+        /* *** CALCULATE IMPUTATION RANGE/REGION **** */
+	    for (i = 1; i <= BFLD; ++i) {
+	 	   if (comed1_1.basitm[i] >= (double)0.0) {
+		      bl = comed1_1.basitm[i] * comed2_1.bm[k][i] * comed3_1.lwbd[comed3_1.numsic][k][i];
+		      if (bl > blow) { blow = bl; }
+		   }
+		   if (comed1_1.basitm[i] > (double)0.0) {
+		      bu = comed1_1.basitm[i] * comed3_1.tm[k][i] * comed3_1.upbd[comed3_1.numsic][k][i];
+		      if (bu < bup) { bup = bu; }
+		   }
+
+           /* *** IF IMPUTATION RANGE IS NOT AVAILABLE, EXIT LOOP **** */
+		   if (blow >= bup) { goto L800; }
 	    }
+
 /* ****************************************** */
 /* *** CALCULATE IMPUTATION OPTIONS HERE **** */
 /* ****************************************** */
 /*          IMPOPT(K) = <value> */
+
 /* ********************************************************************** */
 /* *** DETERMINE WHICH IMPUTATION OPTION IS CONSISTENT STARTING HERE **** */
 /* ********************************************************************** */
@@ -239,165 +165,119 @@ struct {
 /*           BASITM(K) = IMPOPT(K) */
 /*           GO TO 800 */
 /*         ENDIF */
-	}
-L800:
-	;
     }
-    return 0;
-} /* impsub_ */
+    L800:;
+  }
 
-/* Subroutine */ int locate_(void)
+  return 0;
+}
+
+
+
+int locate_(void)
+/******************************************************/ 
+/*  LOCATE BASIC ITEMS TO BE DELETED AND FLAG THEM.   */
 {
+  /* System generated locals */
+  int tmp;
 
-    /* System generated locals */
-    integer i__1;
+  /* Local variables */
+  static int i, j, bdel[10];
+  static double wdeg[10], bwgt[10], wmax;
+  static int narcs, remoov;
+  static int bdeg[10];    /* bdeg[] may actually use the '0' cell */
 
-    /* Local variables */
-    static integer i__, j, bdeg[10], bdel[9];
-    static real wdeg[9], bwgt[9], wmax;
-    static integer narcs, remoov;
+/* Basic item weights */
+/******  FIX ME:   put in .spec file  ******/
+  bwgt[1] = (double)0.06;
+  bwgt[2] = (double)0.25;
+  bwgt[3] = (double)0.3;
+  bwgt[4] = (double)0.75;
+  bwgt[5] = (double)0.5;
+  bwgt[6] = (double)1.4;
+  bwgt[7] = (double)1.0;
+  bwgt[8] = (double)1.9;
+  bwgt[9] = (double)1.6;
 
-/*     ********************************************************** */
-/* *** LOCATE BASIC ITEMS TO BE DELETED AND FLAG THEM. **** */
-/* ***  PARAMS  **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER **** */
-/* *** DECLARE VARIABLES THAT ARE USED THROUGHOUT THE PROGRAM. **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER  **** */
-/* *** MOST WIDELY USED PARAMETER STATEMENTS. **** */
-/* ************************************************************************ */
-/* ************************************************************* */
-/* *** IF THE MAJOR PARAMETER VALUES IN PARAMS PROC CHANGE, **** */
-/* *** DATA STATEMENTS THROUGHOUT THE PROGRAM MUST ALSO BE  **** */
-/* *** CHANGED.  THEY ARE THE FOLLOWING:                    **** */
-/* ***                                                      **** */
-/* *** IF THE VALUE OF BFLD CHANGES ( OR THE IMPUTATION     **** */
-/* *** ORDER OF THE BASIC ITEMS CHANGE ), CHANGE DATA FOR:  **** */
-/* ***      BASCUT( ) IN SUBROUTINE CHKSTA                  **** */
-/* ***      BNAMES( ) IN DATADECL PROC                      **** */
-/* ***      DATA STATEMENTS IN IMPSUBDATA PROC              **** */
-/* ***      GO TO ( . . . ) K  IN SUBROUTINE IMPSUB         **** */
-/* ***      FLGHI( ), FLGLO( ) & FLGMID( ) IN               **** */
-/* ***                SUBROUTINE IMPDEF                     **** */
-/* ************************************************************* */
-/* *** DECLARE & INITIALIZE POINTERS FOR BASIC ITEM ARRAY. **** */
-/* *** THIS IS THE ORDER OF IMPUTATION, ALSO.              **** */
-/* ***  DATADECL **** */
-/* *** THIS PROC CONTAINS DATA STATEMENTS USED THROUGHTOUT SPEER.       **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER **** */
-    bwgt[8] = 1.6f;
-    bwgt[5] = 1.4f;
-    bwgt[1] = .25f;
-    bwgt[0] = .06f;
-    bwgt[3] = .75f;
-    bwgt[2] = .3f;
-    bwgt[7] = 1.9f;
-    bwgt[4] = .5f;
-    bwgt[6] = 1.f;
-    comed3_1.numdel = 0;
-    narcs = comed3_1.nf;
-/* *** ZERO OUT BASIC ITEM FAILURE COUNTERS **** */
+  comed3_1.numdel = 0;
+  narcs = comed3_1.nf;
+
+  /*****  FIX ME:  have to find a better way than looping back to L100:  *****/
+  /*****           perhaps a for ()                                      *****/
 L100:
-    for (i__ = 1; i__ <= 9; ++i__) {
-	bdeg[i__] = 0;
-	wdeg[i__ - 1] = 0.f;
-/* L200: */
-    }
-/* *** COUNT NO. OF TIMES A BASIC ITEM IS INVOLVED IN A RATIO **** */
-/* *** FAILURE.                                               **** */
-    i__1 = comed3_1.nf;
-    for (i__ = 1; i__ <= i__1; ++i__) {
+
+  /* ZERO OUT BASIC ITEM FAILURE COUNTERS */
+  for (i = 1; i <= 9; ++i) {
+	bdeg[i] = 0;
+	wdeg[i] = (double)0.0;
+  }
+
+  /* COUNT NO. OF TIMES A BASIC ITEM IS INVOLVED IN A RATIO FAILURE */
+  tmp = comed3_1.nf;
+  for (i = 1; i <= tmp; ++i) {
 	for (j = 1; j <= 2; ++j) {
-	    ++bdeg[comed2_1.frcomp[i__ + j * 36 - 37]];
-/* L300: */
+	    ++bdeg[ comed2_1.frcomp[i][j] ];
 	}
-    }
-/* *** CALCULATE EACH WEIGHTED DEGREE              **** */
-/* *** DETERMINE WHICH BASIC ITEM HAS LARGEST WDEG **** */
-    wmax = 0.f;
-    for (i__ = 1; i__ <= 9; ++i__) {
-	wdeg[i__ - 1] = bwgt[i__ - 1] * bdeg[i__];
-	if (wdeg[i__ - 1] > 0.f && wdeg[i__ - 1] >= wmax) {
-	    wmax = wdeg[i__ - 1];
-	    remoov = i__;
+  }
+
+  /* CALCULATE EACH WEIGHTED DEGREE              */
+  /* DETERMINE WHICH BASIC ITEM HAS LARGEST WDEG */
+  wmax = (double)0.0;
+  for (i = 1; i <= BFLD; ++i) {
+	wdeg[i] = bwgt[i] * bdeg[i];
+	if (wdeg[i] > (double)0.0  &&  wdeg[i] >= wmax) {
+	    wmax = wdeg[i];
+	    remoov = i;
 	}
-/* L400: */
-    }
-/* *** FLAG THE BASIC ITEM TO BE DELETED AND REMOVE ALL FAILURE **** */
-/* *** RATIOS ATTACHED TO IT.                                   **** */
-    ++comed3_1.numdel;
-    bdel[comed3_1.numdel - 1] = remoov;
-    i__1 = comed3_1.nf;
-    for (i__ = 1; i__ <= i__1; ++i__) {
-	if (comed2_1.frcomp[i__ - 1] == remoov || comed2_1.frcomp[i__ + 35] ==
-		 remoov) {
-	    comed2_1.frcomp[i__ - 1] = 0;
-	    comed2_1.frcomp[i__ + 35] = 0;
+  }
+
+  /* FLAG THE BASIC ITEM TO BE DELETED AND REMOVE ALL FAILURE */
+  /* RATIOS ATTACHED TO IT.                                   */
+  ++comed3_1.numdel;
+  bdel[comed3_1.numdel] = remoov;
+  /* tmp = comed3_1.nf; */
+  for (i = 1; i <= comed3_1.nf; ++i) {
+    if (comed2_1.frcomp[i][1] == remoov  ||  comed2_1.frcomp[i][2] == remoov) {
+        comed2_1.frcomp[i][1] = 0;
+	    comed2_1.frcomp[i][2] = 0;
 	    --narcs;
 	}
-/* L500: */
-    }
-/* *** CONTINUE TO DELETE FIELDS UNTIL THEIR ARE NO MORE FAILURE **** */
-/* *** RATIOS LEFT.                                              **** */
-    if (narcs > 0) {
-	goto L100;
-    }
-/* *** WHEN ALL ITEMS HAVE BEEN SUCCESSFULLY BEEN FLAGGED FOR **** */
-/* *** DELETION, DELETE THEM AND COUNT THE OCCURENCE FOR EACH.**** */
-    i__1 = comed3_1.numdel;
-    for (i__ = 1; i__ <= i__1; ++i__) {
-	++comed2_1.cntdel[bdel[i__ - 1] - 1];
-	comed1_1.basitm[bdel[i__ - 1] - 1] = -1.f;
-/* L600: */
-    }
-    return 0;
-} /* locate_ */
+  }
 
-/* Subroutine */ int readlm_(void)
+  /* CONTINUE TO DELETE FIELDS                    */
+  /* UNTIL THEIR ARE NO MORE FAILURE RATIOS LEFT. */
+  if (narcs > 0) { goto L100; }
+
+  /* WHEN ALL ITEMS HAVE BEEN SUCCESSFULLY BEEN FLAGGED FOR  */
+  /* DELETION, DELETE THEM AND COUNT THE OCCURENCE FOR EACH. */
+  /* tmp = comed3_1.numdel; */
+  for (i = 1; i <= comed3_1.numdel; ++i) {
+	++comed2_1.cntdel[bdel[i]];
+	comed1_1.basitm[bdel[i]] = (double)-1.0;
+  }
+
+  return 0;
+}
+
+
+
+int readlm_(void)
+/******************************************************/ 
+/* READ AND STORE ALL LOWER & UPPER IMPLICIT RATIOS */
+/* AND CENTRAL VALUES                               */
 {
-    static integer i__, j, k;
+  static int i, j, k;
 
-/*     ********************************************************** */
-/* *** READ AND STORE ALL LOWER & UPPER IMPLICIT RATIOS AND CENTRAL VALUES **** */
-/* ***  PARAMS  **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER **** */
-/* *** DECLARE VARIABLES THAT ARE USED THROUGHOUT THE PROGRAM. **** */
-/* *** SOME FORM OF THIS PROC WILL BE USED IN ALL APPLICATIONS OF SPEER  **** */
-/* *** MOST WIDELY USED PARAMETER STATEMENTS. **** */
-/* ************************************************************************ */
-/* ************************************************************* */
-/* *** IF THE MAJOR PARAMETER VALUES IN PARAMS PROC CHANGE, **** */
-/* *** DATA STATEMENTS THROUGHOUT THE PROGRAM MUST ALSO BE  **** */
-/* *** CHANGED.  THEY ARE THE FOLLOWING:                    **** */
-/* ***                                                      **** */
-/* *** IF THE VALUE OF BFLD CHANGES ( OR THE IMPUTATION     **** */
-/* *** ORDER OF THE BASIC ITEMS CHANGE ), CHANGE DATA FOR:  **** */
-/* ***      BASCUT( ) IN SUBROUTINE CHKSTA                  **** */
-/* ***      BNAMES( ) IN DATADECL PROC                      **** */
-/* ***      DATA STATEMENTS IN IMPSUBDATA PROC              **** */
-/* ***      GO TO ( . . . ) K  IN SUBROUTINE IMPSUB         **** */
-/* ***      FLGHI( ), FLGLO( ) & FLGMID( ) IN               **** */
-/* ***                SUBROUTINE IMPDEF                     **** */
-/* ************************************************************* */
-/* *** DECLARE & INITIALIZE POINTERS FOR BASIC ITEM ARRAY. **** */
-/* *** THIS IS THE ORDER OF IMPUTATION, ALSO.              **** */
-/* ***  OPEN AND READ FILE CONTAINING IMPLICIT RATIOS **** */
-/*     ********************************************************** */
-/*      OPEN( 12, FILE = 'RATIOS.BND' ) */
-/*     ********************************************************** */
-    for (i__ = 1; i__ <= 2; ++i__) {
-	for (j = 1; j <= 9; ++j) {
-	    for (k = 1; k <= 9; ++k) {
-/*     ********************************************************** */
-/* 2000       FORMAT( 30X, 2F16.7 ) */
-/*            READ(12,2000) LWBD(I,J,K), UPBD(I,J,K) */
-/*     ********************************************************** */
-/* L200: */
-	    }
+  /* OPEN AND READ FILE CONTAINING IMPLICIT RATIOS */
+  /* OPEN( 12, FILE = 'RATIOS.BND' ) */
+  for (i = 1; i <= comed3_1.numsic; ++i) {
+	for (j = 1; j <= BFLD; ++j) {
+	  for (k = 1; k <= BFLD; ++k) {
+         /* READ(12,2000) comed3_1.lwbd[i][j][k], comed3_1.upbd[i][j][k] */
+	  }
 	}
-    }
-/*     ********************************************************** */
-/*      CLOSE( 12 ) */
-/*     ********************************************************** */
-    return 0;
-} /* readlm_ */
+  }
+
+  return 0;
+}
 
