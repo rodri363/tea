@@ -138,7 +138,7 @@ char *db_dummy;
      read_spec(&spec3, &db_dummy);
      int num_typos_spec3 = get_num_typos();
      printf("There were %d typos when reading %s\n", num_typos_spec3, spec3);
-     assert_equals(get_num_typos(), 3);
+     assert_equals(get_num_typos(), 4);
      
      read_spec(&spec4, &db_dummy);
      int num_typos_spec4 = get_num_typos();

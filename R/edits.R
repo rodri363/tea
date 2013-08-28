@@ -9,19 +9,24 @@
 readSpec <- function(spec,nlines=1000){
     options(warn=1) #print warnings as they occur.
     skip <- 0
+
     # Check whether, during execution of read_spec, the database has been successfully
     # written to the keys table. If not, then don't perform dbConnect below (and just go
     # back to R after displaying warning message).
-    withCallingHandlers({
-    teaenv$db_name <-.C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
+    
+    browser()
+
+    teaenv$db_name <- tryCatch({
+    .C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
     }, warning=function(war) {
 
     if(war$message == "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file.") {
-       skip <<- 1      
-       invokeRestart("muffleWarning")
+       skip <<- skip + 1;
     }
 
     })
+
+    print(paste(skip))
 
     # If skip==1 then database was not written to spec file to executing 
     # function below will cause error.
