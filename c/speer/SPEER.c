@@ -14,29 +14,22 @@
 #include <stdio.h>
 #include <apop.h>
 
-const int BFLD   = 9;
-const int NEDIT  = ( 11 ) * 10 / 2;                       
-const int TOTSIC = 2;
+/* constant globals */
+/* **** FIX ME:   constant globals should go into .spec file **** */
+#define BFLD 9
+#define NEDIT ( BFLD+1 ) * BFLD / 2                 
+#define TOTSIC 2
 
 extern int speer_(void);
 
 /* BFLD + 1, to compensate for the zero element in C ( not in FORTRAN ) */	
-struct { double basitm[10]; } comed1_;
-
-#define comed1_1 comed1_
-
-struct { double bm[10][10];
-         int cntdel[10], frcomp[55][3];
-       } comed2_;
-
-#define comed2_1 comed2_
-
-struct { double lwbd[3][10][10], upbd[3][10][10];
-         int nblank, nf, numdel, numsic;
-         double tm[10][10];
-       } comed3_;
-
-#define comed3_1 comed3_
+/* This struct contains all vars that are common throughout program     */
+struct { double basitm[BFLD+1];
+         double lwbd[TOTSIC+1][BFLD+1][BFLD+1]; double upbd[TOTSIC+1][BFLD+1][BFLD+1];
+         double bm[BFLD+1][BFLD+1]; double tm[BFLD+1][BFLD+1];
+         int nblank; int nf; int numdel; int numsic;
+         int cntdel[BFLD+1]; int frcomp[NEDIT][TOTSIC+1];
+       } commed;
 
 
 
@@ -46,9 +39,14 @@ int speer_(void)
 {
   extern int edchek_(void), locate_(void), impsub_(void);
 
+  /* DETERMINE WHICH FIELDS FAIL EDIT RATIOS */
   edchek_();
-  if (comed3_1.nf > 0) { locate_(); }
-  if (comed3_1.nf > 0 || comed3_1.nblank > 0) { impsub_(); }
+
+  /* LOCATE BASIC ITEMS TO BE DELETED AND FLAG THEM. */
+  if (commed.nf > 0) { locate_(); }
+  
+  /* CALCULATE MISSING/DELETED FIELD(S) IMPUTATION RANGE */
+  if (commed.nf > 0 || commed.nblank > 0) { impsub_(); }
 
   return 0;
 }
@@ -64,41 +62,41 @@ int edchek_(void)
   static double lower, upper;
   static int bblank[10];
 
-  comed3_1.nf = 0;
-  comed3_1.nblank = 0;
+  commed.nf = 0;
+  commed.nblank = 0;
 
   /* *** EDIT BASIC ITEMS **** */
   for (i = 1; i <= BFLD-1; ++i) {
 
      /* *** CHECK FOR BLANK BASIC ITEMS **** */
-	 if (comed1_1.basitm[i] < (double)0.0) {
-	    ++comed3_1.nblank;
-	    bblank[comed3_1.nblank] = i;
+	 if (commed.basitm[i] < (double)0.0) {
+	    ++commed.nblank;
+	    bblank[commed.nblank] = i;
      
 	 /* *** FLAG EACH RATIO THAT FAILS AN EDIT **** */
 	 } else {
 	    for (j = i+1; j <= BFLD; ++j) {
-		   lower = comed3_1.lwbd[comed3_1.numsic][i][j] * comed2_1.bm[i][j];
-		   upper = comed3_1.upbd[comed3_1.numsic][i][j] * comed3_1.tm[i][j];
-	       if ((comed1_1.basitm[j] == (double)0.0  
+		   lower = commed.lwbd[commed.numsic][i][j] * commed.bm[i][j];
+		   upper = commed.upbd[commed.numsic][i][j] * commed.tm[i][j];
+	       if ((commed.basitm[j] == (double)0.0  
 			   &&  lower > (double)0.0  &&  upper < (double)99999.0 )
 			        || 
-			   comed1_1.basitm[j] > (double)0.0 
-			   && (lower > (double)0.0  &&  comed1_1.basitm[j]*lower > comed1_1.basitm[i] 
-			   || upper < (double)99999.0  &&  comed1_1.basitm[j]*upper < comed1_1.basitm[i]))
+			   commed.basitm[j] > (double)0.0 
+			   && (lower > (double)0.0  &&  commed.basitm[j]*lower > commed.basitm[i] 
+			   || upper < (double)99999.0  &&  commed.basitm[j]*upper < commed.basitm[i]))
 		   {
-		    ++comed3_1.nf;
-		    comed2_1.frcomp[comed3_1.nf][1] = i;
-		    comed2_1.frcomp[comed3_1.nf][2] = j;
+		    ++commed.nf;
+		    commed.frcomp[commed.nf][1] = i;
+		    commed.frcomp[commed.nf][2] = j;
 		   }
 	    }
 	 }
   }
 
 /* *** CHECK LAST BASIC ITEM FOR BLANKS **** */
-  if (comed1_1.basitm[BFLD] < (double)0.0) {
-    ++comed3_1.nblank;
-    bblank[comed3_1.nblank] = BFLD;
+  if (commed.basitm[BFLD] < (double)0.0) {
+    ++commed.nblank;
+    bblank[commed.nblank] = BFLD;
   }
 
   return 0;
@@ -134,17 +132,17 @@ int impsub_(void)
   for (k = 1; k <= BFLD; ++k) {
 	blow = (double)-1.0;
 	bup = (double)99999999.9;
-	if (comed1_1.basitm[k] <= (double)-1.0) {
+	if (commed.basitm[k] <= (double)-1.0) {
 	    ++nimp;
 
         /* *** CALCULATE IMPUTATION RANGE/REGION **** */
 	    for (i = 1; i <= BFLD; ++i) {
-	 	   if (comed1_1.basitm[i] >= (double)0.0) {
-		      bl = comed1_1.basitm[i] * comed2_1.bm[k][i] * comed3_1.lwbd[comed3_1.numsic][k][i];
+	 	   if (commed.basitm[i] >= (double)0.0) {
+		      bl = commed.basitm[i] * commed.bm[k][i] * commed.lwbd[commed.numsic][k][i];
 		      if (bl > blow) { blow = bl; }
 		   }
-		   if (comed1_1.basitm[i] > (double)0.0) {
-		      bu = comed1_1.basitm[i] * comed3_1.tm[k][i] * comed3_1.upbd[comed3_1.numsic][k][i];
+		   if (commed.basitm[i] > (double)0.0) {
+		      bu = commed.basitm[i] * commed.tm[k][i] * commed.upbd[commed.numsic][k][i];
 		      if (bu < bup) { bup = bu; }
 		   }
 
@@ -199,8 +197,8 @@ int locate_(void)
   bwgt[8] = (double)1.9;
   bwgt[9] = (double)1.6;
 
-  comed3_1.numdel = 0;
-  narcs = comed3_1.nf;
+  commed.numdel = 0;
+  narcs = commed.nf;
 
   /*****  FIX ME:  have to find a better way than looping back to L100:  *****/
   /*****           perhaps a for ()                                      *****/
@@ -213,10 +211,10 @@ L100:
   }
 
   /* COUNT NO. OF TIMES A BASIC ITEM IS INVOLVED IN A RATIO FAILURE */
-  tmp = comed3_1.nf;
+  tmp = commed.nf;
   for (i = 1; i <= tmp; ++i) {
 	for (j = 1; j <= 2; ++j) {
-	    ++bdeg[ comed2_1.frcomp[i][j] ];
+	    ++bdeg[ commed.frcomp[i][j] ];
 	}
   }
 
@@ -233,13 +231,13 @@ L100:
 
   /* FLAG THE BASIC ITEM TO BE DELETED AND REMOVE ALL FAILURE */
   /* RATIOS ATTACHED TO IT.                                   */
-  ++comed3_1.numdel;
-  bdel[comed3_1.numdel] = remoov;
+  ++commed.numdel;
+  bdel[commed.numdel] = remoov;
   /* tmp = comed3_1.nf; */
-  for (i = 1; i <= comed3_1.nf; ++i) {
-    if (comed2_1.frcomp[i][1] == remoov  ||  comed2_1.frcomp[i][2] == remoov) {
-        comed2_1.frcomp[i][1] = 0;
-	    comed2_1.frcomp[i][2] = 0;
+  for (i = 1; i <= commed.nf; ++i) {
+    if (commed.frcomp[i][1] == remoov  ||  commed.frcomp[i][2] == remoov) {
+        commed.frcomp[i][1] = 0;
+	    commed.frcomp[i][2] = 0;
 	    --narcs;
 	}
   }
@@ -251,9 +249,9 @@ L100:
   /* WHEN ALL ITEMS HAVE BEEN SUCCESSFULLY BEEN FLAGGED FOR  */
   /* DELETION, DELETE THEM AND COUNT THE OCCURENCE FOR EACH. */
   /* tmp = comed3_1.numdel; */
-  for (i = 1; i <= comed3_1.numdel; ++i) {
-	++comed2_1.cntdel[bdel[i]];
-	comed1_1.basitm[bdel[i]] = (double)-1.0;
+  for (i = 1; i <= commed.numdel; ++i) {
+	++commed.cntdel[bdel[i]];
+	commed.basitm[bdel[i]] = (double)-1.0;
   }
 
   return 0;
@@ -270,10 +268,10 @@ int readlm_(void)
 
   /* OPEN AND READ FILE CONTAINING IMPLICIT RATIOS */
   /* OPEN( 12, FILE = 'RATIOS.BND' ) */
-  for (i = 1; i <= comed3_1.numsic; ++i) {
+  for (i = 1; i <= commed.numsic; ++i) {
 	for (j = 1; j <= BFLD; ++j) {
 	  for (k = 1; k <= BFLD; ++k) {
-         /* READ(12,2000) comed3_1.lwbd[i][j][k], comed3_1.upbd[i][j][k] */
+         /* READ(12,2000) commed.lwbd[i][j][k], commed.upbd[i][j][k] */
 	  }
 	}
   }
