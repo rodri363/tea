@@ -1,6 +1,24 @@
 database: demo.db
 id: SSN
- 
+    
+SPEERfields {
+    FEMP: real
+    FAPR: real
+    FQPR: real
+    FFBR: real
+    FSLS: real
+    FAET: real
+    FTOT: real
+    FRPT: real
+    FADE: real
+}
+
+SPEERparams {
+    BFLD: 9
+    TOTSIC: 2
+    NEDFF: 12 
+}
+
 ExpRatios {   .0212400  FEMP FAPR     .0711125        .0369900
              1.5369120  FAPR FQPR    6.8853623       3.2590401
               .1670480  FQPR FAPR     .5273000        .3068400
@@ -39,8 +57,6 @@ fields  {
     # SCHL represents "educational attainment"
     SCHL: int 0-24
     logWAGP: real
-    
-    SPEERfields: cat FEMP, FAPR, FQPR, FFBR, FSLS, FAET, FTOT, FRPT, FADE
 }
 
 recodes  {

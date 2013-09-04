@@ -5,26 +5,26 @@
 #include <stdio.h>
 #include <apop.h>
 #include <string.h>
+#include <stdlib.h>
 
-/* constant globals */
-/* **** FIX ME:   constant globals should go into .spec file **** */
-#define BFLD 9		/* # of basic items */
-#define TOTSIC 2	/* # of categories of ratios */
-#define NEDFF 12	/* # of explicit ratios per category */
+/* global constants */
+int BFLD;	  /* # of basic items */
+int TOTSIC;   /* # of categories of ratios */
+int NEDFF;	  /* # of explicit ratios per category */
 
 /* BASIC ITEM NAMES */
 /* BFLD + 1, to compensate for the zero element in C ( not in FORTRAN ) */
 //// **** FIX ME:  Item names should be in .spec file
-static char bnames[5*(BFLD+1)] = "     " "FEMP " "FAPR " "FQPR " "FFBR " 
-                                 "FSLS " "FAET " "FTOT " "FRPT " "FADE ";
+static char bnames[5*(9+1)] = "     " "FEMP " "FAPR " "FQPR " "FFBR " 
+                              "FSLS " "FAET " "FTOT " "FRPT " "FADE ";
 
 /* NRAT (or NEDFF) + 1, to compensate for the zero element in C ( not in FORTRAN ) */	
 //// **** FIX ME:  should be in .spec file
-static int numff[NEDFF+1] = {0, 1,2,3,4,5, 7,8,9,1,2, 3,5 };
-static int denff[NEDFF+1] = {0, 2,3,2,2,2, 6,5,6,3,1, 1,1 };
+static int numff[12+1] = {0, 1,2,3,4,5, 7,8,9,1,2, 3,5 };
+static int denff[12+1] = {0, 2,3,2,2,2, 6,5,6,3,1, 1,1 };
 
 /* BFLD + 1, to compensate for the zero element in C ( not in FORTRAN ) */	
-struct { float lower[BFLD+1][BFLD+1]; float upper[BFLD+1][BFLD+1]; } bnds;
+struct { float lower[9+1][9+1]; float upper[9+1][9+1]; } bnds;
 
 extern int genbnds_(void);
 
@@ -38,17 +38,34 @@ int genbnds_(void)
   /* Subroutines */
   extern int readpa_(void), genlim_(void), rattab_(void);
 
+  ////char *bfld = get_key_word("SPEERparams", "BFLD");
+  /* Incorporate SPEER parameters from .spec file */
+  apop_data *bfld_s = get_key_text("SPEERparams", "BFLD");
+  apop_data *nedff_s = get_key_text("SPEERparams", "NEDFF");
+  apop_data *totsic_s = get_key_text("SPEERparams", "TOTSIC");
+
+  BFLD = atoi( bfld_s->text[0][0] );
+  NEDFF = atoi( nedff_s->text[0][0] );
+  TOTSIC = atoi( totsic_s->text[0][0] );
+  //// printf("** BFLD: %d    NEDFF: %d    TOTSIC: %d\n", BFLD, NEDFF, TOTSIC);
+
+
   /* *** DERIVE RATIOS FOR EACH CATEGORY. **** */
   for( i = 1; i <= TOTSIC; ++i ) {
     readpa_();
     genlim_();
     rattab_();
-
-  /*  printf("  IMPLICITS: %11.6f  < fld1/fld4 < %11.6f \n", bnds.lower[1][4],bnds.upper[1][4]);
-    printf("** IMPLICITS: %11.6f  < fld3/fld5 < %11.6f \n", bnds.lower[3][5],bnds.upper[3][5]);
-    printf("** IMPLICITS: %11.6f  < fld7/fld9 < %11.6f \n", bnds.lower[7][9],bnds.upper[7][9]);
-  */
   }
+
+ //// apop_query ("create table SPEERbnds(numer, denom, lower, upper)");
+ //// for(){
+ ////    apop_query("insert into %s values (%f);", lower, lower[i][j]);
+ //// }
+
+  /*  printf("     IMPLICITS: %11.6f  < fld1/fld4 < %11.6f \n", bnds.lower[1][4],bnds.upper[1][4]);
+  printf("** IMPLICITS: %11.6f  < fld3/fld5 < %11.6f \n", bnds.lower[3][5],bnds.upper[3][5]);
+  printf("** IMPLICITS: %11.6f  < fld7/fld9 < %11.6f \n", bnds.lower[7][9],bnds.upper[7][9]);
+ */
 
   return 0;
 }
