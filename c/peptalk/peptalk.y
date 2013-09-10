@@ -98,13 +98,10 @@ void reduce_key();
 void store_right(char*); 
 void add_check(char *);
 void moreblob(char **, char *, char *);
-
-int genbnds_();                                /* ********* SPEER **********/
-int speer_();                                  /* ********* SPEER **********/
-
-
 char add_var_no_edit(char const *var, int is_recode, char type);
 int lineno;        /* current line number  */
+int genbnds_();                                /* ********* SPEER **********/
+int speer_();                                  /* ********* SPEER **********/
 
 used_var_t *used_vars;
 edit_t *edit_list;
@@ -116,7 +113,7 @@ char  *nan_marker;
 
 %}
 //tokens delivered from lex
-%token SPACE NUMBER DTEXT THEN EOL TEXT ',' ':' OPENKEY CLOSEKEY '$' '-' '*' TYPE
+%token SPACE NUMBER DTEXT THEN EOL TEXT ',' ':' OPENKEY CLOSEKEY '$' '-' '*' TYPE WEIGHT
 %%
 list: list item 
     | item
@@ -159,10 +156,10 @@ keylist_item: preedit
 
 preedit  : blob {add_check($1); preed2=1;} THEN blob {store_right($4);preed2=0;} EOL ;
 
-declaration: DTEXT optionalcolon TYPE {add_var($2,0, parsed_type);} numlist
+declaration: DTEXT optionalcolon optionalweight TYPE {add_var($2,0, parsed_type);} numlist
 										{add_to_num_list(nan_marker ? strdup(nan_marker): NULL);}  EOL
-           | DTEXT optionalcolon TYPE {add_var($2,0, parsed_type);}  EOL
-           | DTEXT optionalcolon {parsed_type='c'; add_var($2,0, 'c');} numlist
+           | DTEXT optionalcolon optionalweight TYPE {add_var($2,0, parsed_type);}  EOL 
+           | DTEXT optionalcolon optionalweight {parsed_type='c'; add_var($2,0, 'c');} numlist
 										{add_to_num_list(nan_marker ? strdup(nan_marker): NULL);} EOL
            ;
 
@@ -170,6 +167,10 @@ optionalcolon: ':'
              | optionalcolon SPACE
              |
              ;
+
+optionalweight: WEIGHT {extend_key($1);used_vars[total_var_ct-1].weight = atof($1);}
+              | {used_vars[total_var_ct-1].weight = 1.0;}
+              ;
 
 numlist : num_item
         | numlist ',' num_item
@@ -204,7 +205,6 @@ blob_elmt : TEXT
 #include <string.h>
 void xprintf(char **q, char *format, ...); //impute/parse_sql.c
 #define XN(in) ((in) ? (in) : "")          //same.
-
 
 void extend_q(char **, char*, char*);
 
@@ -423,7 +423,6 @@ void add_to_num_list_seq(char *min, char*max){
 }
 
 //Queries.
-     
 
 void moreblob(char **out, char* so_far, char *more){
     //if (pass==0 && !apop_strcmp(current_key, "checks")) {
@@ -432,19 +431,16 @@ void moreblob(char **out, char* so_far, char *more){
         return;
     }
 
-   
-/************************************************************************/ 
-// SPEER bounds generating routine
-	/*********  FIX ME!!!!   Program a check to run SPEER **********/
-	/*********  FIX ME!!!!   SPEER runs too often here *************/
-	bool ExpRatios_exist = true;
-    if( pass == 0 && ExpRatios_exist ) {
-        genbnds_(); 
-        speer_();
-    }
-    
-     
-  
+ /************************************************************************/
+ // SPEER bounds generating routine
+       /*********  FIX ME!!!!   Program a check to run SPEER **********/
+       /*********  FIX ME!!!!   SPEER runs too often here *************/
+       bool ExpRatios_exist = true;
+     if( pass == 0 && ExpRatios_exist ) {
+         genbnds_();
+         speer_();
+     }
+
     //more = strip(more);  //leak?
     if(pass==1 && apop_strcmp(current_key, "checks")){
         /*If you're here, you're in query mode and extending a query.

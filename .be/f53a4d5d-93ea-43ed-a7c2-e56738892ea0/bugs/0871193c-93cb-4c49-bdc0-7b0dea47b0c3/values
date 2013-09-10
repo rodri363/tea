@@ -1,0 +1,50 @@
+{
+
+
+
+
+
+
+    "creator": "Ned Porter <porte001@census.gov>", 
+
+
+
+
+
+
+    "reporter": "davidvernet", 
+
+
+
+
+
+
+    "severity": "minor", 
+
+
+
+
+
+
+    "status": "open", 
+
+
+
+
+
+
+    "summary": "Levenshtein Distance c test is not eliminate the previous keys database.  If the first line is a carriage return", 
+
+
+
+
+
+
+    "time": "Wed, 04 Sep 2013 17:14:55 +0000"
+
+
+
+
+
+
+}

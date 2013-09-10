@@ -51,6 +51,7 @@ int get_num_typos(); //c/discrete/bridge.c -- used for testing levenshtein stuff
 void levenshtein_tests(); //found in tea/c/levenshtein_tests.c -- called in asst_tests.c
 void write_a_file(char *, char *); //found in tea/c/tests/asst_tests.c
 
+void pastein_tests(); //found in tea/c/pastein_tests.c -- called in asst_tests.c
 
 void test_check_out_impute();//in checkout.c
 
