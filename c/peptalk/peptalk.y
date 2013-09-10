@@ -175,7 +175,6 @@ optionalweight: WEIGHT {extend_key($1);used_vars[total_var_ct-1].weight = atof($
 numlist : num_item
         | numlist ',' num_item
         | numlist SPACE
-        |
         ;
 
 num_item : NUMBER '-' NUMBER  {add_to_num_list_seq($1, $3);}

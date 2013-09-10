@@ -1,0 +1,50 @@
+{
+
+
+
+
+
+
+    "creator": "Ned Porter <porte001@census.gov>", 
+
+
+
+
+
+
+    "reporter": "Ned Porter <porte001@census.gov>", 
+
+
+
+
+
+
+    "severity": "minor", 
+
+
+
+
+
+
+    "status": "open", 
+
+
+
+
+
+
+    "summary": "peptalk.y: conflicts: 15 shift/reduce, 25 reduce/reduce", 
+
+
+
+
+
+
+    "time": "Tue, 10 Sep 2013 20:19:55 +0000"
+
+
+
+
+
+
+}
