@@ -5,14 +5,12 @@ input{
 	input file: data
 	output table: data
 	overwrite: yes
-	types{
-		age: integer
-	}
+	primary key: id
 }
 fields{
-	age int 1-7
-	sex cat 1-2
-	schl cat a,b,c,d
+	age: int 1-7
+	sex: cat 1-2
+	schl: cat a,b,c,d
 }
 checks{
 	age is null

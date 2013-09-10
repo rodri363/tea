@@ -386,8 +386,12 @@ apop_data *checkData(apop_data *data){
 
 	for(int idx=0; idx<nrow; idx++){
 		for(int jdx=0; jdx<nvars; jdx++){
-			if(data->matrix && jdx < data->matrix->size2)
-				asprintf(&vals[jdx], "%g", apop_data_get(data,idx,jdx));
+		   if(data->matrix && jdx < data->matrix->size2){
+						double v = apop_data_get(data,idx,jdx);
+						if (isnan(v)) asprintf(&vals[jdx], "%s", apop_opts.db_nan);
+						else          asprintf(&vals[jdx], "%g", v);
+					}
+
 			else vals[jdx] = data->text[idx][jdx];
 		}
 		consistency_check(fields,vals,&nvars,&what, &id,&fails_edits,failed_fields);

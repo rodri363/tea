@@ -2,9 +2,7 @@ database: demo.db
 id: ANC
 
 input {
-#    input file: /home/rrod/work/tea/data/ss10pdc.csv
-    input file: /cenhome/rodri363/tea/data/ss10pdc.csv
-#    input file: ../../data/ss10pdc.csv
+    input file: dcp.csv
     overwrite: yes
     output table: pdc
 	types {

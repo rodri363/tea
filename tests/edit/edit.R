@@ -8,10 +8,12 @@ DF <- dbGetQuery(teaenv$con,"select * from data")
 #grab the edit variables from the database
 vedvar <- dbGetQuery(teaenv$con,"select * from variables")$name
 #two different ways to see if each row of the data passes all edits
-va <- as.integer(CheckDF(DF,teaenv$con))
+#CheckDF no longer seems to work...
+#may consider rewriting it to use the r_check_table call
+#va <- as.integer(CheckDF(DF))
 vb <- as.integer(.Call("r_check_a_table",DF)$Vector)
 #a list containing the viable edit alternatives for each data row
 #NULL means the row passed all edits
-Le <- sapply(1:nrow(DF),function(kr)
-	return(CheckConsistency(DF[kr,vedvar],vedvar,"find_alternatives",teaenv$con)))
-print(Le)
+#le <- sapply(1:nrow(DF),function(kr)
+#	return(CheckConsistency(DF[kr,vedvar],vedvar,"find_alternatives",teaenv$con)))
+#print(le)

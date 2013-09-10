@@ -59,8 +59,13 @@ int ri_from_ext(char const *varname, char const * ext_val){
     apop_data *this = get_named_tab(varname);
     if (!this) return -100;
     if (this->matrix && this->matrix->size1){
-        for (int i=0; i< this->matrix->size1; i++)
-            if (atof(ext_val) == apop_data_get(this, i)) return i+1;
+		for (int i=0; i< this->matrix->size1; i++){
+					double x = apop_data_get(this, i);
+					if ((isnan(x) && (!strcmp(ext_val, "nan") ||
+							!strcmp(ext_val, apop_opts.db_nan)))
+							|| atof(ext_val) == x)
+						return i+1;
+				}
     } else {
         for (int i=0; i< *this->textsize; i++)
             if (!strcmp(ext_val, *this->text[i])) return i+1;
