@@ -36,6 +36,7 @@ double check_one_row(apop_data *row, void *colnames_in){
 }
 
 
+
 /**
 
   \param adata A data frame.
@@ -57,6 +58,52 @@ SEXP r_check_a_table(SEXP in){
     recordnames[varcount] = strdup("");
 
     apop_data *outvector= apop_map(d, .fn_rp=check_one_row, .param=recordnames);
+    apop_data_free(colnames);
+    apop_data_free(d);
+    return rapop_df_from_ad(outvector);
+}
+
+apop_data *row_alts(apop_data *row, void *colnames_in){
+   char **colnames= colnames_in;
+   int record_count = 0;
+   apop_data *alts;
+   for ( ; colnames[record_count][0]!='\0'; record_count++)
+        ;
+   char *values[record_count];
+   for (int i=0; colnames[i][0]!='\0'; i++){
+       int datacol = apop_name_find(row->names, colnames[i], 'c');
+       if (datacol > -2){
+	   		double val = apop_data_get(row, .row=0, datacol);
+			if (gsl_isnan(val))
+			   asprintf(&values[i], "%s", apop_opts.db_nan);
+		    else
+			   asprintf(&values[i], "%g", val);
+		} else {
+           datacol = apop_name_find(row->names, colnames[i], 't');
+           Apop_stopif(datacol <= -2, return NULL, 0, "I can't find %s in the names list.", colnames[i])
+           values[i] =strdup(row->text[0][datacol]);
+       }
+   }
+
+   int id = 0, fails_edits, failed_fields;
+   char const *pf = "find_alternatives";
+
+   alts = consistency_check(colnames, values, &record_count, &pf, &id, &fails_edits, &failed_fields);
+   return alts;
+}
+
+SEXP r_row_alts(SEXP in){
+    apop_data *d  =rapop_ad_from_df(in);
+
+    //get column names that are in the edits. 
+    apop_data *colnames = apop_query_to_text("select * from variables");
+    int varcount = *colnames->textsize;
+    char *recordnames[varcount+1];
+    for (int i=0; i< varcount; i++)
+        recordnames[i] = *colnames->text[i];
+    recordnames[varcount] = strdup("");
+
+    apop_data *outvector= row_alts(d, recordnames);
     apop_data_free(colnames);
     apop_data_free(d);
     return rapop_df_from_ad(outvector);

@@ -14,7 +14,7 @@ readSpec <- function(spec,nlines=1000){
     # written to the keys table. If not, then don't perform dbConnect below (and just go
     # back to R after displaying warning message).
     
-    browser()
+    #browser()
 
     teaenv$db_name <- tryCatch({
     .C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
@@ -45,50 +45,15 @@ readSpec <- function(spec,nlines=1000){
 #' @param verbose verbose output?
 #' 
 #' @return a data frame containing allowable variable combinations
-CheckConsistency <- function(vals,vars,what_you_want,con,run_id=1,na.char="NULL",verbose=FALSE){
-	record_name_in 	<- as.character(vars)
-	#had to add as.matrix() to do literal quoting of factor values,
-	#rather than conversion to their numeric equivalents
-	ud_values 		<- as.character(as.matrix(vals))
-	ud_values[is.na(ud_values)] <- na.char
-	if(verbose) print(paste("vars and values:"))
-	if(verbose) print(rbind(record_name_in,ud_values))
-	record_in_size 	<- as.integer(length(vars))
-	what_you_want 	<- as.character(what_you_want)
-	run_id 			<- as.integer(run_id)
-	fails_edits		<- as.integer(-1)
-	record_fails	<- as.integer(rep(-1, record_in_size))
-	if(what_you_want=="passfail"){
-		return(.C("consistency_check",
-				record_name_in, ud_values, record_in_size,
-				what_you_want, run_id, fails_edits, record_fails)[[6]]);
-	}else{
-		editmat <- .Call("RCheckConsistency",
-					record_name_in, ud_values, record_in_size,
-					what_you_want, run_id, fails_edits, record_fails);
-		valframe <- NULL
-		if(is.null(editmat)) return(valframe)
-		editmat <- as.data.frame(editmat)
-		editmat$Vector <- NULL
-		if((nrow(editmat)>0)){
-			#changed editmat+1 to editmat with new C code
-			editmat <- as.matrix(unique(editmat,MARGIN=1)) + 1
-			vars <- colnames(editmat)
-			query <- paste("select", paste(vars,vars,sep=".",collapse=","),
-							"from", paste(vars,collapse=","), "where",
-							paste(paste(vars,"rowid",sep="."),paste(":",vars,sep=""),
-							sep="=",collapse=" and "));
-			dbGetQuery(con,"begin")
-			valframe <- dbGetPreparedQuery(con, query,
-				 bind.data=as.data.frame(editmat,stringsAsFactors=FALSE)) ;
-			dbGetQuery(con,"commit")
-		}
-		#return(unique(valmat,MARGIN=1)) #return unique rows
-		if(verbose)	print("valframe names, rows, and values")
-		if(verbose)	print(names(valframe))
-		if(verbose)	print(nrow(valframe))
-		return(valframe)
-	}
+GetAlternatives <- function(dfrow){
+	if(nrow(dfrow)>1) stop("can only send in one row at time for now to get alts")
+	dfidx <- as.data.frame(.Call("r_row_alts",dfrow)[-1])
+	dfidx <- as.data.frame(lapply(dfidx,"+",1)) #add one to get sqlite indices
+	vvar <- names(dfidx)
+	query <- paste("select * from",paste(vvar,collapse=","),
+		"where",paste(paste(vvar,"rowid",sep="."),paste("$",vvar,sep=""),
+					sep="=",collapse=" and "))
+	return(dbGetPreparedQuery(teaenv$con,query,dfidx))
 }
 
 #' Check a real/integer vector for values outside of declared consistency values

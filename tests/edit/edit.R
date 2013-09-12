@@ -12,6 +12,8 @@ vedvar <- dbGetQuery(teaenv$con,"select * from variables")$name
 #may consider rewriting it to use the r_check_table call
 #va <- as.integer(CheckDF(DF))
 vb <- as.integer(.Call("r_check_a_table",DF)$Vector)
+lb <- GetAlternatives(DF[1,])
+lb <- GetAlternatives(DF[3,])
 #a list containing the viable edit alternatives for each data row
 #NULL means the row passed all edits
 #le <- sapply(1:nrow(DF),function(kr)
