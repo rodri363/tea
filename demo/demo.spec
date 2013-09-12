@@ -1,16 +1,15 @@
 database: demo.db
 id: SSN
     
-SPEERfields {
-    FEMP: real
-    FAPR: real
-    FQPR: real
-    FFBR: real
-    FSLS: real
-    FAET: real
-    FTOT: real
-    FRPT: real
-    FADE: real
+SPEERfields { FEMP 1
+              FAPR 2
+              FQPR 3
+              FFBR 4
+              FSLS 5
+              FAET 6
+              FTOT 7
+              FRPT 8
+              FADE 9
 }
 
 SPEERparams {
