@@ -30,7 +30,7 @@ int genbnds_(void)
 /******************************************************/ 
 {
 
-    printf( " inside GenBnds \n" );
+    printf( " **** inside GenBnds \n" );
 
   int i, j, ncat, pos;
   char nam[30];
@@ -57,7 +57,6 @@ int genbnds_(void)
   }
 
   /* Derive implicit bounds for each category.  This only needs to been done once. */
-    printf( " start GenBnds \n" );
   npass++;
   if( npass == 1 ) {
     apop_query("drop table SPEERimpl;");
@@ -130,24 +129,41 @@ int rattab_(void)
 {
   static int i, j;
 
-  /* *** CHECK FOR BOUNDS INCONSISTENCIES. **** */
+  /* Inconsistent bounds vars */
+  struct { int cnt;                        // # of inconsistent ratios/bounds
+	       float low[100]; float up[100]; 
+           char num[30][100]; char den[30][100];
+         } incon;
+
+  /* CHECK FOR BOUNDS INCONSISTENCIES.  Tab/store any inconsistencies. */
+  incon.cnt = 0;
   for (i = 1; i <= BFLD; ++i) {
 	for (j = 1; j <= BFLD; ++j) {
       if (i == j && bnds.lower[i][j] == bnds.upper[i][j]) { goto L200; }
 
-      /* *** IF INCONSISTENCIES EXIST, PRINT MESSAGE **** */
-      if (bnds.lower[i][j] >= bnds.upper[i][j]) {
-        printf("**** FATAL ERROR in GenBnds ****\n","     %11.6f  < fld %d / fld %d < %11.6f \n",
-			   bnds.lower[i][j], i, j, bnds.upper[i][j]);
+      /* IF INCONSISTENCIES EXIST, Tab/store. */
+      if( bnds.lower[i][j] >= bnds.upper[i][j] ) {
+        incon.cnt++;
+        incon.low[incon.cnt] = bnds.lower[i][j];
+        incon.up[incon.cnt] = bnds.upper[i][j];
+        strcpy( incon.num[incon.cnt], bnames[i] );
+        strcpy( incon.den[incon.cnt], bnames[j] );
 	  }
-
-      /* If inconsistencies exist, print message */
-////      Apop_stopif( bnds.lower[i][j] >= bnds.upper[i][j], return, 0,
-////		           "**** FATAL ERROR in GenBnds:  %11.6f  < %s / %s < %11.6f \n",
-////		           bnds.lower[i][j], bnames[i], bnames[j], bnds.upper[i][j]);
-
       L200: ;
 	}
+  }
+
+  /* If inconsistencies exist, print message(s) */
+  if( incon.cnt > 0 ) {
+	printf("**** FATAL ERROR in GenBnds:  Inconsistent bounds exist. ****\n");
+    apop_query("drop table SPEERincon;");
+    apop_query("create table SPEERincon( numer text, denom text, lower float, upper float );");
+    for( i = 1; i <= incon.cnt; ++i ) {
+      apop_query("insert into SPEERincon values( '%s', '%s', %f, %f);",
+		         incon.num[i], incon.den[i], incon.low[i], incon.up[i] );
+	}
+    Apop_stopif( incon.cnt > 0, return, 0,
+		        "**** FATAL ERROR in GenBnds:  Inconsistent bounds exist. ****\n"); 
   }
 
   return 0;
