@@ -6,21 +6,29 @@
 #include <apop.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sqlite3.h>
 
-/*****************  FIX ME:  Id rather have TEA call GenBnds only once. ************/
-int npass = 0;   
+sqlite3 *db;
+sqlite3_stmt *res;
 
 /* global constants */
-int BFLD;	  /* # of basic items */
-int TOTSIC;   /* # of categories of ratios */
-int NEDFF;	  /* # of explicit ratios per category */
-char bnames[30][100];  /* Basic item names [name length][# of fields] */
+#define maxflds 100    /* maximum # of basic items/field */
+#define maxfldlen 30   /* maximum field name length */
+int BFLD;	           /* # of basic items */
+int TOTSIC;            /* # of categories of ratios */
+int NEDFF;	           /* # of explicit ratios per category */
+char bnames[maxfldlen][maxflds];  /* Basic item names [name length][# of fields] */
+
+/* global variables */
+int incon = 0;         /* # of inconsistent ratios/bounds */
+int namlen = 0;        /* Length of longest basic item name */
+int npass = 0;   /*****  FIX ME:  Id rather have TEA call GenBnds only once. *****/
 
 //// **** FIX ME:  should be in .spec file
 static int numff[12+1] = {0, 1,2,3,4,5, 7,8,9,1,2, 3,5 };
 static int denff[12+1] = {0, 2,3,2,2,2, 6,5,6,3,1, 1,1 };
 
-struct { float lower[100][100]; float upper[100][100]; } bnds;
+struct { float lower[maxflds][maxflds]; float upper[maxflds][maxflds]; } bnds;
 
 extern int genbnds_(void);
 
@@ -29,14 +37,16 @@ extern int genbnds_(void);
 int genbnds_(void)
 /******************************************************/ 
 {
-
-    printf( " **** inside GenBnds \n" );
-
   int i, j, ncat, pos;
-  char nam[30];
+  char nam[maxfldlen];
 
   /* Subroutines */
-  extern int readpa_(void), genlim_(void), rattab_(void);
+  extern int ReadExplicits(void), GenImplicits(void), CheckIncon(void), checks(void);
+
+/*****************  FIX ME:  Id rather have TEA call GenBnds only once. ************/
+  /* Creating the implicit bounds needs to been done only once. */
+  npass++;
+  if( npass > 1 ) { return 0; }
 
 
   ////char *bfld = get_key_word("SPEERparams", "BFLD");
@@ -50,45 +60,91 @@ int genbnds_(void)
   TOTSIC = atoi( totsic_s->text[0][0] );
 
   /* Get field names from .db/.spec file & store them in an array */
+  /* Determine longest field name for check later on              */
   apop_data *Bnames_s = get_key_text("SPEERfields", NULL);
   for (i = 0; i <= BFLD-1; ++i) {
     sscanf( Bnames_s->text[i][0], "%s %d", nam, &pos );
     strcpy( bnames[pos], nam );
+	if( strlen(bnames[pos]) > namlen ) { namlen = strlen(bnames[pos]); }
   }
 
-  /* Derive implicit bounds for each category.  This only needs to been done once. */
-  npass++;
-  if( npass == 1 ) {
-    apop_query("drop table SPEERimpl;");
-    apop_query("create table SPEERimpl( cat int, i int, j int, numer text, denom text, lower float, upper float );");
-    for( ncat = 1; ncat <= TOTSIC; ++ncat ) {
-      readpa_();
-      genlim_();
-      rattab_();
+  /* Check for potential fatal problems. */
+  checks();
 
-      /* Store implicit bounds in table:  SPEERimpl */
-      for (i = 1; i <= BFLD; ++i) {
-        for (j = 1; j <= BFLD; ++j) {
-	      apop_query("insert into SPEERimpl values( %d, %d, %d, '%s', '%s', %f, %f);",
-		             ncat+100, i, j, bnames[i], bnames[j], bnds.lower[i][j], bnds.upper[i][j]);
-	    }
+  /* Create output tables */
+  apop_query("drop table SPEERimpl;");   // FIX ME:  first check if SPEERimpl exists
+  apop_query("create table SPEERimpl( cat int, i int, j int, numer text, denom text, lower float, upper float );");
+  apop_query("drop table SPEERincon;");  // FIX ME:  first check if SPEERincon exists
+  apop_query("create table SPEERincon( numer text, denom text, lower float, upper float );");
+
+  /* Derive implicit bounds for each category. */
+  for( ncat = 1; ncat <= TOTSIC; ++ncat ) {
+    ReadExplicits();
+    GenImplicits();
+    CheckIncon();
+
+    /* For each category, store implicit bounds in table:  SPEERimpl */
+    for (i = 1; i <= BFLD; ++i) {
+      for (j = 1; j <= BFLD; ++j) {
+         apop_query("insert into SPEERimpl values( %d, %d, %d, '%s', '%s', %f, %f);",
+	            ncat+100, i, j, bnames[i], bnames[j], bnds.lower[i][j], bnds.upper[i][j]);
       }
- ////     printf( " *** ncat = %d:  i = %d, j = %d \n", ncat+100, i, j );
     }
-    printf( " SPEER:  Implicit bounds -> table SPEERimpl. \n" );
   }
 
-  /*  printf("     IMPLICITS: %11.6f  < fld1/fld4 < %11.6f \n", bnds.lower[1][4],bnds.upper[1][4]);
-  printf("** IMPLICITS: %11.6f  < fld3/fld5 < %11.6f \n", bnds.lower[3][5],bnds.upper[3][5]);
-  printf("** IMPLICITS: %11.6f  < fld7/fld9 < %11.6f \n", bnds.lower[7][9],bnds.upper[7][9]);
- */
+  /* If inconsistencies exist, store in database, stop program. */
+  Apop_stopif( incon > 0, return, -5,
+	       "**** FATAL ERROR in GenBnds:  %d inconsistent bounds exist. ****\n", 
+	       incon); 
+
+  printf( " SPEER:  Implicit bounds -> table SPEERimpl. \n" );
 
   return 0;
 }
 
 
-int genlim_(void)
+int checks(void)
 /******************************************************/ 
+{
+  /* Stop program if maximum # of fields is exceded. */
+  Apop_stopif( BFLD > maxflds, return, -5,
+        "**** FATAL ERROR in GenBnds:  Maximum number of fields (%d) exceded. ****\n",
+ 	    maxflds ); 
+
+  /* Stop program if max length of field names is exceded. */
+  Apop_stopif( namlen > maxfldlen, return, -5,
+        "**** FATAL ERROR in GenBnds:  Maximum length of field name (%d) exceded. ****\n",
+ 	    maxfldlen ); 
+}
+
+
+int CheckIncon(void)
+/******************************************************/ 
+/* *** CHECK FOR BOUNDS INCONSISTENCIES. **** */
+{
+  static int i, j;
+
+  /* CHECK FOR BOUNDS INCONSISTENCIES.  Tab/store any inconsistencies. */
+  for (i = 1; i <= BFLD; ++i) {
+	for (j = 1; j <= BFLD; ++j) {
+      if (i == j && bnds.lower[i][j] == bnds.upper[i][j]) { goto L200; }
+
+      /* If inconsistencies exist, tab/store. */
+      if( bnds.lower[i][j] >= bnds.upper[i][j] ) {
+         incon++;
+         apop_query("insert into SPEERincon values( '%s', '%s', %f, %f);",
+		            bnames[i], bnames[j], bnds.lower[i][j], bnds.upper[i][j] );
+	  }
+      L200: ;
+	}
+  }
+  return 0;
+}
+
+
+int GenImplicits(void)
+/******************************************************/ 
+/* Calculate the Implicit edits */
 {
   static int i, j, k;
   static double temp;
@@ -123,54 +179,7 @@ int genlim_(void)
 }
 
 
-int rattab_(void)
-/******************************************************/ 
-/* *** CHECK FOR BOUNDS INCONSISTENCIES. **** */
-{
-  static int i, j;
-
-  /* Inconsistent bounds vars */
-  struct { int cnt;                        // # of inconsistent ratios/bounds
-	       float low[100]; float up[100]; 
-           char num[30][100]; char den[30][100];
-         } incon;
-
-  /* CHECK FOR BOUNDS INCONSISTENCIES.  Tab/store any inconsistencies. */
-  incon.cnt = 0;
-  for (i = 1; i <= BFLD; ++i) {
-	for (j = 1; j <= BFLD; ++j) {
-      if (i == j && bnds.lower[i][j] == bnds.upper[i][j]) { goto L200; }
-
-      /* IF INCONSISTENCIES EXIST, Tab/store. */
-      if( bnds.lower[i][j] >= bnds.upper[i][j] ) {
-        incon.cnt++;
-        incon.low[incon.cnt] = bnds.lower[i][j];
-        incon.up[incon.cnt] = bnds.upper[i][j];
-        strcpy( incon.num[incon.cnt], bnames[i] );
-        strcpy( incon.den[incon.cnt], bnames[j] );
-	  }
-      L200: ;
-	}
-  }
-
-  /* If inconsistencies exist, print message(s) */
-  if( incon.cnt > 0 ) {
-	printf("**** FATAL ERROR in GenBnds:  Inconsistent bounds exist. ****\n");
-    apop_query("drop table SPEERincon;");
-    apop_query("create table SPEERincon( numer text, denom text, lower float, upper float );");
-    for( i = 1; i <= incon.cnt; ++i ) {
-      apop_query("insert into SPEERincon values( '%s', '%s', %f, %f);",
-		         incon.num[i], incon.den[i], incon.low[i], incon.up[i] );
-	}
-    Apop_stopif( incon.cnt > 0, return, 0,
-		        "**** FATAL ERROR in GenBnds:  Inconsistent bounds exist. ****\n"); 
-  }
-
-  return 0;
-}
-
-
-/* Subroutine */ int readpa_(void)
+int ReadExplicits(void)
 /******************************************************/ 
 /* *** DEFINE ALL EXPLICIT BOUNDS BY READING IN EXISTING BOUNDS **** */
 /* *** AND FINDING THEIR INVERSE.                               **** */
@@ -198,21 +207,15 @@ int rattab_(void)
 /*****************************************/
 
 /*******************************************************************************/ 
-  // FIX ME:  num[] & den[] probably shouldnt be hard-coded to [10].
-  char num[30], den[30];
+  char num[maxfldlen], den[maxfldlen];
  
   /* Get Explicit bounds from .db */
   apop_data *ExpBnds = get_key_text("ExpRatios", NULL);
 
-  ////printf("\n");
+  /* Parse ExpBnds string */
   for (i = 0; i <= NEDFF-1; ++i) {
-	////printf("*** ExpBnds: %s  \n", ExpBnds->text[i][0]);
-
-    /* Parse ExpBnds string */
     sscanf( ExpBnds->text[i][0], "%f %s %s %f", 
 	      &bnds.lower[numff[i+1]][denff[i+1]], num, den, &bnds.upper[numff[i+1]][denff[i+1]] );
-    ////printf("  bnds.lower: %f < %s/%s < bnds.upper: %f\n", 
-	////      bnds.lower[numff[i+1]][denff[i+1]], num, den, bnds.upper[numff[i+1]][denff[i+1]] );
   }
 /*******************************************************************************/ 
 

@@ -109,6 +109,7 @@ int val_count, preed2;
 apop_data *pre_edits;
 int pass, has_edits, file_read;
 char  *nan_marker;
+double nextweight;
 
 %}
 //tokens delivered from lex
@@ -167,8 +168,10 @@ optionalcolon: ':'
              |
              ;
 
-optionalweight: WEIGHT {extend_key($1);used_vars[total_var_ct-1].weight = atof($1);}
-              | {used_vars[total_var_ct-1].weight = 1.0;}
+//// optionalweight: WEIGHT {extend_key($1);used_vars[total_var_ct-1].weight = atof($1);}
+////              | {used_vars[total_var_ct-1].weight = 1.0;}
+optionalweight: WEIGHT {nextweight = atof($1);}
+              | {nextweight = 1.0;}
               ;
 
 numlist : num_item
