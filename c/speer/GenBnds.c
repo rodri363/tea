@@ -29,11 +29,15 @@ extern int genbnds_(void);
 int genbnds_(void)
 /******************************************************/ 
 {
+
+    printf( " inside GenBnds \n" );
+
   int i, j, ncat, pos;
   char nam[30];
 
   /* Subroutines */
   extern int readpa_(void), genlim_(void), rattab_(void);
+
 
   ////char *bfld = get_key_word("SPEERparams", "BFLD");
   /* Incorporate SPEER parameters from .db/.spec file */
@@ -53,11 +57,11 @@ int genbnds_(void)
   }
 
   /* Derive implicit bounds for each category.  This only needs to been done once. */
+    printf( " start GenBnds \n" );
   npass++;
   if( npass == 1 ) {
- ////   apop_table_exists( 'SPEERimpl', 'd' );  // Delete table SPEERimpl if it exists.
-    apop_query( "drop table SPEERimpl;" );
-    apop_query( "create table SPEERimpl( cat int, i int, j int, numer text, denom text, lower float, upper float );");
+    apop_query("drop table SPEERimpl;");
+    apop_query("create table SPEERimpl( cat int, i int, j int, numer text, denom text, lower float, upper float );");
     for( ncat = 1; ncat <= TOTSIC; ++ncat ) {
       readpa_();
       genlim_();
@@ -124,11 +128,9 @@ int rattab_(void)
 /******************************************************/ 
 /* *** CHECK FOR BOUNDS INCONSISTENCIES. **** */
 {
-  /* Local variables */
-  static int i, j, incon;
+  static int i, j;
 
   /* *** CHECK FOR BOUNDS INCONSISTENCIES. **** */
-  incon = 0;
   for (i = 1; i <= BFLD; ++i) {
 	for (j = 1; j <= BFLD; ++j) {
       if (i == j && bnds.lower[i][j] == bnds.upper[i][j]) { goto L200; }
@@ -137,14 +139,15 @@ int rattab_(void)
       if (bnds.lower[i][j] >= bnds.upper[i][j]) {
         printf("**** FATAL ERROR in GenBnds ****\n","     %11.6f  < fld %d / fld %d < %11.6f \n",
 			   bnds.lower[i][j], i, j, bnds.upper[i][j]);
-		++incon;
 	  }
+
+      /* If inconsistencies exist, print message */
+////      Apop_stopif( bnds.lower[i][j] >= bnds.upper[i][j], return, 0,
+////		           "**** FATAL ERROR in GenBnds:  %11.6f  < %s / %s < %11.6f \n",
+////		           bnds.lower[i][j], bnames[i], bnames[j], bnds.upper[i][j]);
+
       L200: ;
 	}
-  }
-
-  if (incon > 0) {
-    /* WRITE(ofp13,2000) CAT, INCON */
   }
 
   return 0;
