@@ -1,4 +1,4 @@
-database: demo.db
+database: SPEER.db
 id: SSN
     
 SPEERfields { FEMP 1

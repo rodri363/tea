@@ -24,6 +24,9 @@ int incon = 0;         /* # of inconsistent ratios/bounds */
 int namlen = 0;        /* Length of longest basic item name */
 int npass = 0;   /*****  FIX ME:  Id rather have TEA call GenBnds only once. *****/
 
+#define MIN(a,b) ( a < b ? a : b)
+#define MAX(a,b) ( a > b ? a : b)
+
 //// **** FIX ME:  should be in .spec file
 static int numff[12+1] = {0, 1,2,3,4,5, 7,8,9,1,2, 3,5 };
 static int denff[12+1] = {0, 2,3,2,2,2, 6,5,6,3,1, 1,1 };
@@ -41,7 +44,8 @@ int genbnds_(void)
   char nam[maxfldlen];
 
   /* Subroutines */
-  extern int ReadExplicits(void), GenImplicits(void), CheckIncon(void), checks(void);
+  extern int ReadExplicits(void), GenImplicits(void), CheckIncon(void),
+	         PreChecks(void), PostChecks(void);
 
 /*****************  FIX ME:  Id rather have TEA call GenBnds only once. ************/
   /* Creating the implicit bounds needs to been done only once. */
@@ -68,8 +72,8 @@ int genbnds_(void)
 	if( strlen(bnames[pos]) > namlen ) { namlen = strlen(bnames[pos]); }
   }
 
-  /* Check for potential fatal problems. */
-  checks();
+  /* Check for potential pre-processing fatal problems. */
+  PreChecks();
 
   /* Create output tables */
   apop_query("drop table SPEERimpl;");   // FIX ME:  first check if SPEERimpl exists
@@ -92,30 +96,14 @@ int genbnds_(void)
     }
   }
 
-  /* If inconsistencies exist, store in database, stop program. */
-  Apop_stopif( incon > 0, return, -5,
-	       "**** FATAL ERROR in GenBnds:  %d inconsistent bounds exist. ****\n", 
-	       incon); 
+  /* Check for potential post-processing fatal problems. */
+  PostChecks();
 
   printf( " SPEER:  Implicit bounds -> table SPEERimpl. \n" );
 
   return 0;
 }
 
-
-int checks(void)
-/******************************************************/ 
-{
-  /* Stop program if maximum # of fields is exceded. */
-  Apop_stopif( BFLD > maxflds, return, -5,
-        "**** FATAL ERROR in GenBnds:  Maximum number of fields (%d) exceded. ****\n",
- 	    maxflds ); 
-
-  /* Stop program if max length of field names is exceded. */
-  Apop_stopif( namlen > maxfldlen, return, -5,
-        "**** FATAL ERROR in GenBnds:  Maximum length of field name (%d) exceded. ****\n",
- 	    maxfldlen ); 
-}
 
 
 int CheckIncon(void)
@@ -178,6 +166,68 @@ int GenImplicits(void)
   return 0;
 }
 
+
+int PreChecks(void)
+/******************************************************/ 
+/* Potential pre-processing fatal problems. */
+{
+  /* Stop program if maximum # of fields is exceded. */
+  Apop_stopif( BFLD > maxflds, return, -5,
+        "**** FATAL ERROR in GenBnds:  Maximum number of fields (%d) exceded. ****\n",
+ 	    maxflds ); 
+
+  /* Stop program if max length of field names is exceded. */
+  Apop_stopif( namlen > maxfldlen, return, -5,
+        "**** FATAL ERROR in GenBnds:  Maximum length of field name (%d) exceded. ****\n",
+ 	    maxfldlen ); 
+}
+
+
+int PostChecks(void)
+/******************************************************/ 
+/* Potential post-processing fatal problems. */
+{
+  int i;
+  double diff;
+  #define margin .05   // margin of error
+
+  /* Stop program if inconsistencies exist. */
+  Apop_stopif( incon > 0, return, -5,
+	       "**** FATAL ERROR in GenBnds:  %d inconsistent bounds exist. ****\n", 
+	       incon); 
+
+  /* Stop program if diagonals' bounds not = 1.0 */
+  for (i = 1; i <= BFLD; ++i) {
+    Apop_stopif( bnds.lower[i][i] != (double)1.0 | bnds.upper[i][i] != (double)1.0, return, -5,
+        "**** FATAL ERROR in GenBnds:  %s/%s bounds not = 1.0 ****\n",
+ 	    bnames[i], bnames[i] ); 
+  }
+
+  /* Random checks. */
+  diff = MIN( bnds.lower[1][2], (double).0215853 ) / MAX( bnds.lower[1][2], (double).0215853 );
+  diff = (double)1.0 - diff;
+  Apop_stopif( diff > margin, return, -5,
+	       "**** FATAL ERROR in GenBnds:  %s/%s lower bound not = .0215853 ****\n", 
+	       bnames[1], bnames[2] ); 
+
+  diff = MIN( bnds.upper[3][8], (double)578.9274902 ) / MAX( bnds.upper[3][8], (double)578.9274902 );
+  diff = (double)1.0 - diff;
+  Apop_stopif( diff > margin, return, -5,
+	       "**** FATAL ERROR in GenBnds:  %s/%s upper bound not = 578.9274902 ****\n", 
+	       bnames[3], bnames[8] ); 
+
+  diff = MIN( bnds.upper[2][6], (double)73072.4218750 ) / MAX( bnds.upper[2][6], (double)73072.4218750 );
+  diff = (double)1.0 - diff;
+  Apop_stopif( diff > margin, return, -5,
+	       "**** FATAL ERROR in GenBnds:  %s/%s upper bound not = 73072.4218750 ****\n", 
+	       bnames[2], bnames[6] ); 
+
+  diff = MIN( bnds.lower[2][6], (double).0001406 ) / MAX( bnds.lower[2][6], (double).0001406 );
+  diff = (double)1.0 - diff;
+  Apop_stopif( diff > margin, return, -5,
+	       "**** FATAL ERROR in GenBnds:  %s/%s lower bound not = .0001406 ****\n", 
+	       bnames[2], bnames[6] ); 
+}
 
 int ReadExplicits(void)
 /******************************************************/ 
