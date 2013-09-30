@@ -432,17 +432,16 @@ void moreblob(char **out, char* so_far, char *more){
         return;
     }
 
-   
-/************************************************************************/ 
+/************************************************************************/
 // SPEER bounds generating routine
 	/*********  FIX ME!!!!   Program a check to run SPEER **********/
-	/*********  FIX ME!!!!   genbnds_ runs too often here *************/
+	/*********  FIX ME!!!!   SPEER runs too often here *************/
 	bool ExpRatios_exist = true;
     if( pass == 0 && ExpRatios_exist ) {
         genbnds_(); 
         speer_();
     }
-    
+
     //more = strip(more);  //leak?
     if(pass==1 && apop_strcmp(current_key, "checks")){
         /*If you're here, you're in query mode and extending a query.
