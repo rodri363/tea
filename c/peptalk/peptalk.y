@@ -438,8 +438,8 @@ void moreblob(char **out, char* so_far, char *more){
 	/*********  FIX ME!!!!   SPEER runs too often here *************/
 	bool ExpRatios_exist = true;
     if( pass == 0 && ExpRatios_exist ) {
-        genbnds_(); 
-        speer_();
+        int gr = genbnds_();
+        if (gr==0) speer_();
     }
 
     //more = strip(more);  //leak?

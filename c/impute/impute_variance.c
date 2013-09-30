@@ -172,7 +172,7 @@ apop_data* multiple_imputation_variance_base(multiple_imputation_variance_t in){
     apop_data *out_var = apop_data_get_page(estimates[0], "<Covariance>");
     int cov_is_labelled = out_var !=NULL;
     if (!cov_is_labelled){
-        sprintf(out->more->names->title, "<Covariance>");
+        asprintf(&out->more->names->title, "<Covariance>");
         out_var = estimates[0]->more;
     }
 	Get_vmsizes(out_var);

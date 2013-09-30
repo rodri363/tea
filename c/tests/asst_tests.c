@@ -210,7 +210,7 @@ void test_ols(gsl_rng *r){
                 apop_model_set_parameters(apop_uniform, 1, 1), //a constant.
                 apop_model_set_parameters(apop_normal, 2, 1)),
                 apop_model_set_parameters(apop_poisson, 2));
-    int len=1e3;
+    int len = 1e3;
     apop_data *observations = apop_data_alloc(len, 3);
     for (int i=0; i< len; i++){
         Apop_matrix_row(observations->matrix, i, onerow); 
@@ -241,19 +241,18 @@ void test_ols(gsl_rng *r){
     apop_data_prune_columns(observations, "norm", "fish"); //vector "y" always kept.
     sprintf(apop_opts.db_name_column, "id_col");
     apop_db_open("olsdb.db");
-    begin_transaction();
-    apop_data_print(observations, .output_file="olsdata", .output_type='d');
-    commit_transaction();
+    apop_data_print(observations, .output_file="olsdata");
     //apop_data_show(observations);
 
 
     char *specname = "spec";
     write_a_file(specname, "database:olsdb.db\n"
                 "id: id_col \n"
-                "input { output table: olsdata} \n"
+                "input { input file: olsdata \n"
+                "output table: olsdata} \n"
                 "fields {  \n"
                 "Y: real \n"
-                "fish: int \n"
+                "fish: int  1-10\n"
                 "norm: real  } \n"
                 "impute { input table: olsdata \n"
                 "output table: olsfills\n"

@@ -33,6 +33,8 @@ extern int genbnds_(void);
 int genbnds_(void)
 /******************************************************/ 
 {
+  char *bfld_s = get_key_word("SPEERparams", "BFLD");
+  if (!bfld_s) return -2; //no Speer segment in the spec file.
   int i, j, ncat, pos;
   char nam[maxfldlen];
 
@@ -48,7 +50,6 @@ int genbnds_(void)
 
   ////char *bfld = get_key_text("SPEERparams", "BFLD");
   /* Incorporate SPEER parameters from .db/.spec file */
-  char *bfld_s = get_key_word("SPEERparams", "BFLD");
   char *nedff_s = get_key_word("SPEERparams", "NEDFF");
   char *totsic_s = get_key_word("SPEERparams", "TOTSIC");
 

@@ -34,7 +34,7 @@ static void ri_ext_init(){
         ri_ext[ri_ext_len] = used_vars[v].type=='i' 
                                ? apop_query_to_data("%s", q)
                                : apop_query_to_text("%s", q);
-        sprintf(ri_ext[ri_ext_len]->names->title, "%s", used_vars[v].name);
+        asprintf(&ri_ext[ri_ext_len]->names->title, "%s", used_vars[v].name);
         free(q);
         ri_ext_len++;
     }
