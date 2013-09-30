@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "internal.h"
+#include "em_weight.h"
 extern char *datatab;
 void qxprintf(char **q, char *format, ...); //bridge.c
 char *process_string(char *inquery, char **typestring); //parse_sql.c
@@ -135,8 +136,9 @@ apop_data *copy_by_name(apop_data *data, apop_data *form){
    */
 apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *orig){
     Apop_stopif(!raked, return NULL, 0, "NULL raking results.")
-    Apop_stopif(isnan(apop_sum(raked->weights)), return NULL, 0, "NaNs in raking results.")
-    Apop_stopif(!apop_sum(raked->weights), return NULL, 0, "No weights in raking results.")
+    double s = apop_sum(raked->weights);
+    Apop_stopif(isnan(s), return NULL, 0, "NaNs in raking results.")
+    Apop_stopif(s==0, return NULL, 0, "No weights in raking results.")
     bool done=false;
     Apop_data_row(raked, 0, firstrow);
     apop_data *cp = copy_by_name(fin, firstrow);
@@ -196,50 +198,17 @@ static void rake_to_completion(const char *datatab, const char *underlying,
                     XN(weight_col), /*previous_filltab ? dt :*/datatab, catlist ? "where": " ", XN(catlist));
     Apop_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
     Apop_stopif(d->error, return, 0, "query error.");
-    apop_data *notnan = apop_data_listwise_delete(d);
-    Apop_stopif(notnan && notnan->error, return, 0, "listwise deletion error");
-    //if notnan=NULL or < 1/2 the full data set, then raking will use the default all-one init table.
-    bool notnan_tab_big_enough = notnan && notnan->matrix->size1 > 0.5*d->matrix->size1;
-    if (notnan_tab_big_enough){
-        begin_transaction();
-        apop_data_print(notnan, .output_file="notnan", .output_append='w', .output_type='d');
-        commit_transaction();
-        apop_data_free(notnan);
+    if (!d->weights) {
+        if (weight_col){
+            Apop_col_t(d, weight_col, wc);
+            d->weights = apop_vector_copy(wc);
+            gsl_vector_set_all(wc, 0); //debris.
+        } else {
+            d->weights = gsl_vector_alloc(d->matrix->size1);
+            gsl_vector_set_all(d->weights, 1);
+        }
     }
-
-    char *zeros=NULL, *or="";
-    if (edit_list)
-        for (int i=0; edit_list[i].clause; i++)
-            if (vars_in_edit_are_in_rake_table(edit_list[i].vars_used,
-                    edit_list[i].var_ct, as_data)){
-                asprintf(&zeros, "%s%s(%s)", XN(zeros), or, edit_list[i].clause);
-                or = " or ";
-            }
-    for (int i=0; i< is.allvars_ct; i++){
-        asprintf(&zeros, "%s%s(%s=='nan' or %s is null)", 
-                        XN(zeros), or, is.allvars[i], is.allvars[i]);
-        or = " or ";
-    }
-
-
-    char *cutname=NULL; 
-    begin_transaction();
-    if (catlist) {
-        asprintf(&cutname, "%s_cut", datatab);
-        apop_table_exists(cutname, 'd');
-        apop_query("create table %s as select * from %s where %s", cutname, datatab, catlist);
-        index_cats(cutname, &as_data);
-    }
-    apop_data *raked =
-        apop_rake(.margin_table=margintab ? margintab : (catlist? cutname : datatab),
-                .var_list=is.allvars, .var_ct=is.allvars_ct,
-                .contrasts=contrasts? *contrasts->text : is.allvars, 
-                .contrast_ct=contrasts? contrasts->textsize[1] : is.allvars_ct,
-                .count_col=weight_col, .init_table=notnan_tab_big_enough ? "notnan": NULL, 
-                .structural_zeros=zeros, /*.nudge=0.01,*/
-                .init_count_col=notnan_tab_big_enough ? weight_col: NULL);
-    free(cutname);
-    commit_transaction();
+    apop_data *raked = em_weight(d, .tolerance=1e-3);
     Apop_stopif(!raked, return, 
                 0, "Raking returned a blank table. This shouldn't happen.");
     Apop_stopif(raked->error, return,

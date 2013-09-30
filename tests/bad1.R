@@ -1,4 +1,4 @@
-library(tea)
-read_spec("bad1.spec")
-doInput()
-doMImpute()
+#library(tea)
+#read_spec("bad1.spec")
+#doInput()
+#doMImpute()
