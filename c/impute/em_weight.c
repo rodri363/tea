@@ -17,7 +17,7 @@ static double cull2(apop_data const *onerow, apop_data *cullback){
 }
 
 /* In this version, both the reference row and the weight set to be culled
-   may have NaNs. We still require compabibility in those fields where both 
+   may have NaNs. We still require compabibility in those fields where both
    have data, but where one has a NaN and the other doesn't, we write down 
    the nonmissing value for that field, regardless of which side it came from.
    Therefore, the resultant data has fewer NaN fields than either source, and 
