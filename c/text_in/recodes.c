@@ -145,7 +145,7 @@ int set_up_triggers(char const * intab){
     apop_data *o = apop_query_to_data("select * from %s limit 1", intab);
     for (int i=0; i< o->names->colct; i++){
         int is_imputable=0; //only variables in the impute list need triggers.
-        char *col= o->names->column[i];
+        char *col= o->names->col[i];
         for (int j=0; !is_imputable && j< imputables->textsize[0]; j++)
             if (apop_strcmp(*imputables->text[j], col))
                 is_imputable++;
@@ -233,7 +233,6 @@ static int make_recode_view(char **tag, char **first_or_last){
 }
 
 void do_recodes(){
-    char *recodes_key;
     Apop_stopif(get_key_word("input", "output table") == NULL, return, 0, "You didn't specify an output table in your input key so I don't know where to write your recodes. Please specify an output table in your spec file.");
     char *goalname; 
     asprintf(&goalname, "view%s", get_key_word("input", "output table"));

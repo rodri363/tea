@@ -213,7 +213,7 @@ void test_ols(gsl_rng *r){
     int len=1e3;
     apop_data *observations = apop_data_alloc(len, 3);
     for (int i=0; i< len; i++){
-        Apop_row(observations, i, onerow); 
+        Apop_matrix_row(observations->matrix, i, onerow); 
         apop_draw(onerow->data, r, xlist);
     }
     apop_data *betas= apop_data_fill(apop_data_alloc(3), 3, -2, 1);

@@ -53,7 +53,7 @@ int blank_fingerprints(char const **datatab){
 
         apop_query("update %s set %s = null where %s+0.0 = %s",
                 *datatab, 
-                prints->names->column[gsl_vector_max_index(v)],
+                prints->names->col[gsl_vector_max_index(v)],
                 id, prints->names->row[i]
                 );
     }
@@ -116,7 +116,7 @@ apop_data *copy_by_name(apop_data *data, apop_data *form){
     for (int i=0; i< data->matrix->size2; i++){
         double this = apop_data_get(data, .col=i);
         if (isnan(this)) continue; //don't bother.
-        int corresponding_col = apop_name_find(out->names, data->names->column[i], 'c');
+        int corresponding_col = apop_name_find(out->names, data->names->col[i], 'c');
         if (corresponding_col!=-2) 
             apop_data_set(out, 0, corresponding_col, this);
     }
@@ -187,8 +187,8 @@ static void rake_to_completion(const char *datatab, const char *underlying,
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
     char *varlist = apop_text_paste(&as_data, .between=", ");
 
-    char *dt="tea_co", *dxx=(char*)datatab;
-    int zero=0;
+    //char *dt="tea_co", *dxx=(char*)datatab;
+    //int zero=0;
     //if (previous_filltab) check_out_impute(&dxx, /*&dt*/ NULL, &zero, NULL, &previous_filltab);
 
     apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s", id_col, varlist, 
@@ -250,7 +250,7 @@ static void rake_to_completion(const char *datatab, const char *underlying,
     gsl_vector *cp_to_fill = gsl_vector_alloc(d->matrix->size2);
     apop_data *fillins = apop_data_alloc();
     for (size_t i=0; i< d->matrix->size1; i++){
-        Apop_row(d, i, focusv); //as vector
+        Apop_matrix_row(d->matrix, i, focusv); //as vector
         if (!isnan(apop_sum(focusv))) continue;
         Apop_data_row(d, i, focus); //as data set w/names
 
@@ -268,7 +268,7 @@ static void rake_to_completion(const char *datatab, const char *underlying,
                     apop_text_alloc(fillins, len+1, 2);
                     Apop_stopif(fillins->error, return, 0, "Something wrong with the table of fill-ins when drawing from the imputation model. Out of memory?");
                     apop_text_add(fillins, len, 0, *focus->names->row);
-                    apop_text_add(fillins, len, 1, focus->names->column[j]);
+                    apop_text_add(fillins, len, 1, focus->names->col[j]);
                     gsl_matrix_set(fillins->matrix, len, 0, drawno);
                     gsl_matrix_set(fillins->matrix, len, 1, cp_to_fill->data[j]);
                 }
@@ -501,7 +501,7 @@ static void model_est(impustruct *is, int *model_id){
     //maybe check here for constant columns in regression estimations.
     if (notnan->text && !apop_data_get_page(notnan,"<categories"))
         for (int i=0; i< notnan->textsize[1]; i++){
-            if (!is->is_hotdeck && is->textdep && strcmp(notnan->names->column[i], is->depvar) )
+            if (!is->is_hotdeck && is->textdep && strcmp(notnan->names->col[i], is->depvar) )
                 apop_data_to_dummies(notnan, i, .keep_first='y', .append='y');
             //the actual depvar got factor-ized in prep_for_draw.
 //            apop_data_to_dummies(is->isnan, i, .keep_first='y', .append='y'); //presumably has the same structure.
@@ -522,7 +522,7 @@ static void model_est(impustruct *is, int *model_id){
         apop_data_set(is->fitted_model->parameters, .row=0, .col=-1, .val=1);
     if (!strcmp(is->base_model.name, "Ordinary Least Squares"))
         is->fitted_model->draw=lil_ols_draw;
-    if (verbose) apop_model_print(is->fitted_model);
+    if (verbose) apop_model_print(is->fitted_model, NULL);
     (*model_id)++;
     apop_query("insert into model_log values(%i, 'type', '%s');", *model_id, is->fitted_model->name);
     if (is->fitted_model->parameters && is->fitted_model->parameters->vector) //others are hot-deck or kde-type
@@ -696,7 +696,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         //copy the new impute to full_record, for re-testing
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
         int size_as_int =*full_record->textsize;
-        consistency_check((char *const *)(full_record->names->text ? full_record->names->text : full_record->names->column),
+        consistency_check((char *const *)(full_record->names->text ? full_record->names->text : full_record->names->col),
                           (char *const *)full_record->text[0],
                           &size_as_int,
                           &whattodo,

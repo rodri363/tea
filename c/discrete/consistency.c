@@ -205,7 +205,7 @@ static void do_a_combo(int *record, char *const restrict  *record_name_in, int c
 			if (timeout && time(NULL) > timeout) longjmp(jmpbuf, 1);
             if (!check_a_record(record, NULL, 0, NULL, record_name_in, record_in_size)){//OK record; write it.
                 int this_row = apop_data_get(fillme, 0, -1);
-                apop_vector_increment(fillme->vector, 0);
+                (*gsl_vector_ptr(fillme->vector, 0))++;
                 for (int k=0; k< field_count; k++){
                     int this_field_indexx = user_to_em[k];
                     if (failed_edits_in[this_field_indexx]){
@@ -371,7 +371,7 @@ apop_data *checkData(apop_data *data){
     //copy field names from the input data.
 	int nvars = data->names->colct + data->names->textct;
 	char *fields[nvars];
-    memcpy(fields, data->names->column, sizeof(char*)*data->names->colct);
+    memcpy(fields, data->names->col, sizeof(char*)*data->names->colct);
     memcpy(&fields[data->names->colct], data->names->text, sizeof(char*)*data->names->textct);
 
 	//now that we have the variables, we can call check_a_record for each row

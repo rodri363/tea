@@ -11,8 +11,7 @@
 /* ***      BNAMES( ) IN DATADECL PROC                      **** */
 /* ************************************************************* */
 
-#include <stdio.h>
-#include <apop.h>
+#include "internal.h"
 
 /* constant globals */
 /* **** FIX ME:   constant globals should go into .spec file **** */
@@ -69,7 +68,7 @@ int edchek_(void)
   for (i = 1; i <= BFLD-1; ++i) {
 
      /* *** CHECK FOR BLANK BASIC ITEMS **** */
-	 if (commed.basitm[i] < (double)0.0) {
+	 if (commed.basitm[i] < 0) {
 	    ++commed.nblank;
 	    bblank[commed.nblank] = i;
      
@@ -78,12 +77,12 @@ int edchek_(void)
 	    for (j = i+1; j <= BFLD; ++j) {
 		   lower = commed.lwbd[commed.numsic][i][j] * commed.bm[i][j];
 		   upper = commed.upbd[commed.numsic][i][j] * commed.tm[i][j];
-	       if ((commed.basitm[j] == (double)0.0  
-			   &&  lower > (double)0.0  &&  upper < (double)99999.0 )
+	       if (((commed.basitm[j] == 0)
+			   &&  (lower > 0)  &&  (upper < 99999))
 			        || 
-			   commed.basitm[j] > (double)0.0 
-			   && (lower > (double)0.0  &&  commed.basitm[j]*lower > commed.basitm[i] 
-			   || upper < (double)99999.0  &&  commed.basitm[j]*upper < commed.basitm[i]))
+			   (commed.basitm[j] > 0)
+			   && ((lower > 0  &&  commed.basitm[j]*lower > commed.basitm[i])
+			   || (upper < 99999  &&  commed.basitm[j]*upper < commed.basitm[i])))
 		   {
 		    ++commed.nf;
 		    commed.frcomp[commed.nf][1] = i;

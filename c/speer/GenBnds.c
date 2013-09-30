@@ -2,14 +2,7 @@
 /* *** DERIVE THE IMPLICIT UPPER & LOWER BOUNDS FROM THE **** */
 /* *** BASIC ITEM'S EXPLICIT BOUNDS.                     **** */
 
-#include <stdio.h>
-#include <apop.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sqlite3.h>
-
-sqlite3 *db;
-sqlite3_stmt *res;
+#include "internal.h"
 
 /* global constants */
 #define maxflds 100    /* maximum # of basic items/field */
@@ -53,15 +46,15 @@ int genbnds_(void)
   if( npass > 1 ) { return 0; }
 
 
-  ////char *bfld = get_key_word("SPEERparams", "BFLD");
+  ////char *bfld = get_key_text("SPEERparams", "BFLD");
   /* Incorporate SPEER parameters from .db/.spec file */
-  apop_data *bfld_s = get_key_text("SPEERparams", "BFLD");
-  apop_data *nedff_s = get_key_text("SPEERparams", "NEDFF");
-  apop_data *totsic_s = get_key_text("SPEERparams", "TOTSIC");
+  char *bfld_s = get_key_word("SPEERparams", "BFLD");
+  char *nedff_s = get_key_word("SPEERparams", "NEDFF");
+  char *totsic_s = get_key_word("SPEERparams", "TOTSIC");
 
-  BFLD = atoi( bfld_s->text[0][0] );
-  NEDFF = atoi( nedff_s->text[0][0] );
-  TOTSIC = atoi( totsic_s->text[0][0] );
+  BFLD = atoi( bfld_s );
+  NEDFF = atoi( nedff_s );
+  TOTSIC = atoi( totsic_s );
 
   /* Get field names from .db/.spec file & store them in an array */
   /* Determine longest field name for check later on              */
@@ -105,6 +98,20 @@ int genbnds_(void)
 }
 
 
+int checks(void)
+/******************************************************/ 
+{
+  /* Stop program if maximum # of fields is exceded. */
+  Apop_stopif( BFLD > maxflds, return -1, -5,
+        "**** FATAL ERROR in GenBnds:  Maximum number of fields (%d) exceded. ****\n",
+ 	    maxflds ); 
+
+  /* Stop program if max length of field names is exceded. */
+  Apop_stopif( namlen > maxfldlen, return -1, -5,
+        "**** FATAL ERROR in GenBnds:  Maximum length of field name (%d) exceded. ****\n",
+ 	    maxfldlen ); 
+  return 0;
+}
 
 int CheckIncon(void)
 /******************************************************/ 
