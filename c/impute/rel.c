@@ -51,7 +51,7 @@ static void rel_draw(double *out, gsl_rng *r, apop_model *m){
         //All HHs appear in equal numbers, so uniform draw works.
         int hh_id = apop_query_to_float("select mafid from tea_hhs where oid = '%i'",
                 1+ (int)(gsl_rng_uniform(r)*apop_query_to_float("select count(*) from tea_hhs")));
-        this_hh = apop_query_to_data("select rel from tea_hhs where "
+        this_hh = apop_query_to_data("select perel from tea_hhs where "
                     "mafid = %i", hh_id);
         Apop_stopif (!this_hh || this_hh->error, *out=GSL_NAN; return,
                 0, "Something went wrong drawing a household from my "
@@ -61,4 +61,4 @@ static void rel_draw(double *out, gsl_rng *r, apop_model *m){
     ctr = (ctr+1) % this_hh->matrix->size1;
 }
 
-apop_model relmodel = {"Model for drawing relationship", .estimate=rel_est, .draw=rel_draw};
+apop_model *relmodel = &(apop_model){"Model for drawing relationship", .estimate=rel_est, .draw=rel_draw};

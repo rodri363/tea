@@ -12,13 +12,13 @@ void xprintf(char **q, char *format, ...); //parse_sql.c
 char *strip (const char*); //peptalk.y
 #define XN(in) ((in) ? (in) : "")
 
-apop_model relmodel; //impute/rel.c
+apop_model *relmodel; //impute/rel.c
 
 data_frame_from_apop_data_type *rapop_df_from_ad;//alloced in PEPedits.c:R_init_tea
 
 
 typedef struct {
-	apop_model base_model, *fitted_model;
+	apop_model *base_model, *fitted_model;
 	char * depvar, **allvars, *vartypes, *selectclause;
 	int position, allvars_ct, error;
 	apop_data *isnan, *notnan;
@@ -266,7 +266,7 @@ static void rake_to_completion(const char *datatab, const char *underlying,
 	
 static void lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
     double temp_out[m->parameters->vector->size+1];
-    m->draw = apop_ols.draw;
+    m->draw = apop_ols->draw;
     apop_draw(temp_out, r, m);
     m->draw = lil_ols_draw;
     *out = temp_out[0];
@@ -484,12 +484,12 @@ static void model_est(impustruct *is, int *model_id){
     if (is->is_hotdeck) apop_data_pmf_compress(notnan);
 	//Apop_model_add_group(&(is->base_model), apop_parts_wanted); //no extras like cov or log like.
 
-    install_data_to_R(notnan, &is->base_model); //no-op if not an R model.
+    install_data_to_R(notnan, is->base_model); //no-op if not an R model.
 	is->fitted_model = apop_estimate(notnan, is->base_model);
     Apop_stopif(!is->fitted_model, return, 0, "model fitting fail.");
-    if (!strcmp(is->base_model.name, "multinomial"))
+    if (!strcmp(is->base_model->name, "multinomial"))
         apop_data_set(is->fitted_model->parameters, .row=0, .col=-1, .val=1);
-    if (!strcmp(is->base_model.name, "Ordinary Least Squares"))
+    if (!strcmp(is->base_model->name, "Ordinary Least Squares"))
         is->fitted_model->draw=lil_ols_draw;
     if (verbose) apop_model_print(is->fitted_model, NULL);
     (*model_id)++;
@@ -684,7 +684,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
     Apop_stopif(col_of_interest < -1, return, 0, "I couldn't find %s in the list of column names.", is->depvar);
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         char *name = is->isnan->names->row[rowindex];
-        if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)==-1) {
+        if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)==-1){
             //Then this is already done. Verify in the main list; continue.
             char *pd; asprintf(&pd, "%s.", name);
             Apop_stopif(mark_an_id(pd, nanvals->names->row, nanvals->names->rowct, 'y')==-1,
@@ -777,8 +777,8 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                 if (!is->notnan || GSL_MAX((is->notnan)->textsize[0]
                             , (is->notnan)->matrix ? (is->notnan)->matrix->size1: 0) < min_group_size)
                     goto bail;
-                is->is_hotdeck = (is->base_model.estimate == apop_multinomial.estimate 
-                                        ||is->base_model.estimate ==apop_pmf.estimate);
+                is->is_hotdeck = (is->base_model->estimate == apop_multinomial->estimate 
+                                        ||is->base_model->estimate ==apop_pmf->estimate);
                 model_est(is, &model_id); //notnan may be pmf_compressed here.
                 prep_for_draw(is->notnan, is);
                 for (int innerdraw=0; innerdraw< innermax; innerdraw++)
@@ -817,24 +817,25 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
     apop_name_free(clean_names);
 }
 
+apop_model null_model = {.name="null model"};
+
 /* TeaKEY(impute/method, <<<Specifies what model to use to impute output vars for a given impute key.>>>)
  */
-apop_model tea_get_model_by_name(char *name, impustruct *model){
+apop_model *tea_get_model_by_name(char *name, impustruct *model){
     static get_am_from_registry_type *rapop_model_from_registry;
     static int is_inited=0;
     if (!is_inited && using_r)
         rapop_model_from_registry = (void*) R_GetCCallable("Rapophenia", "get_am_from_registry");
 
-    apop_model out= !strcmp(name, "normal")
+    apop_model *out= !strcmp(name, "normal")
           ||!strcmp(name, "gaussian")
 				? apop_normal :
 			!strcmp(name, "multivariate normal")
 				? apop_multivariate_normal :
 			!strcmp(name, "lognormal")
 				? apop_lognormal :
-			!strcmp(name, "rake")
-		  ||!strcmp(name, "raking")
-				?  (model->is_rake = true, (apop_model){.name="null model"}) :
+			!strcmp(name, "rake") ||!strcmp(name, "raking")
+				?  (model->is_rake = true, &null_model) :
 			!strcmp(name, "hotdeck")
 		  ||!strcmp(name, "hot deck")
 	      ||!strcmp(name, "multinomial")
@@ -853,12 +854,12 @@ apop_model tea_get_model_by_name(char *name, impustruct *model){
 			!strcmp(name, "kernel")
 	      ||!strcmp(name, "kernel density")
 				? apop_kernel_density 
-				: (apop_model) {.name="Null model"};
-        if (using_r && !strcmp(out.name, "Null model")) //probably an R model.
-            out= *rapop_model_from_registry(name);
-        Apop_stopif(!strcmp(out.name, "Null model"), return (apop_model){}, 0, "model selection fail.");
-        Apop_model_add_group(&out, apop_parts_wanted, .predicted='y'); //no cov
-        if (!strcmp(out.name, "PDF or sparse matrix")) out.dsize=-2;
+				: &null_model;
+        if (using_r && !strcmp(out->name, "Null model")) //probably an R model.
+            out= rapop_model_from_registry(name);
+        Apop_stopif(!strcmp(out->name, "Null model"), return &(apop_model){}, 0, "model selection fail.");
+        Apop_model_add_group(out, apop_parts_wanted, .predicted='y'); //no cov
+        if (!strcmp(out->name, "PDF or sparse matrix")) out->dsize=-2;
         return out;
 }
 
@@ -887,7 +888,7 @@ impustruct read_model_info(char const *configbase, char const *tag, char const *
     //find the right model.
     char *model_name = get_key_word_tagged(configbase, "method", tag);
     model.base_model = tea_get_model_by_name(model_name, &model);
-    Apop_stopif(!strlen(model.base_model.name), model.error=1; return model, 0, "model selection fail; you requested %s.", model_name);
+    Apop_stopif(!strlen(model.base_model->name), model.error=1; return model, 0, "model selection fail; you requested %s.", model_name);
   
 
 /* In this section, we construct the select clause that will produce the data we need for estimation. apop_query_to_mixed_data also requires a list of type elements, so get that too.
