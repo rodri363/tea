@@ -2,6 +2,7 @@
 /* *** DERIVE THE IMPLICIT UPPER & LOWER BOUNDS FROM THE **** */
 /* *** BASIC ITEM'S EXPLICIT BOUNDS.                     **** */
 
+////#include "internal.h"     // apophenia v 0.995
 #include <stdio.h>
 #include <apop.h>
 #include <string.h>
