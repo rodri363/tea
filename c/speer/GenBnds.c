@@ -2,7 +2,14 @@
 /* *** DERIVE THE IMPLICIT UPPER & LOWER BOUNDS FROM THE **** */
 /* *** BASIC ITEM'S EXPLICIT BOUNDS.                     **** */
 
-#include "internal.h"
+#include <stdio.h>
+#include <apop.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sqlite3.h>
+
+////sqlite3 *db;
+////sqlite3_stmt *res;
 
 /* global constants */
 #define maxflds 100    /* maximum # of basic items/field */
