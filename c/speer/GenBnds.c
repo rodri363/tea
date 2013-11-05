@@ -15,10 +15,13 @@
 /* global constants */
 #define maxflds 100    /* maximum # of basic items/field */
 #define maxfldlen 30   /* maximum field name length */
+#define maxexps 100    /* maximum # of Explicit ratios (per category) */
 int BFLD;	           /* # of basic items */
+char bnames[maxfldlen][maxflds];  /* Basic item names [name length][# of fields] */
 int TOTSIC;            /* # of categories of ratios */
 int NEDFF;	           /* # of explicit ratios per category */
-char bnames[maxfldlen][maxflds];  /* Basic item names [name length][# of fields] */
+int numff[maxexps];    /* Numerators of explicit ratios */
+int denff[maxexps];    /* Denominators of explicit ratios */
 
 /* global variables */
 int incon = 0;         /* # of inconsistent ratios/bounds */
@@ -28,21 +31,17 @@ int npass = 0;   /*****  FIX ME:  Id rather have TEA call GenBnds only once. ***
 #define MIN(a,b) ( a < b ? a : b)
 #define MAX(a,b) ( a > b ? a : b)
 
-//// **** FIX ME:  should be in .spec file
-static int numff[12+1] = {0, 1,2,3,4,5, 7,8,9,1,2, 3,5 };
-static int denff[12+1] = {0, 2,3,2,2,2, 6,5,6,3,1, 1,1 };
 
 struct { float lower[maxflds][maxflds]; float upper[maxflds][maxflds]; } bnds;
 
 extern int genbnds_(void);
-
+extern apop_data *get_key_text( char*, char* );
+extern char *get_key_word( char*, char* );
 
 
 int genbnds_(void)
 /******************************************************/ 
 {
-  char *bfld_s = get_key_word("SPEERparams", "BFLD");
-  if (!bfld_s) return -2; //no Speer segment in the spec file.
   int i, j, ncat, pos;
   char nam[maxfldlen];
 
@@ -55,15 +54,20 @@ int genbnds_(void)
   npass++;
   if( npass > 1 ) { return 0; }
 
-
   ////char *bfld = get_key_text("SPEERparams", "BFLD");
+
   /* Incorporate SPEER parameters from .db/.spec file */
+  char *bfld_s = get_key_word("SPEERparams", "BFLD");
+  //// if (!bfld_s) return -2; //no Speer segment in the spec file.
   char *nedff_s = get_key_word("SPEERparams", "NEDFF");
   char *totsic_s = get_key_word("SPEERparams", "TOTSIC");
 
   BFLD = atoi( bfld_s );
   NEDFF = atoi( nedff_s );
   TOTSIC = atoi( totsic_s );
+
+  /* Check for potential pre-processing fatal problems. */
+  PreChecks();
 
   /* Get field names from .db/.spec file & store them in an array */
   /* Determine longest field name for check later on              */
@@ -73,9 +77,6 @@ int genbnds_(void)
     strcpy( bnames[pos], nam );
 	if( strlen(bnames[pos]) > namlen ) { namlen = strlen(bnames[pos]); }
   }
-
-  /* Check for potential pre-processing fatal problems. */
-  PreChecks();
 
   /* Create output tables */
   apop_query("drop table SPEERimpl;");   // FIX ME:  first check if SPEERimpl exists
@@ -188,14 +189,22 @@ int PreChecks(void)
 /* Potential pre-processing fatal problems. */
 {
   /* Stop program if maximum # of fields is exceded. */
-  Apop_stopif( BFLD > maxflds, return, -5,
+  /*   Just increase the value of maxflds variable.  */
+  Apop_stopif( BFLD > maxflds, return 0, -5,
         "**** FATAL ERROR in GenBnds:  Maximum number of fields (%d) exceded. ****\n",
  	    maxflds ); 
 
   /* Stop program if max length of field names is exceded. */
-  Apop_stopif( namlen > maxfldlen, return, -5,
+  /*   Just increase the value of maxfldlen variable.      */
+  Apop_stopif( namlen > maxfldlen, return 0, -5,
         "**** FATAL ERROR in GenBnds:  Maximum length of field name (%d) exceded. ****\n",
  	    maxfldlen ); 
+
+  /* Stop program if number of Explicit ratios (per category) is exceded. */
+  /*   Just increase the value of maxexps variable.  */
+  Apop_stopif( NEDFF > maxexps, return 0, -5,
+        "**** FATAL ERROR in GenBnds:  Maximum number of Expicit ratios (%d) exceded. ****\n",
+ 	    maxexps ); 
 }
 
 
@@ -208,13 +217,13 @@ int PostChecks(void)
   #define margin .05   // margin of error
 
   /* Stop program if inconsistencies exist. */
-  Apop_stopif( incon > 0, return, -5,
+  Apop_stopif( incon > 0, return 0, -5,
 	       "**** FATAL ERROR in GenBnds:  %d inconsistent bounds exist. ****\n", 
 	       incon); 
 
   /* Stop program if diagonals' bounds not = 1.0 */
   for (i = 1; i <= BFLD; ++i) {
-    Apop_stopif( bnds.lower[i][i] != (double)1.0 | bnds.upper[i][i] != (double)1.0, return, -5,
+    Apop_stopif( bnds.lower[i][i] != (double)1.0 | bnds.upper[i][i] != (double)1.0, return 0, -5,
         "**** FATAL ERROR in GenBnds:  %s/%s bounds not = 1.0 ****\n",
  	    bnames[i], bnames[i] ); 
   }
@@ -222,25 +231,25 @@ int PostChecks(void)
   /* Random checks. */
   diff = MIN( bnds.lower[1][2], (double).0215853 ) / MAX( bnds.lower[1][2], (double).0215853 );
   diff = (double)1.0 - diff;
-  Apop_stopif( diff > margin, return, -5,
+  Apop_stopif( diff > margin, return 0, -5,
 	       "**** FATAL ERROR in GenBnds:  %s/%s lower bound not = .0215853 ****\n", 
 	       bnames[1], bnames[2] ); 
 
   diff = MIN( bnds.upper[3][8], (double)578.9274902 ) / MAX( bnds.upper[3][8], (double)578.9274902 );
   diff = (double)1.0 - diff;
-  Apop_stopif( diff > margin, return, -5,
+  Apop_stopif( diff > margin, return 0, -5,
 	       "**** FATAL ERROR in GenBnds:  %s/%s upper bound not = 578.9274902 ****\n", 
 	       bnames[3], bnames[8] ); 
 
   diff = MIN( bnds.upper[2][6], (double)73072.4218750 ) / MAX( bnds.upper[2][6], (double)73072.4218750 );
   diff = (double)1.0 - diff;
-  Apop_stopif( diff > margin, return, -5,
+  Apop_stopif( diff > margin, return 0, -5,
 	       "**** FATAL ERROR in GenBnds:  %s/%s upper bound not = 73072.4218750 ****\n", 
 	       bnames[2], bnames[6] ); 
 
   diff = MIN( bnds.lower[2][6], (double).0001406 ) / MAX( bnds.lower[2][6], (double).0001406 );
   diff = (double)1.0 - diff;
-  Apop_stopif( diff > margin, return, -5,
+  Apop_stopif( diff > margin, return 0, -5,
 	       "**** FATAL ERROR in GenBnds:  %s/%s lower bound not = .0001406 ****\n", 
 	       bnames[2], bnames[6] ); 
 }
@@ -253,6 +262,7 @@ int ReadExplicits(void)
   /* Local variables */
   static int i, j;
   static double temp;
+  float lo, up;
 
   /* *** INITIALIZE BOUNDS FOR EACH CATEGOR **** */
   for (i = 1; i <= BFLD; ++i) {
@@ -279,10 +289,29 @@ int ReadExplicits(void)
   apop_data *ExpBnds = get_key_text("ExpRatios", NULL);
 
   /* Parse ExpBnds string */
+  /* Determine/fill numff & denff arrays.  Then place Explicit ratios into matrices. */
   for (i = 0; i <= NEDFF-1; ++i) {
-    sscanf( ExpBnds->text[i][0], "%f %s %s %f", 
-	      &bnds.lower[numff[i+1]][denff[i+1]], num, den, &bnds.upper[numff[i+1]][denff[i+1]] );
+    sscanf( ExpBnds->text[i][0], "%f %s %s %f", &lo, num, den, &up );
+    numff[i+1] = 0;
+    denff[i+1] = 0;
+    for (j = 1; j <= BFLD; ++j) {
+	  if( strcmp(num, bnames[j]) == 0 ) { numff[i+1] = j; }
+	  if( strcmp(den, bnames[j]) == 0 ) { denff[i+1] = j; }
+	}
+    Apop_stopif( numff[i+1] == 0 | denff[i+1] == 0, return 0, -5,
+		"**** FATAL ERROR in GenBnds:  Problem reading explicit ratio #%d. ****\n", i ); 
+
+	/* Place Explicit ratios into matrices. */
+    bnds.lower[numff[i+1]][denff[i+1]] = lo;
+    bnds.upper[numff[i+1]][denff[i+1]] = up;
   }
+
+  /* Parse ExpBnds string */
+////  for (i = 0; i <= NEDFF-1; ++i) {
+////    sscanf( ExpBnds->text[i][0], "%f %s %s %f",
+////	      &bnds.lower[numff[i+1]][denff[i+1]], num, den, &bnds.upper[numff[i+1]][denff[i+1]] );
+////  }
+
 /*******************************************************************************/ 
 
 /* *** ASSIGN THE EXISTING RATIOS' INVERSE LOWER BOUND TO THE **** */

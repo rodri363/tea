@@ -1,6 +1,11 @@
 database: SPEER.db
 id: SSN
     
+SPEERparams { BFLD: 9
+              TOTSIC: 2
+              NEDFF: 12
+            }
+
 SPEERfields { FEMP 1
               FAPR 2
               FQPR 3
@@ -10,11 +15,6 @@ SPEERfields { FEMP 1
               FTOT 7
               FRPT 8
               FADE 9
-            }
-
-SPEERparams { BFLD: 9
-              TOTSIC: 2
-              NEDFF: 12 
             }
 
 ExpRatios {   .0212400  FEMP FAPR     .0711125        .0369900

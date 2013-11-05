@@ -432,15 +432,14 @@ void moreblob(char **out, char* so_far, char *more){
         return;
     }
 
-/************************************************************************/
-// SPEER bounds generating routine
-	/*********  FIX ME!!!!   Program a check to run SPEER **********/
-	/*********  FIX ME!!!!   SPEER runs too often here *************/
-	bool ExpRatios_exist = true;
-    if( pass == 0 && ExpRatios_exist ) {
-        int gr = genbnds_();
-        if (gr==0) speer_();
-    }
+    /******************************************************************/
+	/****  FIX ME!!!!  dont like that GenBnds is called more than once here *************/
+	/* If SPEER segment exists in the spec file, call GenBnds & SPEER */
+    char *bfld_exits = get_key_word("SPEERparams", "BFLD");
+    if( bfld_exits ) {
+        genbnds_();
+        speer_();
+    } 
 
     //more = strip(more);  //leak?
     if(pass==1 && apop_strcmp(current_key, "checks")){
