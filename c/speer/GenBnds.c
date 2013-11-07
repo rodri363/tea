@@ -9,9 +9,6 @@
 #include <stdlib.h>
 #include <sqlite3.h>
 
-////sqlite3 *db;
-////sqlite3_stmt *res;
-
 /* global constants */
 #define maxflds 100    /* maximum # of basic items/field */
 #define maxfldlen 30   /* maximum field name length */
@@ -54,8 +51,10 @@ int genbnds_(void)
   npass++;
   if( npass > 1 ) { return 0; }
 
-  ////char *bfld = get_key_text("SPEERparams", "BFLD");
-
+/* TeaKEY( SPEERparams/BFLD, <<< BFLD = # of basic items >>>)
+   TeaKEY( SPEERparams/NEDFF, <<< NEDFF = # of explicit ratios per category >>>)
+   TeaKEY( SPEERparams/TOTSIC, <<< TOTSIC = # of explicit ratios per category >>>)
+*/  
   /* Incorporate SPEER parameters from .db/.spec file */
   char *bfld_s = get_key_word("SPEERparams", "BFLD");
   //// if (!bfld_s) return -2; //no Speer segment in the spec file.
@@ -69,6 +68,7 @@ int genbnds_(void)
   /* Check for potential pre-processing fatal problems. */
   PreChecks();
 
+  /* TeaKEY( SPEERfields, <<< Basic item names:  listed in imputation order. >>>) */
   /* Get field names from .db/.spec file & store them in an array */
   /* Determine longest field name for check later on              */
   apop_data *Bnames_s = get_key_text("SPEERfields", NULL);
@@ -79,6 +79,8 @@ int genbnds_(void)
   }
 
   /* Create output tables */
+  /* SPEERimpl table contains Implicit ratios/bounds. */
+  /* SPEERincon table contains inconsistent ratios/bounds, if any exist. */
   apop_query("drop table SPEERimpl;");   // FIX ME:  first check if SPEERimpl exists
   apop_query("create table SPEERimpl( cat int, i int, j int, numer text, denom text, lower float, upper float );");
   apop_query("drop table SPEERincon;");  // FIX ME:  first check if SPEERincon exists
@@ -108,20 +110,6 @@ int genbnds_(void)
 }
 
 
-int checks(void)
-/******************************************************/ 
-{
-  /* Stop program if maximum # of fields is exceded. */
-  Apop_stopif( BFLD > maxflds, return -1, -5,
-        "**** FATAL ERROR in GenBnds:  Maximum number of fields (%d) exceded. ****\n",
- 	    maxflds ); 
-
-  /* Stop program if max length of field names is exceded. */
-  Apop_stopif( namlen > maxfldlen, return -1, -5,
-        "**** FATAL ERROR in GenBnds:  Maximum length of field name (%d) exceded. ****\n",
- 	    maxfldlen ); 
-  return 0;
-}
 
 int CheckIncon(void)
 /******************************************************/ 
@@ -208,6 +196,7 @@ int PreChecks(void)
 }
 
 
+
 int PostChecks(void)
 /******************************************************/ 
 /* Potential post-processing fatal problems. */
@@ -285,6 +274,7 @@ int ReadExplicits(void)
 /*******************************************************************************/ 
   char num[maxfldlen], den[maxfldlen];
  
+  /* TeaKEY( ExpRatios, <<< User-supplied Explicit ratios for basic items. >>>) */
   /* Get Explicit bounds from .db */
   apop_data *ExpBnds = get_key_text("ExpRatios", NULL);
 
