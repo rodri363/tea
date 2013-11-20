@@ -139,8 +139,8 @@ static int text_in_by_tag(char const *tag){
     char *file_in   = get_key_word_tagged("input", "input file", tag);
     char *table_out = get_key_word_tagged("input", "output table", tag);
     char *nan_marker = get_key_word_tagged("input", "missing marker", tag);
-    if (nan_marker) sprintf(apop_opts.db_nan, "%s", nan_marker);
-    if (!nan_marker) nan_marker=apop_opts.db_nan;
+    if (nan_marker) apop_opts.nan_string = nan_marker;
+    if (!nan_marker) nan_marker=apop_opts.nan_string;
     char *overwrite = get_key_word_tagged("input", "overwrite", tag);
     if (!overwrite  || !strcasecmp(overwrite,"n") 
                     || !strcasecmp(overwrite,"no") 

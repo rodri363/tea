@@ -388,7 +388,7 @@ apop_data *checkData(apop_data *data){
 		for(int jdx=0; jdx<nvars; jdx++){
 		   if(data->matrix && jdx < data->matrix->size2){
 						double v = apop_data_get(data,idx,jdx);
-						if (isnan(v)) asprintf(&vals[jdx], "%s", apop_opts.db_nan);
+						if (isnan(v)) asprintf(&vals[jdx], "%s", apop_opts.nan_string);
 						else          asprintf(&vals[jdx], "%g", v);
 					}
 

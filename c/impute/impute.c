@@ -126,6 +126,29 @@ apop_data *copy_by_name(apop_data *data, apop_data const *form){
     return out;
 }
 
+double en(apop_data *in){ 
+    double w = gsl_vector_get(in->weights, 0);
+    return w*log2(w);
+}
+
+apop_data *get_entropies(apop_data *raked){
+    int cols = raked->matrix->size2;
+    apop_data *out = apop_data_alloc(1, cols);
+    apop_name_stack(out->names, raked->names, 'c');
+    for (int i=0; i< cols; i++){
+        apop_data *subset = apop_data_alloc();
+        Apop_matrix_col(raked->matrix, i, C);
+        subset->vector = apop_vector_copy(C);
+        subset->weights = apop_vector_copy(raked->weights);
+        apop_data_pmf_compress(subset);
+        apop_data_set(out, .col=i, .val=apop_map_sum(subset, .fn_r=en));
+        apop_data_free(subset);
+    }
+    apop_data *tout = apop_data_transpose(out);
+    apop_data_free(out);
+    return apop_data_sort(tout);
+}
+
 /* We have raked output, and will soon be making draws from it. 
    So it needs to be a PMF of the right format to match the data point
    we're trying to match.  
@@ -136,7 +159,7 @@ apop_data *copy_by_name(apop_data *data, apop_data const *form){
    be no entries in the rake table with married status. In this case, blank out the existing married status.
    
    */
-apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *orig){
+apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *orig, apop_data *entropies, int cutctr){
     Apop_stopif(!raked, return NULL, 0, "NULL raking results.")
     double s = apop_sum(raked->weights);
     Apop_stopif(isnan(s), return NULL, 0, "NaNs in raking results.")
@@ -145,6 +168,14 @@ apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *o
     apop_map(raked, .fn_rp=cull, .param=fin, .inplace='v');
     done = apop_sum(raked->weights);
     if (!done){
+        if (cutctr == entropies->names->rowct) return NULL;
+        //remove the column with the least entropy and try again.
+        gsl_vector_memcpy(raked->weights, orig);
+        Apop_col_t(raked, entropies->names->row[cutctr], lowest_ent);
+        gsl_vector_set_all(lowest_ent, 0);
+        apop_data_set(fin, .colname=entropies->names->row[cutctr++], .val=0);
+        return prep_the_draws(raked, fin, orig, entropies, cutctr);
+        /*
         //gsl_vector_memcpy(raked->weights, orig);
         apop_data *distances = apop_map(raked, .fn_rp=count_diffs, .param=fin);
         double min = gsl_vector_min(distances->vector);
@@ -154,6 +185,8 @@ apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *o
                         ? 0
                         : gsl_vector_get(orig, i));
         apop_data_free(distances);
+        */
+
         /*
         for (int i=0; i< fin->matrix->size2; i++) 
             if (!isnan(apop_data_get(fin, 0, i))) {
@@ -212,10 +245,10 @@ void writeout(apop_data *fillins, gsl_vector *cp_to_fill, apop_data const *focus
 
 double nnn (double in){return isnan(in);}
 
-static void rake_to_completion(char const *datatab, char const *underlying, 
-        impustruct is, int min_group_size, gsl_rng *r, 
-        int draw_count, char *catlist, 
-        apop_data const *fingerprint_vars, char const *id_col, 
+static void rake_to_completion(char const *datatab, char const *underlying,
+        impustruct is, int min_group_size, gsl_rng *r,
+        int draw_count, char *catlist,
+        apop_data const *fingerprint_vars, char const *id_col,
         char const *weight_col, char const *fill_tab, char const *margintab,
         char *previous_filltab){
 
@@ -232,6 +265,7 @@ static void rake_to_completion(char const *datatab, char const *underlying,
     apop_data *raked = em_weight(d, .tolerance=1e-3);
     Apop_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
     Apop_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
+    apop_data *entropies = get_entropies(raked);
 
 
     /*
@@ -258,7 +292,7 @@ apop_data_free(dcp);
         Apop_data_row(name_sorted_cp, i, focusn); //as data set w/names, arranged to match rake
 
         //draw the entire row at once, but write only the NaN elmts to the filled tab.
-        apop_model *m = prep_the_draws(raked, focusn, original_weights); 
+        apop_model *m = prep_the_draws(raked, focusn, original_weights, entropies, 0); 
         if (!m || m->error) {apop_model_free(m); continue;} //get it on the next go `round.
         for (int drawno=0; drawno< draw_count; drawno++){
             Apop_stopif(!focus->names, continue, 0, "focus->names is NULL. This should never have happened.");
@@ -277,6 +311,7 @@ apop_data_free(dcp);
     apop_data_free(fillins);
     //apop_data_print(raked, .output_file="ooo", .output_append='a');
     apop_data_free(raked); //Thrown away.
+    apop_data_free(entropies);
     gsl_vector_free(cp_to_fill);
     gsl_vector_free(original_weights);
     apop_data_free(d);

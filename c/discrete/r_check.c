@@ -18,7 +18,7 @@ double check_one_row(apop_data *row, void *colnames_in){
        if (datacol > -2){
 	   		double val = apop_data_get(row, .row=0, datacol);
 			if (gsl_isnan(val))
-			   asprintf(&values[i], "%s", apop_opts.db_nan);
+			   asprintf(&values[i], "%s", apop_opts.nan_string);
 		    else
 			   asprintf(&values[i], "%g", val);
 		} else {
@@ -75,7 +75,7 @@ apop_data *row_alts(apop_data *row, void *colnames_in){
        if (datacol > -2){
 	   		double val = apop_data_get(row, .row=0, datacol);
 			if (gsl_isnan(val))
-			   asprintf(&values[i], "%s", apop_opts.db_nan);
+			   asprintf(&values[i], "%s", apop_opts.nan_string);
 		    else
 			   asprintf(&values[i], "%g", val);
 		} else {

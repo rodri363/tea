@@ -80,8 +80,8 @@ int edchek_(void)
 	       if (((commed.basitm[j] == 0)
 			   &&  (lower > 0)  &&  (upper < 99999))
 			        || 
-			   (commed.basitm[j] > 0)
-			   && ((lower > 0  &&  commed.basitm[j]*lower > commed.basitm[i])
+			   ((commed.basitm[j] > 0)
+			   && ((lower > 0  &&  commed.basitm[j]*lower > commed.basitm[i]))
 			   || (upper < 99999  &&  commed.basitm[j]*upper < commed.basitm[i])))
 		   {
 		    ++commed.nf;
