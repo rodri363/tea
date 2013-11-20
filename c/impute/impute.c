@@ -200,14 +200,24 @@ apop_data *get_data_for_em(const char *datatab, char *catlist, const char *id_co
     return d;
 }
 
+void writeout(apop_data *fillins, gsl_vector *cp_to_fill, apop_data const *focus, int *ctr, int drawno){
+    for (size_t j=0; j< focus->matrix->size2; j++)  
+        if (isnan(apop_data_get(focus, .col=j))){
+            apop_text_add(fillins, *ctr, 0, *focus->names->row);
+            apop_text_add(fillins, *ctr, 1, focus->names->col[j]);
+            gsl_matrix_set(fillins->matrix, *ctr, 0, drawno);
+            gsl_matrix_set(fillins->matrix, (*ctr)++, 1, cp_to_fill->data[j]);
+        }
+}
+
 double nnn (double in){return isnan(in);}
 
-static void rake_to_completion(const char *datatab, const char *underlying, 
-        impustruct is, const int min_group_size, gsl_rng *r, 
-        const int draw_count, char *catlist, 
-        const apop_data *fingerprint_vars, const char *id_col, 
+static void rake_to_completion(char const *datatab, char const *underlying, 
+        impustruct is, int min_group_size, gsl_rng *r, 
+        int draw_count, char *catlist, 
+        apop_data const *fingerprint_vars, char const *id_col, 
         char const *weight_col, char const *fill_tab, char const *margintab,
-        apop_data *contrasts, char *previous_filltab){
+        char *previous_filltab){
 
     //char *dt="tea_co", *dxx=(char*)datatab;
     //int zero=0;
@@ -216,16 +226,29 @@ static void rake_to_completion(const char *datatab, const char *underlying,
     apop_data *d = get_data_for_em(datatab, catlist, id_col, weight_col, previous_filltab, is);
     Apop_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
     Apop_stopif(d->error, return, 0, "query error.");
+    int count_of_nans = apop_map_sum(d, .fn_d=nnn);
+    if (!count_of_nans) return;
     
     apop_data *raked = em_weight(d, .tolerance=1e-3);
     Apop_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
     Apop_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
 
+
+    /*
+apop_data *dcp = apop_data_sort(apop_data_pmf_compress(apop_data_copy(d)));
+asprintf(&dcp->names->title, "<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+asprintf(&raked->names->title, ">>>>>>>>>>>>>>>>>>>>>>>>>>>");
+apop_data_pmf_compress(raked);
+apop_data_sort(raked);
+apop_data_print(dcp, .output_file="ooo", .output_append='a');
+apop_data_print(raked, .output_file="ooo", .output_append='a');
+apop_data_free(dcp);
+*/
+
     gsl_vector *original_weights = apop_vector_copy(raked->weights);
     gsl_vector *cp_to_fill = gsl_vector_alloc(d->matrix->size2);
     Apop_row(raked, 0, firstrow);
     apop_data *name_sorted_cp = copy_by_name(d, firstrow);
-    int count_of_nans = apop_map_sum(d, .fn_d=nnn);
     apop_data *fillins = apop_text_alloc(apop_data_alloc(count_of_nans*draw_count, 2), count_of_nans*draw_count, 2);
     int ctr = 0;
     for (size_t i=0; i< d->matrix->size1; i++){
@@ -240,27 +263,19 @@ static void rake_to_completion(const char *datatab, const char *underlying,
         for (int drawno=0; drawno< draw_count; drawno++){
             Apop_stopif(!focus->names, continue, 0, "focus->names is NULL. This should never have happened.");
             apop_draw(cp_to_fill->data, r, m);
-            for (size_t j=0; j< focus->matrix->size2; j++)  
-                if (isnan(apop_data_get(focus, .col=j))){
-                    apop_text_add(fillins, ctr, 0, *focus->names->row);
-                    apop_text_add(fillins, ctr, 1, focus->names->col[j]);
-                    gsl_matrix_set(fillins->matrix, ctr, 0, drawno);
-                    gsl_matrix_set(fillins->matrix, ctr++, 1, cp_to_fill->data[j]);
-                }
+            writeout(fillins, cp_to_fill, focus, &ctr, drawno);
         }
         apop_model_free(m);
         gsl_vector_memcpy(raked->weights, original_weights);
     }
     apop_matrix_realloc(fillins->matrix, ctr, fillins->matrix->size2);
     apop_text_alloc(fillins, ctr, 2);
-    begin_transaction();
-    apop_data_print(fillins, .output_file=fill_tab, .output_type='d', .output_append='a');
-    commit_transaction();
     apop_data_free(name_sorted_cp);
     begin_transaction();
     if (fillins->matrix) apop_data_print(fillins, .output_file=fill_tab, .output_type='d', .output_append='a');
     commit_transaction();
     apop_data_free(fillins);
+    //apop_data_print(raked, .output_file="ooo", .output_append='a');
     apop_data_free(raked); //Thrown away.
     gsl_vector_free(cp_to_fill);
     gsl_vector_free(original_weights);
@@ -1018,9 +1033,6 @@ int do_impute(char **tag, char **idatatab){
     Apop_stopif(model.error, return -1, 0, "Trouble reading in model info.");
 
     if (model.is_rake) {
-        apop_data *precontrasts = get_key_text_tagged(configbase, "contrasts", *tag);
-        apop_data *contrasts = precontrasts ? apop_data_transpose(precontrasts): NULL;
-        apop_data_free(precontrasts);
         apop_data *catlist=NULL;
         if (category_matrix){
             char *cats = apop_text_paste(category_matrix, .between=", ");
@@ -1038,12 +1050,12 @@ int do_impute(char **tag, char **idatatab){
                     and = " and ";
                 }
             }
+if(catlist) printf("%s\n", catlist->text[i][0]);
             char *margintab = get_key_word_tagged(configbase, "margin table", *tag);
             rake_to_completion(*idatatab, underlying, model, min_group_size, 
                         r, draw_count, wherecat, fingerprint_vars, id_col, 
-                        weight_col, out_tab, margintab, contrasts, previous_fill_tab);
+                        weight_col, out_tab, margintab, previous_fill_tab);
         }
-        apop_data_free(contrasts);
     }
     else impute_a_variable(*idatatab, underlying, &model, min_group_size, 
                 r, draw_count, category_matrix, fingerprint_vars, id_col, out_tab,

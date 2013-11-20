@@ -152,6 +152,7 @@ apop_data *em_weight_base(em_weight_s in){
     apop_data_pmf_compress(candidate); //massive speed gain in some cases.
     double tolerance = in.tolerance ? in.tolerance : 1e-5;
     apop_data *complete = apop_data_pmf_compress(apop_data_listwise_delete(apop_data_copy(in.d), .inplace='y')); //may be NULL.
+    if (!complete) return NULL;
     apop_vector_normalize(candidate->weights);
     apop_data *prior_candidate = NULL;
     int ctr = 0;
