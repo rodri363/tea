@@ -17,7 +17,6 @@ impute {
     weights:weights
     input table: t
     output table: i
-    output vars: y1
-    input vars: y2
+    vars: y1, y2
     method: rake
 }

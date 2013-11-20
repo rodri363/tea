@@ -22,7 +22,7 @@ typedef struct {
 	char * depvar, **allvars, *vartypes, *selectclause;
 	int position, allvars_ct, error;
 	apop_data *isnan, *notnan;
-    bool is_bounds_checkable, is_hotdeck, textdep, is_rake, is_regression;
+    bool is_bounds_checkable, is_hotdeck, textdep, is_em, is_regression;
 } impustruct;
 
 
@@ -890,7 +890,7 @@ apop_model *tea_get_model_by_name(char *name, impustruct *model){
 			!strcmp(name, "lognormal")
 				? apop_lognormal :
 			!strcmp(name, "rake") ||!strcmp(name, "raking")
-				?  (model->is_rake = true, &null_model) :
+				?  (model->is_em = true, &null_model) :
 			!strcmp(name, "hotdeck")
 		  ||!strcmp(name, "hot deck")
 	      ||!strcmp(name, "multinomial")
@@ -927,24 +927,32 @@ void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
         apop_query("create table model_log ('model_id', 'parameter', 'value')");
 }
 
-/* TeaKEY(impute/output vars, <<<Specifies the variable whose data points are to be imputed. For this reason you could consider output vars as both the `input' variable as well as the `output' variable to the model specified in method.>>>)
+/* 
+TeaKEY(impute/vars, <<<A comma-separated list of the variables to be put into the imputation model. 
+For OLS-type models where there is a distinction between inputs and outputs, don't use this; use the "impute/input vars" and "impute/output vars" keys. Note that this is always the plural "vars", even if you are imputing only one field.>>>)
+TeaKEY(impute/input vars, <<<A comma-separated list of the independent, right-hand side variables for imputation methods such as OLS that require them. These variables are taken as given and will not be imputed in this step, so you probably need to have a previous imputation step to ensure that they are complete.>>>)
+TeaKEY(impute/output vars, <<<The variables that will be imputed. For OLS-type models, the left-hand, dependent variable (notice that we still use the plural "vars"). For models that have no distinction between inputs and outputs, this behaves identically to the "impute/vars" key (so only use one or the other).>>>)
  */
 impustruct read_model_info(char const *configbase, char const *tag, char const *id_col){
-	apop_data *vars=NULL, *indepvarlist=NULL;
+	apop_data *varlist=NULL, *indepvarlist=NULL, *outputvarlist=NULL;
+    apop_regex(get_key_word_tagged(configbase, "vars", tag),
+                " *([^,]*[^ ]) *(,|$) *", &varlist); //split at the commas
     apop_regex(get_key_word_tagged(configbase, "output vars", tag),
-                " *([^,]*[^ ]) *(,|$) *", &vars); //split at the commas
+                " *([^,]*[^ ]) *(,|$) *", &outputvarlist);
     apop_regex(get_key_word_tagged(configbase, "input vars", tag),
-                " *([^,]*[^ ]) *(,|$) *", &indepvarlist); //same
-    Apop_stopif(!vars, return (impustruct){.error=1}, 0, "I couldn't find an 'output vars' line in the %s segment", configbase);
+                " *([^,]*[^ ]) *(,|$) *", &indepvarlist);
+    Apop_stopif(!varlist && !outputvarlist, return (impustruct){.error=1}, 0, "I couldn't find a 'vars' or 'output vars' line in the %s segment", configbase);
 
 	impustruct model = (impustruct) {.position=-2, .vartypes=strdup("n")};
-    model.depvar = strdup(**vars->text);
+    model.depvar = strdup(outputvarlist ? **outputvarlist->text : **varlist->text);
+    model.allvars_ct = (indepvarlist ? *indepvarlist->textsize : 0)
+                       + (varlist ? *varlist->textsize : 0)
+                       + (outputvarlist ? *outputvarlist->textsize : 0);
 
     //find the right model.
     char *model_name = get_key_word_tagged(configbase, "method", tag);
     model.base_model = tea_get_model_by_name(model_name, &model);
     Apop_stopif(!strlen(model.base_model->name), model.error=1; return model, 0, "model selection fail; you requested %s.", model_name);
-  
 
 /* In this section, we construct the select clause that will produce the data we need for estimation. apop_query_to_mixed_data also requires a list of type elements, so get that too.
 
@@ -954,22 +962,16 @@ Hot deck: needs no transformations at all.
 Raking: needs all the variables, in numeric format
 */
 
-    char *indep_vars = get_key_word_tagged(configbase, "input vars", tag);
     char coltype = get_coltype(model.depvar); // \0==not found.
-    
-    int ict = indepvarlist ? *indepvarlist->textsize : 0;
-    int dct = vars ? *vars->textsize : 0;
-    model.allvars_ct = ict + dct;
-    Apop_stopif(!model.allvars_ct, model.error=1; return model, 0, "Neither 'output vars' nor 'input vars' in the raking segment of the spec.");
-
     if (coltype=='r' || coltype=='i') 
           asprintf(&model.vartypes, "%sm", model.vartypes);
     else  asprintf(&model.vartypes, "%st", model.vartypes), model.textdep=true;
 
-    if (model.is_rake){
+    if (model.is_em){
         int i=0;
         model.allvars = malloc(sizeof(char*)*model.allvars_ct);
-        if (vars) for (; i< *vars->textsize; i++) model.allvars[i]= strdup(*vars->text[i]);
+        if (varlist) for (; i< *varlist->textsize; i++) model.allvars[i]= strdup(*varlist->text[i]);
+        if (outputvarlist) for (; i< *outputvarlist->textsize; i++) model.allvars[i]= strdup(*outputvarlist->text[i]);
         if (indepvarlist) for (int j=0; j< *indepvarlist->textsize; j++) model.allvars[i+j]= strdup(*indepvarlist->text[j]);
     }
 
@@ -977,13 +979,14 @@ Raking: needs all the variables, in numeric format
     if (model.is_regression)
          asprintf(&model.selectclause, "%s, %s%s", id_col, model.textdep ? "1, ": " ", model.depvar);	
     else asprintf(&model.selectclause, "%s, %s", id_col, model.depvar);	
+    char *indep_vars = get_key_word_tagged(configbase, "input vars", tag); //as a comma-separated list, for SQL.
     if (indep_vars){
         asprintf(&model.selectclause, "%s%c %s", 
                 XN(model.selectclause),model.selectclause ? ',' : ' ',
                                     process_string(indep_vars, &(model.vartypes)));
         asprintf(&model.vartypes, "all numeric"); //lost patience implementing text data for OLS.
     }
-	apop_data_free(vars);
+	apop_data_free(varlist); apop_data_free(outputvarlist); apop_data_free(indepvarlist);
     return model;
 }
 
@@ -1067,7 +1070,7 @@ int do_impute(char **tag, char **idatatab){
     impustruct model = read_model_info(configbase, *tag, id_col);
     Apop_stopif(model.error, return -1, 0, "Trouble reading in model info.");
 
-    if (model.is_rake) {
+    if (model.is_em) {
         apop_data *catlist=NULL;
         if (category_matrix){
             char *cats = apop_text_paste(category_matrix, .between=", ");
