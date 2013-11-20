@@ -432,15 +432,6 @@ void moreblob(char **out, char* so_far, char *more){
         return;
     }
 
-    /******************************************************************/
-	/****  FIX ME!!!!  dont like that GenBnds is called more than once here *************/
-	/* If SPEER segment exists in the spec file, call GenBnds & SPEER */
-    char *bfld_exits = get_key_word("SPEERparams", "BFLD");
-    if( bfld_exits ) {
-        genbnds_();
-        speer_();
-    } 
-
     //more = strip(more);  //leak?
     if(pass==1 && apop_strcmp(current_key, "checks")){
         /*If you're here, you're in query mode and extending a query.

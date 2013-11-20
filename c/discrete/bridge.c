@@ -381,6 +381,13 @@ void read_spec(char **infile, char **dbname_out){
     num_typos = check_levenshtein_distances(max_lev_distance);
     do_recodes();
 
+    // SPEER bounds generating routine
+    char *bfld_exits = get_key_word("SPEERparams", "BFLD");
+    if( bfld_exits ) {
+        int gr = genbnds_();
+        if (gr==0) speer_();
+    }
+
     //Generating indices for ID
     apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key "
 					      "like 'input/%' order by count");

@@ -111,15 +111,17 @@ double count_diffs(apop_data *onerow, void *subject_row_in){
    be the same fields, and we aren't guaranteed that the raking
    gave us data in the right format(BK: check this?). Copy the 
    raked output to explicitly fit the data format. */
-apop_data *copy_by_name(apop_data *data, apop_data *form){
-    apop_data *out= apop_data_copy(form);
-    gsl_matrix_set_all(out->matrix, NAN);
-    for (int i=0; i< data->matrix->size2; i++){
-        double this = apop_data_get(data, .col=i);
-        if (isnan(this)) continue; //don't bother.
+apop_data *copy_by_name(apop_data *data, apop_data const *form){
+    apop_data *out= apop_data_alloc(data->matrix->size1, form->matrix->size2);
+    apop_name_stack(out->names, data->names, 'r');
+    apop_name_stack(out->names, form->names, 'c');
+    for (int i=0; i< out->matrix->size2; i++){
         int corresponding_col = apop_name_find(out->names, data->names->col[i], 'c');
-        if (corresponding_col!=-2) 
-            apop_data_set(out, 0, corresponding_col, this);
+        Apop_matrix_col(data->matrix, i, source);
+        if (corresponding_col!=-2) {
+            Apop_matrix_col(out->matrix, corresponding_col, dest);
+            gsl_vector_memcpy(dest, source);
+        }
     }
     return out;
 }
@@ -139,15 +141,12 @@ apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *o
     double s = apop_sum(raked->weights);
     Apop_stopif(isnan(s), return NULL, 0, "NaNs in raking results.")
     Apop_stopif(s==0, return NULL, 0, "No weights in raking results.")
-    bool done=false;
-    Apop_data_row(raked, 0, firstrow);
-    apop_data *cp = copy_by_name(fin, firstrow);
-    apop_data_free_base(
-        apop_map(raked, .fn_rp=cull, .param=cp) );
-    done=apop_sum(raked->weights);
+    bool done = false;
+    apop_map(raked, .fn_rp=cull, .param=fin, .inplace='v');
+    done = apop_sum(raked->weights);
     if (!done){
         //gsl_vector_memcpy(raked->weights, orig);
-        apop_data *distances = apop_map(raked, .fn_rp=count_diffs, .param=cp);
+        apop_data *distances = apop_map(raked, .fn_rp=count_diffs, .param=fin);
         double min = gsl_vector_min(distances->vector);
         for (int i=0; i< raked->weights->size; i++)
             gsl_vector_set(raked->weights, i,
@@ -165,7 +164,6 @@ apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *o
             }
             */
     }
-    apop_data_free(cp);
     return apop_estimate(raked, apop_pmf);
 }
 
@@ -180,24 +178,15 @@ bool vars_in_edit_are_in_rake_table(used_var_t* vars_used, size_t ct, apop_data 
     return true;
 }
 
-static void rake_to_completion(const char *datatab, const char *underlying, 
-        impustruct is, const int min_group_size, gsl_rng *r, 
-        const int draw_count, char *catlist, 
-        const apop_data *fingerprint_vars, const char *id_col, 
-        char const *weight_col, char const *fill_tab, char const *margintab,
-        apop_data *contrasts, char *previous_filltab){
+apop_data *get_data_for_em(const char *datatab, char *catlist, const char *id_col, 
+                           char const *weight_col, char *previous_filltab, impustruct is){
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
     char *varlist = apop_text_paste(&as_data, .between=", ");
-
-    //char *dt="tea_co", *dxx=(char*)datatab;
-    //int zero=0;
-    //if (previous_filltab) check_out_impute(&dxx, /*&dt*/ NULL, &zero, NULL, &previous_filltab);
-
     apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s", id_col, varlist, 
                     weight_col ? ',' : ' ',
                     XN(weight_col), /*previous_filltab ? dt :*/datatab, catlist ? "where": " ", XN(catlist));
-    Apop_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
-    Apop_stopif(d->error, return, 0, "query error.");
+    free(varlist);
+    Apop_stopif(!d || d->error, return d, 0, "Query trouble.");
     if (!d->weights) {
         if (weight_col){
             Apop_col_t(d, weight_col, wc);
@@ -208,55 +197,71 @@ static void rake_to_completion(const char *datatab, const char *underlying,
             gsl_vector_set_all(d->weights, 1);
         }
     }
-    apop_data *raked = em_weight(d, .tolerance=1e-3);
-    Apop_stopif(!raked, return, 
-                0, "Raking returned a blank table. This shouldn't happen.");
-    Apop_stopif(raked->error, return,
-                0, "Error (%c) in raking.", raked->error);
+    return d;
+}
 
-    int batch_size=10000; //just in case...
-    gsl_vector *original_weights=apop_vector_copy(raked->weights);
+double nnn (double in){return isnan(in);}
+
+static void rake_to_completion(const char *datatab, const char *underlying, 
+        impustruct is, const int min_group_size, gsl_rng *r, 
+        const int draw_count, char *catlist, 
+        const apop_data *fingerprint_vars, const char *id_col, 
+        char const *weight_col, char const *fill_tab, char const *margintab,
+        apop_data *contrasts, char *previous_filltab){
+
+    //char *dt="tea_co", *dxx=(char*)datatab;
+    //int zero=0;
+    //if (previous_filltab) check_out_impute(&dxx, /*&dt*/ NULL, &zero, NULL, &previous_filltab);
+
+    apop_data *d = get_data_for_em(datatab, catlist, id_col, weight_col, previous_filltab, is);
+    Apop_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
+    Apop_stopif(d->error, return, 0, "query error.");
+    
+    apop_data *raked = em_weight(d, .tolerance=1e-3);
+    Apop_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
+    Apop_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
+
+    gsl_vector *original_weights = apop_vector_copy(raked->weights);
     gsl_vector *cp_to_fill = gsl_vector_alloc(d->matrix->size2);
-    apop_data *fillins = apop_data_alloc();
+    Apop_row(raked, 0, firstrow);
+    apop_data *name_sorted_cp = copy_by_name(d, firstrow);
+    int count_of_nans = apop_map_sum(d, .fn_d=nnn);
+    apop_data *fillins = apop_text_alloc(apop_data_alloc(count_of_nans*draw_count, 2), count_of_nans*draw_count, 2);
+    int ctr = 0;
     for (size_t i=0; i< d->matrix->size1; i++){
-        Apop_matrix_row(d->matrix, i, focusv); //as vector
+        Apop_matrix_row(d->matrix, i, focusv);    //as vector
         if (!isnan(apop_sum(focusv))) continue;
-        Apop_data_row(d, i, focus); //as data set w/names
+        Apop_data_row(d, i, focus);               //as data set w/names
+        Apop_data_row(name_sorted_cp, i, focusn); //as data set w/names, arranged to match rake
 
         //draw the entire row at once, but write only the NaN elmts to the filled tab.
-        apop_model *m = prep_the_draws(raked, focus, original_weights); 
+        apop_model *m = prep_the_draws(raked, focusn, original_weights); 
         if (!m || m->error) {apop_model_free(m); continue;} //get it on the next go `round.
-        size_t len=0;
         for (int drawno=0; drawno< draw_count; drawno++){
             Apop_stopif(!focus->names, continue, 0, "focus->names is NULL. This should never have happened.");
             apop_draw(cp_to_fill->data, r, m);
             for (size_t j=0; j< focus->matrix->size2; j++)  
                 if (isnan(apop_data_get(focus, .col=j))){
-                    len = *fillins->textsize;
-                    fillins->matrix = apop_matrix_realloc(fillins->matrix, len+1, 2);
-                    apop_text_alloc(fillins, len+1, 2);
-                    Apop_stopif(fillins->error, return, 0, "Something wrong with the table of fill-ins when drawing from the imputation model. Out of memory?");
-                    apop_text_add(fillins, len, 0, *focus->names->row);
-                    apop_text_add(fillins, len, 1, focus->names->col[j]);
-                    gsl_matrix_set(fillins->matrix, len, 0, drawno);
-                    gsl_matrix_set(fillins->matrix, len, 1, cp_to_fill->data[j]);
+                    apop_text_add(fillins, ctr, 0, *focus->names->row);
+                    apop_text_add(fillins, ctr, 1, focus->names->col[j]);
+                    gsl_matrix_set(fillins->matrix, ctr, 0, drawno);
+                    gsl_matrix_set(fillins->matrix, ctr++, 1, cp_to_fill->data[j]);
                 }
-            if (len > batch_size){
-                begin_transaction();
-                apop_data_print(fillins, .output_file=fill_tab, .output_type='d', .output_append='a');
-                commit_transaction();
-                gsl_matrix_free(fillins->matrix);
-                fillins->matrix = NULL;
-                apop_text_alloc(fillins, 0, 0);
-            }
         }
         apop_model_free(m);
         gsl_vector_memcpy(raked->weights, original_weights);
     }
+    apop_matrix_realloc(fillins->matrix, ctr, fillins->matrix->size2);
+    apop_text_alloc(fillins, ctr, 2);
+    begin_transaction();
+    apop_data_print(fillins, .output_file=fill_tab, .output_type='d', .output_append='a');
+    commit_transaction();
+    apop_data_free(name_sorted_cp);
     begin_transaction();
     if (fillins->matrix) apop_data_print(fillins, .output_file=fill_tab, .output_type='d', .output_append='a');
     commit_transaction();
     apop_data_free(fillins);
+    apop_data_free(raked); //Thrown away.
     gsl_vector_free(cp_to_fill);
     gsl_vector_free(original_weights);
     apop_data_free(d);
@@ -609,8 +614,8 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
     return nanvals;
 }
 
-//static int forsearch(const void *a, const void *b){return strcmp(a, *(char**)b);}
-static int forsearch(const void *a, const void *b){return atoi(a) - atoi(*(char**)b);}
+static int forsearch(const void *a, const void *b){return strcmp(a, *(char**)b);}
+//static int forsearch(const void *a, const void *b){return atoi((char*)a) - atoi(*(char**)b);}
 
 static int mark_an_id(const char *target, char * const *list, int len, char just_check){
     char **found = bsearch(target, list, len, sizeof(char*), forsearch);
