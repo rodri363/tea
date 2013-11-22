@@ -40,6 +40,7 @@ int genbnds_(void)
 /******************************************************/ 
 {
   int i, j, ncat, pos;
+  float wgt;
   char nam[maxfldlen];
 
   /* Subroutines */
@@ -73,7 +74,7 @@ int genbnds_(void)
   /* Determine longest field name for check later on              */
   apop_data *Bnames_s = get_key_text("SPEERfields", NULL);
   for (i = 0; i <= BFLD-1; ++i) {
-    sscanf( Bnames_s->text[i][0], "%s %d", nam, &pos );
+    sscanf( Bnames_s->text[i][0], "%s %d %f", nam, &pos, &wgt );
     strcpy( bnames[pos], nam );
 	if( strlen(bnames[pos]) > namlen ) { namlen = strlen(bnames[pos]); }
   }

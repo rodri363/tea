@@ -6,15 +6,15 @@ SPEERparams { BFLD: 9
               NEDFF: 12
             }
 
-SPEERfields { FEMP 1
-              FAPR 2
-              FQPR 3
-              FFBR 4
-              FSLS 5
-              FAET 6
-              FTOT 7
-              FRPT 8
-              FADE 9
+SPEERfields { FEMP 1 0.06
+              FAPR 2 0.25
+              FQPR 3 0.3
+              FFBR 4 0.75
+              FSLS 5 0.5
+              FAET 6 1.4
+              FTOT 7 1.0
+              FRPT 8 1.9
+              FADE 9 1.6
             }
 
 ExpRatios {   .0212400  FEMP FAPR     .0711125        .0369900
