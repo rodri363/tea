@@ -22,7 +22,7 @@ typedef struct {
 	char * depvar, **allvars, *vartypes, *selectclause;
 	int position, allvars_ct, error;
 	apop_data *isnan, *notnan;
-    bool is_bounds_checkable, is_hotdeck, textdep, is_em, is_regression;
+    bool is_bounds_checkable, is_hotdeck, textdep, is_em, is_regression, allow_near_misses;
 } impustruct;
 
 
@@ -88,12 +88,11 @@ double cull(apop_data *onerow, void *subject_row_in){
         double dist = fabs(apop_data_get(onerow, .col=i) - this);
         if (!dist) continue;
         else {
-            /* //unweighted?
-            *onerow->weights->data = 0;
-            */
-            char type = subject_row->more->text[i][0][0];
-            *onerow->weights->data *= 
-                        (type=='r'||type=='i') ? 1/(1+dist): 0;
+            if (!subject_row->more) *onerow->weights->data = 0;
+            else {
+                char type = subject_row->more->text[i][0][0];
+                *onerow->weights->data *= (type=='r'||type=='i') ? 1/(1+dist): 0;
+            }
         }
     }
     return 0;
@@ -234,7 +233,7 @@ static void rake_to_completion(char const *datatab, char const *underlying,
     Apop_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
     Apop_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
 
-    get_types(raked); //add a list of types as raked->more.
+    if (is.allow_near_misses) get_types(raked); //add a list of types as raked->more.
 
     /*
 apop_data *dcp = apop_data_sort(apop_data_pmf_compress(apop_data_copy(d)));
@@ -941,6 +940,11 @@ Raking: needs all the variables, in numeric format
         if (varlist) for (; i< *varlist->textsize; i++) model.allvars[i]= strdup(*varlist->text[i]);
         if (outputvarlist) for (; i< *outputvarlist->textsize; i++) model.allvars[i]= strdup(*outputvarlist->text[i]);
         if (indepvarlist) for (int j=0; j< *indepvarlist->textsize; j++) model.allvars[i+j]= strdup(*indepvarlist->text[j]);
+
+        /*TeaKEY(impute/near misses, <<<If this is set to any value, then the EM algorithm (the
+          only consumer of this option) will weight nearby cells when selecting cells to draw
+          from for partial imputations. Else, it will use only cells that match the nonmissing data.>>>)*/
+        if (get_key_word_tagged(configbase, "near misses", tag)) model.allow_near_misses = true;
     }
 
     //if a text dependent var & a regression, set aside a column to be filled in with factors.
