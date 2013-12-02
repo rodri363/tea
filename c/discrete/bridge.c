@@ -449,16 +449,12 @@ void commit_transaction(){
         apop_query("commit;");
 }
 
-
 //Do we need to use the edit check interface, and if so, what is the column type?
 //type = '\0' means not in the index of variables to check.
-char get_coltype(char const* depvar){
+char get_coltype(char const* invar){
     if (!used_vars) return '\0';
-    char type = 'i'; //default to integer
     for (int v=0; used_vars[v].name; v++)
-        if (!strcasecmp(depvar, used_vars[v].name)){
-            type= used_vars[v].type;
-            return type;
-        }
+        if (!strcasecmp(invar, used_vars[v].name))
+            return used_vars[v].type;
     return '\0';
 }

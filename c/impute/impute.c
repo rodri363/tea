@@ -83,9 +83,17 @@ double cull(apop_data *onerow, void *subject_row_in){
     for (int i=0; i< subject_row->matrix->size2; i++){
         double this = apop_data_get(subject_row, .col=i);
         if (isnan(this)) continue;
-        if (apop_data_get(onerow, .col=i) != this) {
+        /* If match or no information, then continue
+         * If not a match, then reweight by 1/distance? */
+        double dist = fabs(apop_data_get(onerow, .col=i) - this);
+        if (!dist) continue;
+        else {
+            /* //unweighted?
             *onerow->weights->data = 0;
-            return 0;
+            */
+            char type = subject_row->more->text[i][0][0];
+            *onerow->weights->data *= 
+                        (type=='r'||type=='i') ? 1/(1+dist): 0;
         }
     }
     return 0;
@@ -131,24 +139,6 @@ double en(apop_data *in){
     return w*log2(w);
 }
 
-apop_data *get_entropies(apop_data *raked){
-    int cols = raked->matrix->size2;
-    apop_data *out = apop_data_alloc(1, cols);
-    apop_name_stack(out->names, raked->names, 'c');
-    for (int i=0; i< cols; i++){
-        apop_data *subset = apop_data_alloc();
-        Apop_matrix_col(raked->matrix, i, C);
-        subset->vector = apop_vector_copy(C);
-        subset->weights = apop_vector_copy(raked->weights);
-        apop_data_pmf_compress(subset);
-        apop_data_set(out, .col=i, .val=apop_map_sum(subset, .fn_r=en));
-        apop_data_free(subset);
-    }
-    apop_data *tout = apop_data_transpose(out);
-    apop_data_free(out);
-    return apop_data_sort(tout);
-}
-
 /* We have raked output, and will soon be making draws from it. 
    So it needs to be a PMF of the right format to match the data point
    we're trying to match.  
@@ -159,44 +149,15 @@ apop_data *get_entropies(apop_data *raked){
    be no entries in the rake table with married status. In this case, blank out the existing married status.
    
    */
-apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *orig, apop_data *entropies, int cutctr){
+apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *orig,  int cutctr){
     Apop_stopif(!raked, return NULL, 0, "NULL raking results.")
     double s = apop_sum(raked->weights);
     Apop_stopif(isnan(s), return NULL, 0, "NaNs in raking results.")
-    Apop_stopif(s==0, return NULL, 0, "No weights in raking results.")
+    Apop_stopif(!s, return NULL, 0, "No weights in raking results.")
     bool done = false;
     apop_map(raked, .fn_rp=cull, .param=fin, .inplace='v');
     done = apop_sum(raked->weights);
-    if (!done){
-        if (cutctr == entropies->names->rowct) return NULL;
-        //remove the column with the least entropy and try again.
-        gsl_vector_memcpy(raked->weights, orig);
-        Apop_col_t(raked, entropies->names->row[cutctr], lowest_ent);
-        gsl_vector_set_all(lowest_ent, 0);
-        apop_data_set(fin, .colname=entropies->names->row[cutctr++], .val=0);
-        return prep_the_draws(raked, fin, orig, entropies, cutctr);
-        /*
-        //gsl_vector_memcpy(raked->weights, orig);
-        apop_data *distances = apop_map(raked, .fn_rp=count_diffs, .param=fin);
-        double min = gsl_vector_min(distances->vector);
-        for (int i=0; i< raked->weights->size; i++)
-            gsl_vector_set(raked->weights, i,
-                    apop_data_get(distances, i, -1)> min+1
-                        ? 0
-                        : gsl_vector_get(orig, i));
-        apop_data_free(distances);
-        */
-
-        /*
-        for (int i=0; i< fin->matrix->size2; i++) 
-            if (!isnan(apop_data_get(fin, 0, i))) {
-                apop_data_set(fin, 0, i, NAN);    //modify the input data.
-                Apop_notify(1, "Blanking the %s field because I couldn't "
-                        "find a match otherwise.", fin->names->column[i]);
-                break;
-            }
-            */
-    }
+    Apop_stopif(!done, return NULL, 0, "Still couldn't find something to draw.");
     return apop_estimate(raked, apop_pmf);
 }
 
@@ -245,6 +206,13 @@ void writeout(apop_data *fillins, gsl_vector *cp_to_fill, apop_data const *focus
 
 double nnn (double in){return isnan(in);}
 
+void get_types(apop_data *raked){
+    apop_data *names = apop_data_add_page(raked, 
+                       apop_text_alloc(NULL, raked->names->colct, 1), "types");
+    for (int i=0; i< raked->names->colct; i++)
+        apop_text_add(names, i, 0, "%c", get_coltype(raked->names->col[i]));
+}
+
 static void rake_to_completion(char const *datatab, char const *underlying,
         impustruct is, int min_group_size, gsl_rng *r,
         int draw_count, char *catlist,
@@ -265,8 +233,8 @@ static void rake_to_completion(char const *datatab, char const *underlying,
     apop_data *raked = em_weight(d, .tolerance=1e-3);
     Apop_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
     Apop_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
-    apop_data *entropies = get_entropies(raked);
 
+    get_types(raked); //add a list of types as raked->more.
 
     /*
 apop_data *dcp = apop_data_sort(apop_data_pmf_compress(apop_data_copy(d)));
@@ -290,9 +258,10 @@ apop_data_free(dcp);
         if (!isnan(apop_sum(focusv))) continue;
         Apop_data_row(d, i, focus);               //as data set w/names
         Apop_data_row(name_sorted_cp, i, focusn); //as data set w/names, arranged to match rake
+        focusn->more = raked->more;
 
         //draw the entire row at once, but write only the NaN elmts to the filled tab.
-        apop_model *m = prep_the_draws(raked, focusn, original_weights, entropies, 0); 
+        apop_model *m = prep_the_draws(raked, focusn, original_weights, 0); 
         if (!m || m->error) {apop_model_free(m); continue;} //get it on the next go `round.
         for (int drawno=0; drawno< draw_count; drawno++){
             Apop_stopif(!focus->names, continue, 0, "focus->names is NULL. This should never have happened.");
@@ -311,7 +280,6 @@ apop_data_free(dcp);
     apop_data_free(fillins);
     //apop_data_print(raked, .output_file="ooo", .output_append='a');
     apop_data_free(raked); //Thrown away.
-    apop_data_free(entropies);
     gsl_vector_free(cp_to_fill);
     gsl_vector_free(original_weights);
     apop_data_free(d);
@@ -1006,8 +974,9 @@ int do_impute(char **tag, char **idatatab){
      * user has specified all of the necessary keys for impute(...) to function correctly.
      * If they haven't we alert them to this and exit the function.
      */
+
+    Apop_stopif(get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
     Apop_stopif(get_key_word("impute", "input table") == NULL, return -1, 0, "You need to specify an input table in your impute key.");
-    Apop_stopif(get_key_word("impute", "output vars") == NULL, return -1, 0, "You need to specify your output vars (the variables that you would like to impute). Recall that output vars is a subkey of impute.");
     Apop_stopif(get_key_word("impute", "method") == NULL, return -1, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
     
     //This fn does nothing but read the config file and do appropriate setup.
@@ -1113,10 +1082,6 @@ void impute(char **idatatab){
      * user has specified all of the necessary keys for impute(...) to function correctly.
      * If they haven't we alert them to this and exit the function.
      */
-    Apop_stopif(get_key_word("impute", "input table") == NULL, return, 0, "You need to specify an input table in your impute key.");
-    Apop_stopif(get_key_word("impute", "output vars") == NULL, return, 0, "You need to specify your output vars (the variables that you would like to impute). Recall that output vars is a subkey of impute.");
-    Apop_stopif(get_key_word("impute", "method") == NULL, return, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
-    Apop_stopif(get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
     
     //The actual function starts here:
     apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
