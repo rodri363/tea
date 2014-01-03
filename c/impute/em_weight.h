@@ -2,7 +2,7 @@
 #include <stdbool.h>
 
 /*
-This is an EM algroithm to fill in a distribution using both full and partial records. It is cell-based; our goal is to assign a complete-data cell probability to every cell. 
+This is an EM algorithm to fill in a distribution using both full and partial records. It is cell-based; our goal is to assign a complete-data cell probability to every cell. 
 
 Send the function a data set to be completed and an optional tolerance; it will return a completed data set. E.g.:
 
@@ -22,7 +22,7 @@ Initial data need not have any complete records; see below.
 4. Cycle between 2 & 3 until the cell weights converge.
 
 Implementation is made easier because cells are represented as rows in an apop_data
-ket, with the weights vector set to the appropriate cell probability or count. 
+set, with the weights vector set to the appropriate cell probability or count. 
 ∙ Copy all nonmissing data to the new candidate set.
 ∙ For each row that has partially missing data:
     ∙ Cull the set of weights down to remove all rows that 

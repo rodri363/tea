@@ -86,12 +86,12 @@ double cull(apop_data *onerow, void *subject_row_in){
         /* If match or no information, then continue
          * If not a match, then reweight by 1/distance? */
         double dist = fabs(apop_data_get(onerow, .col=i) - this);
-        if (!dist) continue;
+        if (dist< 1e-5) continue;
         else {
             if (!subject_row->more) *onerow->weights->data = 0;
             else {
                 char type = subject_row->more->text[i][0][0];
-                *onerow->weights->data *= (type=='r'||type=='i') ? 1/(1+dist): 0;
+                *onerow->weights->data *= (type=='r') ? 1/(1+dist): 0;
             }
         }
     }
@@ -124,7 +124,7 @@ apop_data *copy_by_name(apop_data *data, apop_data const *form){
     apop_name_stack(out->names, form->names, 'c');
     for (int i=0; i< out->matrix->size2; i++){
         int corresponding_col = apop_name_find(out->names, data->names->col[i], 'c');
-        Apop_matrix_col(data->matrix, i, source);
+        Apop_col_v(data, i, source);
         if (corresponding_col!=-2) {
             Apop_matrix_col(out->matrix, corresponding_col, dest);
             gsl_vector_memcpy(dest, source);
@@ -182,7 +182,7 @@ apop_data *get_data_for_em(const char *datatab, char *catlist, const char *id_co
     Apop_stopif(!d || d->error, return d, 0, "Query trouble.");
     if (!d->weights) {
         if (weight_col){
-            Apop_col_t(d, weight_col, wc);
+            Apop_col_tv(d, weight_col, wc);
             d->weights = apop_vector_copy(wc);
             gsl_vector_set_all(wc, 0); //debris.
         } else {
@@ -233,7 +233,6 @@ static void rake_to_completion(char const *datatab, char const *underlying,
     Apop_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
     Apop_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
 
-    if (is.allow_near_misses) get_types(raked); //add a list of types as raked->more.
 
     /*
 apop_data *dcp = apop_data_sort(apop_data_pmf_compress(apop_data_copy(d)));
@@ -250,23 +249,25 @@ apop_data_free(dcp);
     gsl_vector *cp_to_fill = gsl_vector_alloc(d->matrix->size2);
     Apop_row(raked, 0, firstrow);
     apop_data *name_sorted_cp = copy_by_name(d, firstrow);
+    if (is.allow_near_misses) get_types(name_sorted_cp); //add a list of types as raked->more.
     apop_data *fillins = apop_text_alloc(apop_data_alloc(count_of_nans*draw_count, 2), count_of_nans*draw_count, 2);
     int ctr = 0;
     for (size_t i=0; i< d->matrix->size1; i++){
         Apop_matrix_row(d->matrix, i, focusv);    //as vector
         if (!isnan(apop_sum(focusv))) continue;
-        Apop_data_row(d, i, focus);               //as data set w/names
-        Apop_data_row(name_sorted_cp, i, focusn); //as data set w/names, arranged to match rake
-        focusn->more = raked->more;
+        Apop_row(d, i, focus);               //as data set w/names
+        Apop_row(name_sorted_cp, i, focusn); //as data set w/names, arranged to match rake
+        focusn->more = name_sorted_cp->more;
 
         //draw the entire row at once, but write only the NaN elmts to the filled tab.
         apop_model *m = prep_the_draws(raked, focusn, original_weights, 0); 
-        if (!m || m->error) {apop_model_free(m); continue;} //get it on the next go `round.
+        if (!m || m->error) goto end; //get it on the next go `round.
         for (int drawno=0; drawno< draw_count; drawno++){
-            Apop_stopif(!focus->names, continue, 0, "focus->names is NULL. This should never have happened.");
+            Apop_stopif(!focus->names, goto end, 0, "focus->names is NULL. This should never have happened.");
             apop_draw(cp_to_fill->data, r, m);
             writeout(fillins, cp_to_fill, focus, &ctr, drawno);
         }
+        end:
         apop_model_free(m);
         gsl_vector_memcpy(raked->weights, original_weights);
     }
@@ -718,7 +719,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
         int tryctr=0;
         int id_number = atoi(is->isnan->names->row[rowindex]);
         a_draw_struct drew;
-        Apop_data_row(is->isnan, rowindex, full_record);
+        Apop_row(is->isnan, rowindex, full_record);
         do drew = onedraw(r, is, type, id_number, fail_id, 
                           model_id, full_record, col_of_interest);
         while (drew.is_fail && tryctr++ < 1000);
@@ -790,7 +791,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         bool still_has_missings=true, hit_zero=false;
         do {
             for (int i=0; i < nanvals->names->rowct; i++){ //see notes above.
-                Apop_data_row(nanvals, i, row_i);
+                Apop_row(nanvals, i, row_i);
                 if (!still_is_nan(row_i)) continue;
                 get_nans_and_notnans(is, nanvals->names->row[i] /*ego_id*/, 
                         dt, underlying, min_group_size, category_matrix, fingerprint_vars, id_col);
@@ -1103,7 +1104,7 @@ void impute(char **idatatab){
 /* multiple_imputation_variance's default now.
 static apop_data *colmeans(apop_data *in){
     apop_data *sums = apop_data_summarize(in);
-    Apop_col_t(sums, "mean", means);
+    Apop_col_tv(sums, "mean", means);
     apop_data *out = apop_matrix_to_data(apop_vector_to_matrix(means, 'r'));
     apop_name_stack(out->names, in->names, 'c', 'c');
     apop_data *cov = apop_data_add_page(out, apop_data_covariance(in), "<Covariance>");

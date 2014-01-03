@@ -82,7 +82,7 @@ typedef apop_data *(*data_to_data)(apop_data*);
 static apop_data *colmeans(apop_data *in){
     Get_vmsizes(in); //maxsize
     apop_data *sums = apop_data_summarize(in);
-    Apop_col_t(sums, "mean", means);
+    Apop_col_tv(sums, "mean", means);
     apop_data *out = apop_matrix_to_data(apop_vector_to_matrix(means, 'r'));
     apop_name_stack(out->names, in->names, 'c', 'c');
     apop_data *cov = apop_data_add_page(out, apop_data_covariance(in), "<Covariance>");
@@ -125,7 +125,7 @@ apop_data* multiple_imputation_variance_base(multiple_imputation_variance_t in){
     gsl_vector *imps = NULL;
     apop_data *impt = NULL; 
     if (imputationtype == 'd'){
-        Apop_col(in.fill_ins, imputationcol, ic);
+        Apop_col_v(in.fill_ins, imputationcol, ic);
         imps = apop_vector_unique_elements(ic);
     } else impt = apop_text_unique_elements(in.fill_ins, imputationcol);
 

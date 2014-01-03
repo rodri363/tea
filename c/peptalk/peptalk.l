@@ -68,11 +68,11 @@ include[ \t]*\:      BEGIN(incl);//stuff about including files that I cut/pasted
 
 <incl>[ \t]*      /* eat the whitespace */
 <incl>[^ \t\n]+   { /* got the include file name */
-				Apop_stopif(include_stack_ptr >= MAX_INCLUDE_DEPTH, return, 0, "Includes nested too deeply");
+				Apop_stopif(include_stack_ptr >= MAX_INCLUDE_DEPTH, return -1, 0, "Includes nested too deeply");
 				include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
 
 				yyin = fopen( yytext, "r" );
-				Apop_stopif(!yyin, return, 0, "You asked me to include %s, but I couldn't open that file.", yytext);
+				Apop_stopif(!yyin, return -1, 0, "You asked me to include %s, but I couldn't open that file.", yytext);
 
 				yy_switch_to_buffer( yy_create_buffer( yyin, YY_BUF_SIZE ) );
 

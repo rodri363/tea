@@ -20,7 +20,7 @@ gsl_rng *r  =apop_rng_alloc(231);
     gsl_matrix_int *imat1 = gsl_matrix_int_alloc(nrow+1, ncol+1);
     int *rowparity= malloc(sizeof(int)*(nrow+1)*2);
 
-    apop_data *dt=apop_data_transpose(d);
+    apop_data *dt=apop_data_transpose(d, .inplace='n');
     unbiasround(dt->matrix->data, imat->data, imat1->data, rowparity, &nrow, &ncol, r);
     apop_data_free(dt);
     int k=0;

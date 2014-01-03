@@ -134,7 +134,7 @@ void db_to_em(void){
 			if (!d) d = apop_query_to_text("%s", ud_queries->text[current_explicit][0]);
             Apop_stopif(d && d->error, return, 0, "query error setting up edit grid; edits after this one won't happen.");
             grow_grid(edit_grid, &em_i, total_option_ct);
-            Apop_matrix_row(edit_grid->matrix, em_i-1, a_row)
+            Apop_row_v(edit_grid, em_i-1, a_row)
             gsl_vector_set_all(a_row, -1); //first posn of a field==-1 ==> ignore.
             if (verbose) printf("Next edit.\n");
 
