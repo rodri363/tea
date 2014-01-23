@@ -200,7 +200,7 @@ void db_to_em(void){
                         if (verbose) printf("Done.\n");
                         edit_ct = em_i;
                         /*if (!apop_table_exists("edit_grid"))
-                            apop_data_print(edit_grid, .output_file="edit_grid", .output_type='d');*/
+                            apop_data_print(edit_grid, .output_name="edit_grid", .output_type='d');*/
                         return;
                     }
                 } else next_phase = is_new_edit(d, current_row);

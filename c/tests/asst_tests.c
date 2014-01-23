@@ -241,7 +241,7 @@ void test_ols(gsl_rng *r){
     apop_data_prune_columns(observations, "norm", "fish"); //vector "y" always kept.
     sprintf(apop_opts.db_name_column, "id_col");
     apop_db_open("olsdb.db");
-    apop_data_print(observations, .output_file="olsdata");
+    apop_data_print(observations, .output_name="olsdata");
     //apop_data_show(observations);
 
 

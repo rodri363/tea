@@ -240,8 +240,8 @@ asprintf(&dcp->names->title, "<<<<<<<<<<<<<<<<<<<<<<<<<<<");
 asprintf(&raked->names->title, ">>>>>>>>>>>>>>>>>>>>>>>>>>>");
 apop_data_pmf_compress(raked);
 apop_data_sort(raked);
-apop_data_print(dcp, .output_file="ooo", .output_append='a');
-apop_data_print(raked, .output_file="ooo", .output_append='a');
+apop_data_print(dcp, .output_name="ooo", .output_append='a');
+apop_data_print(raked, .output_name="ooo", .output_append='a');
 apop_data_free(dcp);
 */
 
@@ -275,10 +275,10 @@ apop_data_free(dcp);
     apop_text_alloc(fillins, ctr, 2);
     apop_data_free(name_sorted_cp);
     begin_transaction();
-    if (fillins->matrix) apop_data_print(fillins, .output_file=fill_tab, .output_type='d', .output_append='a');
+    if (fillins->matrix) apop_data_print(fillins, .output_name=fill_tab, .output_type='d', .output_append='a');
     commit_transaction();
     apop_data_free(fillins);
-    //apop_data_print(raked, .output_file="ooo", .output_append='a');
+    //apop_data_print(raked, .output_name="ooo", .output_append='a');
     apop_data_free(raked); //Thrown away.
     gsl_vector_free(cp_to_fill);
     gsl_vector_free(original_weights);

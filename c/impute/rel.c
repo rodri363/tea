@@ -39,7 +39,7 @@ impute {
 
 static void rel_est(apop_data *d, apop_model *m){
     begin_transaction();
-    apop_data_print(d, .output_file="tea_hhs", .output_type='d', .output_append='w');
+    apop_data_print(d, .output_name="tea_hhs", .output_type='d', .output_append='w');
     apop_query("create index idx_tea_hhs_mafid on tea_hhs(mafid)");
     commit_transaction();
 }

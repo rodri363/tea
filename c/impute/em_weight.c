@@ -34,7 +34,7 @@ int weightless(apop_data *onerow, void *extra_param){ return gsl_vector_get(oner
 //This is a substitute for apop_pmf_compress, because
 //we can use knowledge of our special case to work more efficiently
 void merge_two_sets(apop_data *left, apop_data *right){
-    for (int i=0; i< right->matrix->size1; i++){
+    for  (int i=0; i< right->matrix->size1; i++) {
         Apop_row(right, i, Rrow);
         double *r = gsl_vector_ptr(Rrow->weights, 0);
         if (!*r) continue;
@@ -151,8 +151,8 @@ apop_data *em_weight_base(em_weight_s in){
     apop_data *candidate = apop_data_copy(in.d);
     apop_data_pmf_compress(candidate); //massive speed gain in some cases.
     double tolerance = in.tolerance ? in.tolerance : 1e-5;
-    apop_data *complete = apop_data_pmf_compress(apop_data_listwise_delete(apop_data_copy(in.d), .inplace='y')); //may be NULL.
-    if (!complete) return NULL;
+    //apop_data *complete = apop_data_pmf_compress(apop_data_listwise_delete(apop_data_copy(in.d), .inplace='y')); //may be NULL.
+    //if (!complete) return NULL;
     apop_vector_normalize(candidate->weights);
     apop_data *prior_candidate = NULL;
     int ctr = 0;
@@ -160,7 +160,8 @@ apop_data *em_weight_base(em_weight_s in){
     apop_data *cp;
     do {
         save_candidate(candidate, &prior_candidate);
-        candidate = apop_data_copy(complete);
+        //candidate = apop_data_copy(complete);
+        candidate = apop_data_copy(in.d);
         bool done_culling = (ctr >= saturated+2);
         for (int i=0; i < in.d->matrix->size1; i++){
             Apop_row(in.d, i, row);
@@ -193,6 +194,6 @@ apop_data *em_weight_base(em_weight_s in){
     } while (ctr++<= saturated || (candidate->weights->size != prior_candidate->weights->size || apop_vector_distance(candidate->weights, prior_candidate->weights, .metric='m') > tolerance));
     apop_data_free(cp);
     apop_data_free(prior_candidate);
-    apop_data_free(complete);
+    //apop_data_free(complete);
     return candidate;
 }
