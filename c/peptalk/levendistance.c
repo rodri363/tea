@@ -70,7 +70,7 @@ int check_levenshtein_distances(int max_lev_distance){
         }
         Apop_stopif(min_distance > 0 && min_distance <= max_lev_distance, typo_counter++ , 0, 
                             "You wrote %s for one of the keys in your spec file. Did you "
-                            "mean to write %s?", *userkeys->text[i], closest)
+                            "mean to write %s?", *userkeys->text[i], closest);
     }
     return typo_counter;
 }

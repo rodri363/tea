@@ -149,10 +149,10 @@ double en(apop_data *in){
    
    */
 apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *orig,  int cutctr){
-    Apop_stopif(!raked, return NULL, 0, "NULL raking results.")
+    Apop_stopif(!raked, return NULL, 0, "NULL raking results.");
     double s = apop_sum(raked->weights);
-    Apop_stopif(isnan(s), return NULL, 0, "NaNs in raking results.")
-    Apop_stopif(!s, return NULL, 0, "No weights in raking results.")
+    Apop_stopif(isnan(s), return NULL, 0, "NaNs in raking results.");
+    Apop_stopif(!s, return NULL, 0, "No weights in raking results.");
     bool done = false;
     apop_map(raked, .fn_rp=cull, .param=fin, .inplace='v');
     done = apop_sum(raked->weights);
@@ -287,12 +287,14 @@ apop_data_free(dcp);
 
 
 	
-static void lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
+static int lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
     double temp_out[m->parameters->vector->size+1];
     m->draw = apop_ols->draw;
-    apop_draw(temp_out, r, m);
+    Apop_stopif(apop_draw(temp_out, r, m), out[0]=NAN; return 1,
+            0, "OLS draw failed.");
     m->draw = lil_ols_draw;
     *out = temp_out[0];
+    return 0;
 }
 
 static char *construct_a_query(char const *datatab, char const *underlying, char const *varlist, 
@@ -500,10 +502,10 @@ static void model_est(impustruct *is, int *model_id){
         }
     Apop_stopif(notnan->vector && isnan(apop_vector_sum(notnan->vector)), return, 
             0, "NaNs in the not-NaN vector that I was going to use to estimate "
-            "the imputation model. This shouldn't happen")
+            "the imputation model. This shouldn't happen");
     Apop_stopif(notnan->matrix && isnan(apop_matrix_sum(notnan->matrix)), return,
             0, "NaNs in the not-NaN matrix that I was going to use to estimate "
-            "the imputation model. This shouldn't happen")
+            "the imputation model. This shouldn't happen");
     if (is->is_hotdeck) apop_data_pmf_compress(notnan);
 	//Apop_model_add_group(&(is->base_model), apop_parts_wanted); //no extras like cov or log like.
 
@@ -815,7 +817,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
             /*shrink the category matrix by one, then loop back and try again if need be. This could be more efficient, 
               but take recourse in knowing that the categories that need redoing are the ones with 
               few elements in them.*/
-            if (category_matrix && *category_matrix->textsize>0){
+            if (category_matrix && *category_matrix->textsize>1){
                 apop_text_alloc(category_matrix, category_matrix->textsize[0]-1, category_matrix->textsize[1]);
                 index_cats(datatab, category_matrix);
 
@@ -986,7 +988,7 @@ int do_impute(char **tag, char **idatatab){
     
     //This fn does nothing but read the config file and do appropriate setup.
     //See impute_a_variable for the real work.
-    Apop_stopif(!*tag, return -1, 0, "All the impute segments really should be tagged.")
+    Apop_stopif(!*tag, return -1, 0, "All the impute segments really should be tagged.");
     Apop_stopif(!*idatatab, return -1, 0, "I need an input table, "
                         "via a '%s/input table' key. Or, search the documentation "
                         "for the active table (which is currently not set).", configbase);

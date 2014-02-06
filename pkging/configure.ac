@@ -7,6 +7,13 @@ AC_INIT([tea], [X.XX], [ben.klemens@census.gov])
 # The normal /usr/local default just confused too many people
 AC_PREFIX_DEFAULT([/usr])
 
+AC_OPENMP
+
+AM_CFLAGS="$OPENMP_CFLAGS $AM_CFLAGS"
+AC_SUBST(OPENMP_CFLAGS)
+
+#echo "AM_CFLAGS=$OPENMP_CFLAGS" > src/Makevars.in
+#AC_SUBST(AM_CFLAGS,"$OPENMP_CFLAGS")
 
 #Cut & pasted from the R documentation. Uses R's preferred compiler
 : ${R_HOME=`R RHOME`}
@@ -92,7 +99,10 @@ AC_CHECK_FUNCS([floor memset pow regcomp sqrt strcasecmp])
 
 PACKAGE_NAME=tea
 
-echo "PKG_LIBS=@LIBS@" > src/Makevars.in
+echo "PKG_LIBS=@LIBS@
+PKG_CFLAGS=-fopenmp
+PKG_LIBS=-fopenmp -lgomp -lapophenia
+" >> src/Makevars.in
 AC_CONFIG_FILES([src/Makevars],)
 
 AC_OUTPUT

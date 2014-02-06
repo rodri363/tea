@@ -1,4 +1,5 @@
 #include <apop.h>
+#include <stdarg.h>
 
 /*extend a string. this prevents a minor leak you'd get if you did
  asprintf(&q, "%s is a teapot.", q);

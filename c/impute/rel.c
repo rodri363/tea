@@ -44,7 +44,7 @@ static void rel_est(apop_data *d, apop_model *m){
     commit_transaction();
 }
 
-static void rel_draw(double *out, gsl_rng *r, apop_model *m){
+static int rel_draw(double *out, gsl_rng *r, apop_model *m){
     static int ctr;
     static apop_data *this_hh;
     if (ctr == 0){
@@ -53,12 +53,13 @@ static void rel_draw(double *out, gsl_rng *r, apop_model *m){
                 1+ (int)(gsl_rng_uniform(r)*apop_query_to_float("select count(*) from tea_hhs")));
         this_hh = apop_query_to_data("select perel from tea_hhs where "
                     "mafid = %i", hh_id);
-        Apop_stopif (!this_hh || this_hh->error, *out=GSL_NAN; return,
+        Apop_stopif (!this_hh || this_hh->error, *out=GSL_NAN; return 1,
                 0, "Something went wrong drawing a household from my "
                     "table of households, tea_hh.");
     }
     *out = apop_data_get(this_hh, ctr);
     ctr = (ctr+1) % this_hh->matrix->size1;
+    return 0;
 }
 
 apop_model *relmodel = &(apop_model){"Model for drawing relationship", .estimate=rel_est, .draw=rel_draw};

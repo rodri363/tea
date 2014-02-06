@@ -38,12 +38,16 @@ void merge_two_sets(apop_data *left, apop_data *right){
         Apop_row(right, i, Rrow);
         double *r = gsl_vector_ptr(Rrow->weights, 0);
         if (!*r) continue;
-        for (int j=0; j< left->matrix->size1; j++){
+        int j;
+        bool done = false;
+        #pragma omp parallel for private(j) shared(done)
+        for (j=0; j< left->matrix->size1; j++){
             Apop_row(left, j, Lrow);
             if (are_equal(Rrow, Lrow)){
                 *gsl_vector_ptr(Lrow->weights, 0) += *r;
                 *r = 0;
-                break;
+                done = true;
+                if (done) j = left->matrix->size1;
             }
         }
     }
@@ -157,16 +161,15 @@ apop_data *em_weight_base(em_weight_s in){
     apop_data *prior_candidate = NULL;
     int ctr = 0;
     int saturated = (int) log2(in.d->matrix->size2);
-    apop_data *cp;
+    apop_data *cp = NULL;
     do {
         save_candidate(candidate, &prior_candidate);
         //candidate = apop_data_copy(complete);
         candidate = apop_data_copy(in.d);
-        bool done_culling = (ctr >= saturated+2);
-        for (int i=0; i < in.d->matrix->size1; i++){
+        for (int i=0; i < in.d->matrix->size1; i++) {
             Apop_row(in.d, i, row);
             if (isnan(apop_matrix_sum(row->matrix))) {
-                if (!done_culling || (ctr==saturated+2 && cp==NULL)) cp = apop_data_copy(prior_candidate);
+                if (!cp) cp = apop_data_copy(prior_candidate);
                 else gsl_vector_memcpy(cp->weights, prior_candidate->weights);
 
                 (ctr<saturated ? cull_w_nans : cull2)(row, cp);
@@ -175,20 +178,19 @@ apop_data *em_weight_base(em_weight_s in){
                 if (apop_sum(cp->weights)) {
                     apop_vector_normalize(cp->weights);
                     gsl_vector_scale(cp->weights, gsl_vector_get(row->weights, 0));
-                    if (!done_culling){
-                        merge_two_sets(candidate, cp);
-                        /*apop_data_rm_rows(cp, .do_drop=weightless);
-                        candidate = apop_data_stack(candidate, cp, .inplace='y');
-                        apop_data_pmf_compress(candidate);*/
-                    } else //candidate, prior_candidate, and cp differ only by weights
+                    if (candidate->weights->size != cp->weights->size)
+                        merge_two_sets(candidate, cp);   //shrinks cp.
+                    else //candidate, prior_candidate, and cp differ only by weights
                         gsl_vector_add(candidate->weights, cp->weights);
                 }
-                if (!done_culling) apop_data_free(cp);
+                if (!cp->weights || candidate->weights->size != cp->weights->size)
+                    apop_data_free(cp);
             }
         }
         if (ctr==saturated) {
             apop_data_listwise_delete(candidate, .inplace='y');
             apop_data_pmf_compress(candidate);
+            apop_data_free(cp);
         }
         apop_vector_normalize(candidate->weights);
     } while (ctr++<= saturated || (candidate->weights->size != prior_candidate->weights->size || apop_vector_distance(candidate->weights, prior_candidate->weights, .metric='m') > tolerance));

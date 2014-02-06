@@ -374,7 +374,7 @@ void read_spec(char **infile, char **dbname_out){
     pass=0;
     begin_transaction();
     Apop_stopif(yyparse(), return, 0, "TEA was unable to read your spec file. This is most likely"
-            " due to the fact that you didn't specify a database at the header of the file.")  
+            " due to the fact that you didn't specify a database at the header of the file.");
         //fill keys table. Note that yyparse() returns 0 when parsing is successful.
     
     if(get_key_word("verbose", NULL) != NULL) verbose = 2;
