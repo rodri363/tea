@@ -289,13 +289,13 @@ int PreChex(void)
   /* Stop program if maximum # of fields is exceded. */
   /*   Just increase the value of maxflds variable.  */
   Apop_stopif( BFLD > maxflds, return 0, -5,
-        "**** FATAL ERROR in GenBnds:  Maximum number of fields (%d) exceded. ****\n",
+        "**** FATAL ERROR in SPEER:  Maximum number of fields (%d) exceded. ****\n",
  	    maxflds ); 
 
   /* Stop program if max length of field names is exceded. */
   /*   Just increase the value of maxfldlen variable.      */
   Apop_stopif( namlen > maxfldlen, return 0, -5,
-        "**** FATAL ERROR in GenBnds:  Maximum length of field name (%d) exceded. ****\n",
+        "**** FATAL ERROR in SPEER:  Maximum length of field name (%d) exceded. ****\n",
  	    maxfldlen ); 
 
   return 0;
