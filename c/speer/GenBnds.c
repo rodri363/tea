@@ -9,16 +9,30 @@
 #include <stdlib.h>
 #include <sqlite3.h>
 
+#include <unistd.h>
+
 /* global constants */
 #define maxflds 100    /* maximum # of basic items/field */
 #define maxfldlen 30   /* maximum field name length */
 #define maxexps 100    /* maximum # of Explicit ratios (per category) */
+#define maxcats 30     /* maximum # categories */
 int BFLD;	           /* # of basic items */
 char bnames[maxfldlen][maxflds];  /* Basic item names [name length][# of fields] */
 int TOTSIC;            /* # of categories of ratios */
+int ncat;              /* Category loop counter */
 int NEDFF;	           /* # of explicit ratios per category */
 int numff[maxexps];    /* Numerators of explicit ratios */
 int denff[maxexps];    /* Denominators of explicit ratios */
+
+apop_data *ExpBnds;
+struct                 /* Explicit ratios/bounds data */
+{ int cat[maxcats][maxflds];
+  char num[maxfldlen][maxcats][maxflds];
+  char den[maxfldlen][maxcats][maxflds];
+  float lo[maxcats][maxflds];
+  float up[maxcats][maxflds];
+} ExpRats;
+
 
 /* global variables */
 int incon = 0;         /* # of inconsistent ratios/bounds */
@@ -39,13 +53,14 @@ extern char *get_key_word( char*, char* );
 int genbnds_(void)
 /******************************************************/ 
 {
-  int i, j, ncat, pos;
+  int i, j, k, pos;
   float wgt;
   char nam[maxfldlen];
 
   /* Subroutines */
   extern int ReadExplicits(void), GenImplicits(void), CheckIncon(void),
-	         PreChecks(void), PostChecks(void);
+	         PreChecks(void), PostChecks(void); 
+  void xor_encrypt(char *key, char *instring, char *outstring, int n);
 
 /*****************  FIX ME:  Id rather have TEA call GenBnds only once. ************/
   /* Creating the implicit bounds needs to been done only once. */
@@ -65,6 +80,32 @@ int genbnds_(void)
   BFLD = atoi( bfld_s );
   NEDFF = atoi( nedff_s );
   TOTSIC = atoi( totsic_s );
+ 
+  /* TeaKEY( ExpRatios, <<< User-supplied Explicit ratios for basic items. >>>) */
+  int cat;
+  float lo, up;
+  char num[maxfldlen], den[maxfldlen];
+  ExpBnds = get_key_text("ExpRatios", NULL);      /* Get Explicit bounds from .db */
+  j=1;
+  k=0;
+  for( i = 0; i <= (TOTSIC * NEDFF) -1; ++i ) {
+    sscanf( ExpBnds->text[i][0], "%d %s %s %f %f", &cat, num, den, &lo, &up );
+	/* set matix counters */
+	k=k+1;
+	if( k > NEDFF ) { 
+		k = 1; 
+	    j=j+1;
+	}
+
+    /* Store explicit data in arrays */
+	ExpRats.cat[j][k] = cat; 
+	strcpy( ExpRats.num[j][k], num );
+	strcpy( ExpRats.den[j][k], den ); 
+    ExpRats.lo[j][k] = lo;
+	ExpRats.up[j][k] = up;
+    ////printf( " %d,%d   E.num= %s  E.den= %s  E.lo= %f  E.up= %f \n", j, k,
+	////	       ExpRats.num[j][k], ExpRats.den[j][k], ExpRats.lo[j][k], ExpRats.up[j][k] );
+  }
 
   /* Check for potential pre-processing fatal problems. */
   PreChecks();
@@ -93,11 +134,13 @@ int genbnds_(void)
     GenImplicits();
     CheckIncon();
 
+	printf( " ncat= %d   cat= %d\n", ncat, ExpRats.cat[ncat][1] );
+
     /* For each category, store implicit bounds in table:  SPEERimpl */
     for (i = 1; i <= BFLD; ++i) {
       for (j = 1; j <= BFLD; ++j) {
          apop_query("insert into SPEERimpl values( %d, %d, %d, '%s', '%s', %f, %f);",
-	            ncat+100, i, j, bnames[i], bnames[j], bnds.lower[i][j], bnds.upper[i][j]);
+	            ExpRats.cat[ncat][1], i, j, bnames[i], bnames[j], bnds.lower[i][j], bnds.upper[i][j]);
       }
     }
   }
@@ -109,7 +152,6 @@ int genbnds_(void)
 
   return 0;
 }
-
 
 
 int CheckIncon(void)
@@ -219,6 +261,7 @@ int PostChecks(void)
   }
 
   /* Random checks. */
+  /*
   diff = MIN( bnds.lower[1][2], (double).0215853 ) / MAX( bnds.lower[1][2], (double).0215853 );
   diff = (double)1.0 - diff;
   Apop_stopif( diff > margin, return 0, -5,
@@ -242,6 +285,7 @@ int PostChecks(void)
   Apop_stopif( diff > margin, return 0, -5,
 	       "**** FATAL ERROR in GenBnds:  %s/%s lower bound not = .0001406 ****\n", 
 	       bnames[2], bnames[6] ); 
+*/
 }
 
 int ReadExplicits(void)
@@ -277,25 +321,27 @@ int ReadExplicits(void)
  
   /* TeaKEY( ExpRatios, <<< User-supplied Explicit ratios for basic items. >>>) */
   /* Get Explicit bounds from .db */
-  apop_data *ExpBnds = get_key_text("ExpRatios", NULL);
+/////  apop_data *ExpBnds = get_key_text("ExpRatios", NULL);
 
   /* Parse ExpBnds string */
   /* Determine/fill numff & denff arrays.  Then place Explicit ratios into matrices. */
   for (i = 0; i <= NEDFF-1; ++i) {
-    sscanf( ExpBnds->text[i][0], "%f %s %s %f", &lo, num, den, &up );
+////    sscanf( ExpBnds->text[i][0], "%d %s %s %f %f", &cat, num, den, &lo, &up );
     numff[i+1] = 0;
     denff[i+1] = 0;
     for (j = 1; j <= BFLD; ++j) {
-	  if( strcmp(num, bnames[j]) == 0 ) { numff[i+1] = j; }
-	  if( strcmp(den, bnames[j]) == 0 ) { denff[i+1] = j; }
+	  if( strcmp(ExpRats.num[ncat][i+1], bnames[j]) == 0 ) { numff[i+1] = j; }
+	  if( strcmp(ExpRats.den[ncat][i+1], bnames[j]) == 0 ) { denff[i+1] = j; }
 	}
     Apop_stopif( numff[i+1] == 0 | denff[i+1] == 0, return 0, -5,
 		"**** FATAL ERROR in GenBnds:  Problem reading explicit ratio #%d. ****\n", i ); 
 
 	/* Place Explicit ratios into matrices. */
-    bnds.lower[numff[i+1]][denff[i+1]] = lo;
-    bnds.upper[numff[i+1]][denff[i+1]] = up;
-  }
+    bnds.lower[numff[i+1]][denff[i+1]] = ExpRats.lo[ncat][i+1];
+    bnds.upper[numff[i+1]][denff[i+1]] = ExpRats.up[ncat][i+1];
+
+////  printf( "   ReadExplicits: ncat= %d \n", ncat );
+ }
 
   /* Parse ExpBnds string */
 ////  for (i = 0; i <= NEDFF-1; ++i) {
