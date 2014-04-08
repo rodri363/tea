@@ -66,11 +66,12 @@ push-pkg:
 	make nodoc
 	for i in `git ls-files`; do git rm $$i; done
 	rsync -aP pkg/tea/ .
-	rm -r pkg/tea/
+	rm -r pkg/tea/ c/peptalk/*
+	rm src/.gitignore
 	git add .
 	git rm -f pkg/tea*tar.gz
 	git commit -a -m 'Rebuilt package'
-	git merge -X ours remotes/origin/pkg
+	git merge -X ours remotes/origin/pkg -m 'Another package revision.'
 	git push origin `git rev-parse --abbrev-ref HEAD`:pkg
 	git checkout master
 	git branch -D `git branch| grep pkg-`
