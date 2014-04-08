@@ -60,14 +60,17 @@ clean:
 	rm -f tests/edit-rel_age/graph/*
 	rm -f demo/bigdemo/*.png
 
-push:
-	@if [ "x$(MSG)" = 'x' ] ; then echo "MSG='whatever, dude.'" make push; fi
-	@test "x$(MSG)" != 'x'
-	git commit -a  -m "$(MSG)"
-	git svn fetch
-	git svn rebase
-	git svn dcommit
 
-get:
-	git svn fetch
-	git svn rebase
+push-pkg:
+	git checkout -b pkg-`git log -1 | grep commit | cut -f2 -d' ' | head -c 8`
+	make nodoc
+	for i in `git ls-files`; do git rm $$i; done
+	rsync -aP pkg/tea/ .
+	rm -r pkg/tea/
+	git add .
+	git rm -f pkg/tea*tar.gz
+	git commit -a -m 'Rebuilt package'
+	git merge -X ours remotes/origin/pkg
+	git push origin `git rev-parse --abbrev-ref HEAD`:pkg
+	git checkout master
+	git branch -D `git branch| grep pkg-`

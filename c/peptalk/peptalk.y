@@ -82,6 +82,7 @@ The functions here are all run by the yyparse() function. To see the context in 
 
 //int yydebug=1;
 
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdbool.h>
 #include "internal.h"
