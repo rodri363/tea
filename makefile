@@ -66,7 +66,7 @@ push-pkg:
 	make nodoc
 	for i in `git ls-files`; do git rm $$i; done
 	rsync -aP pkg/tea/ .
-	rm -r pkg/tea/
+	rm -r pkg/tea/ c/peptalk/*
 	git add .
 	git rm -f pkg/tea*tar.gz
 	git commit -a -m 'Rebuilt package'
