@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
