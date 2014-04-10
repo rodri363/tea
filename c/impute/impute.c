@@ -1,5 +1,6 @@
 //See readme file for notes.
-#define __USE_POSIX //for strtok_r
+#define _GNU_SOURCE //declare asprintf
+#include <stdio.h>
 #include <rapophenia.h>
 #include <stdbool.h>
 #include <stdlib.h>

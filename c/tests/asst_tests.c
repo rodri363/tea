@@ -1,3 +1,6 @@
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <assert.h>
 #include "internal.h"
 void test_has_sqlite3_index();//text_in/text_in.c
 
@@ -220,7 +223,7 @@ void test_ols(gsl_rng *r){
     apop_data *y = apop_dot(observations, betas);
     observations->vector= y->vector;
     apop_model *olsest = apop_estimate(observations, apop_ols);
-    //apop_model_print(olsest);
+    apop_model_print(olsest, NULL);
     assert(fabs(apop_data_get(olsest->parameters, 0, -1) -  3) < 1e-5);
     assert(fabs(apop_data_get(olsest->parameters, 1, -1) - -2) < 1e-5);
     assert(fabs(apop_data_get(olsest->parameters, 2, -1) -  1) < 1e-5);

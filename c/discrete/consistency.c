@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <time.h>
 #include "internal.h"
 #include <setjmp.h>
 #include <stdbool.h>
