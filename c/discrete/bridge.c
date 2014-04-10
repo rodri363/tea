@@ -13,6 +13,8 @@ As of 4 May 2010, the main() function has been removed---it works only via PEP's
 #include <stdbool.h>
 #include "internal.h"
 
+extern int speer_(void);
+
 void generate_indices(char const *);
 
 int edit_ct, nflds, errorcount, verbose, run_number, explicit_ct;
