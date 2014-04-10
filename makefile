@@ -60,7 +60,6 @@ clean:
 	rm -f tests/edit-rel_age/graph/*
 	rm -f demo/bigdemo/*.png
 
-
 push-pkg:
 	git checkout -b pkg-`git log -1 | grep commit | cut -f2 -d' ' | head -c 8`
 	make nodoc
