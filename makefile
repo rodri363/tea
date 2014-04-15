@@ -66,7 +66,7 @@ push-pkg:
 	for i in `git ls-files`; do git rm $$i; done
 	rsync -aP pkg/tea/ .
 	rm -r pkg/tea/
-	git rm src/.gitignore
+	rm src/.gitignore
 	git add .
 	git rm -f pkg/tea*tar.gz
 	git commit -a -m 'Rebuilt package'
