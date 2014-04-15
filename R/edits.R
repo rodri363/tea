@@ -1,6 +1,15 @@
 # get_edit_vars and init_edit_list seemed unused; deleted.
 # Restore via git checkout 6c8a929c .
 
+
+#' Open a database with a given name for use by tea.
+#' This is normally done for you by readSpec. Use this if you don't have a spec file 
+#' but want to run some queries on an already-processed database.
+teaConnect <-function(dbname){
+    teaenv$con <- dbConnect(dbDriver("SQLite"), dbname)
+    .C("db_open", dbname)
+}
+
 #' read specification file into keys SQLite table
 #' @param spec the configuration file to read (as character path)
 #' @param nlines the maximal number of lines to read from the config
@@ -14,27 +23,15 @@ readSpec <- function(spec,nlines=1000){
     # written to the keys table. If not, then don't perform dbConnect below (and just go
     # back to R after displaying warning message).
     
-    #browser()
+    teaenv$db_name <- .C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
 
-    teaenv$db_name <- tryCatch({
-    .C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
-    }, warning=function(war) {
-
-    if(war$message == "TEA was unable to read your spec file. This is most likely due to the fact that you didn't specify a database at the header of the file.") {
-       skip <<- skip + 1;
-    }
-
-    })
-
-    print(paste(skip))
-
-    # If skip==1 then database was not written to spec file to executing 
-    # function below will cause error.
-    if(!skip) {
+    if(nchar(teaenv$db_name)>0) {
         teaenv$con <- dbConnect(dbDriver("SQLite"), teaenv$db_name);
     }
     teaenv$verbosity <- 0
 }
+
+
 
 #' Interface with C-side record consistency checking
 #' @param vals variable names
@@ -77,5 +74,5 @@ CheckBounds <- function(Vvar,kname,con){
 }
 
 CheckDF <- function(df){
-	return(.Call("RCheckData",df))
+	return(as.data.frame(.Call("RCheckData",df)))
 }

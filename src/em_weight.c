@@ -52,25 +52,34 @@ void merge_two_sets(apop_data *left, apop_data *right){
         }
     }
     apop_data_rm_rows(right, .do_drop=weightless);
+    //apop_data_listwise_delete(left, .inplace='y');
     apop_data_stack(left, right, .inplace='y');
 }
 
-
 // Zero out the weights of those rows that don't match.
+// Rescale the weights of those rows that are near-misses.
 static double cull2(apop_data const *onerow, apop_data *cullback){
+    #pragma omp parallel for
     for (int row=0; row<cullback->matrix->size1; row++){
         Apop_row(cullback, row, cull_row);
+        if (!*cull_row->weights->data) continue;
         for (int i=0; i< cull_row->matrix->size2; i++){
-            double this = apop_data_get(onerow, .col=i);
+            double this= onerow->matrix->data[i];
             if (isnan(this)) continue;
-            if (apop_data_get(cull_row, .col=i) != this) {
-                gsl_vector_set(cullback->weights, row, 0);
+            double crthis= cull_row->matrix->data[i];
+            if (onerow->more && onerow->more->text[i][0][0]=='r'){//near-misses OK.
+                double dist = fabs(this - crthis);
+                *cull_row->weights->data *= 1/(1+dist);
+            }
+            else if (crthis != this) {
+                *cull_row->weights->data= 0;
                 break;
             }
         }
     }
     return 0;
 }
+
 
 /* In this version, both the reference row and the weight set to be culled
    may have NaNs. We still require compabibility in those fields where both
@@ -110,10 +119,16 @@ static double cull_w_nans(apop_data const *onerow, apop_data *cullback){
             double ref_field = apop_data_get(onerow, .col=i);
             double *cull_field = apop_data_ptr(cull_row, .col=i);
             has_nans[row] = has_nans[row] || isnan(*cull_field);  //step (1)
-            if ((*cull_field != ref_field && !isnan(*cull_field) && !isnan(ref_field)) //mismatch
-                    || (has_nans[row] && complete_admissable_row)) { //step (4)
-                *weight = 0;
-                break;
+            if (!isnan(*cull_field) && !isnan(ref_field)){
+                if (onerow->more && onerow->more->text[i][0][0]=='r'){//near-misses OK.
+                    double dist = fabs(ref_field - *cull_field);
+                    *cull_row->weights->data *= 1/(1+dist);
+                    break;
+                } else if ((*cull_field != ref_field) //mismatch
+                        || (has_nans[row] && complete_admissable_row)) { //step (4)
+                    *weight = 0;
+                    break;
+                }
             }
             if (isnan(*cull_field) && !isnan(ref_field)){
                 *cull_field = ref_field;
@@ -137,6 +152,34 @@ void save_candidate(apop_data *candidate, apop_data **prior_candidate){
     //apop_data_pmf_compress(*prior_candidate);
 }
 
+void prep_a_copy(apop_data **cp, apop_data *prior_candidate){
+    if (!*cp) *cp = apop_data_copy(prior_candidate);
+    else     gsl_vector_memcpy((*cp)->weights, prior_candidate->weights);
+}
+
+void merge_in_weights_so_far(apop_data *new_bit, apop_data *main_set){
+    if (new_bit->weights->size != main_set->weights->size)
+        merge_two_sets(new_bit, main_set);   //shrinks main_set
+    else //candidate, prior_candidate, and cp differ only by weights
+        gsl_vector_add(new_bit->weights, main_set->weights);
+}
+
+void rescale_cp_and_merge_into_candidate(apop_data *candidate, apop_data **cp, double scale_to){
+    double cp_weight_sum = apop_sum((*cp)->weights);
+    if (cp_weight_sum) {
+        gsl_vector_scale((*cp)->weights, scale_to/cp_weight_sum);
+        merge_in_weights_so_far(candidate, *cp);//append cp into candidate
+    }
+    if (!(*cp)->weights || candidate->weights->size != (*cp)->weights->size)
+        apop_data_free(*cp);
+}
+
+void clean_up_for_phase_II(apop_data *candidate, apop_data **cp){
+    apop_data_listwise_delete(candidate, .inplace='y');
+    apop_data_pmf_compress(candidate);
+    apop_data_free(*cp);
+}
+
 /* This version uses cull_w_nans. At the bottom of the for loop,
    we have a candidate set that has fewer NaNs than before, and is weighted to the
    count of the original data.
@@ -153,10 +196,10 @@ void save_candidate(apop_data *candidate, apop_data **prior_candidate){
 */
 apop_data *em_weight_base(em_weight_s in){
     apop_data *candidate = apop_data_copy(in.d);
-    apop_data_pmf_compress(candidate); //massive speed gain in some cases.
+    apop_data *clean_copy = apop_data_copy( //massive speed gain in some cases.
+                                    apop_data_pmf_compress(candidate));
+    apop_data *complete_copy = apop_data_listwise_delete(clean_copy);
     double tolerance = in.tolerance ? in.tolerance : 1e-5;
-    //apop_data *complete = apop_data_pmf_compress(apop_data_listwise_delete(apop_data_copy(in.d), .inplace='y')); //may be NULL.
-    //if (!complete) return NULL;
     apop_vector_normalize(candidate->weights);
     apop_data *prior_candidate = NULL;
     int ctr = 0;
@@ -164,38 +207,25 @@ apop_data *em_weight_base(em_weight_s in){
     apop_data *cp = NULL;
     do {
         save_candidate(candidate, &prior_candidate);
-        //candidate = apop_data_copy(complete);
-        candidate = apop_data_copy(in.d);
-        for (int i=0; i < in.d->matrix->size1; i++) {
+        candidate = apop_data_copy(ctr>=saturated? complete_copy : clean_copy);
+        for (int i=0; i < clean_copy->matrix->size1; i++) {
             Apop_row(in.d, i, row);
             if (isnan(apop_matrix_sum(row->matrix))) {
-                if (!cp) cp = apop_data_copy(prior_candidate);
-                else gsl_vector_memcpy(cp->weights, prior_candidate->weights);
-
+                prep_a_copy(&cp, prior_candidate);
                 (ctr<saturated ? cull_w_nans : cull2)(row, cp);
-                //if (!done_culling && !cp->matrix) continue;
-
-                if (apop_sum(cp->weights)) {
-                    apop_vector_normalize(cp->weights);
-                    gsl_vector_scale(cp->weights, gsl_vector_get(row->weights, 0));
-                    if (candidate->weights->size != cp->weights->size)
-                        merge_two_sets(candidate, cp);   //shrinks cp.
-                    else //candidate, prior_candidate, and cp differ only by weights
-                        gsl_vector_add(candidate->weights, cp->weights);
-                }
-                if (!cp->weights || candidate->weights->size != cp->weights->size)
-                    apop_data_free(cp);
+                rescale_cp_and_merge_into_candidate(candidate, &cp,
+                                           gsl_vector_get(row->weights, 0));
             }
         }
-        if (ctr==saturated) {
-            apop_data_listwise_delete(candidate, .inplace='y');
-            apop_data_pmf_compress(candidate);
-            apop_data_free(cp);
-        }
+        if (ctr==saturated) clean_up_for_phase_II(candidate, &cp);
         apop_vector_normalize(candidate->weights);
-    } while (ctr++<= saturated || (candidate->weights->size != prior_candidate->weights->size || apop_vector_distance(candidate->weights, prior_candidate->weights, .metric='m') > tolerance));
+    } while (ctr++<= saturated
+              || (candidate->weights->size != prior_candidate->weights->size
+              || apop_vector_distance(candidate->weights, prior_candidate->weights, .metric='m') > tolerance));
     apop_data_free(cp);
     apop_data_free(prior_candidate);
+    apop_data_free(clean_copy);
+    apop_data_free(complete_copy);
     //apop_data_free(complete);
     return candidate;
 }

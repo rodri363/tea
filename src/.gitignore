@@ -1,0 +1,6 @@
+editlang.output
+editlang.tab.c
+editlang.tab.h
+*.o
+lex.yy.c
+edits

@@ -3,11 +3,9 @@
 /* *** BASIC ITEM'S EXPLICIT BOUNDS.                     **** */
 
 ////#include "internal.h"     // apophenia v 0.995
-#include <stdio.h>
-#include <apop.h>
+#include "tea.h"
 #include <string.h>
 #include <stdlib.h>
-#include <sqlite3.h>
 
 #include <unistd.h>
 
@@ -33,11 +31,6 @@ int npass = 0;   /*****  FIX ME:  Id rather have TEA call GenBnds only once. ***
 #define MAX(a,b) ( a > b ? a : b)
 
 struct { float lower[maxflds][maxflds]; float upper[maxflds][maxflds]; } bnds;
-
-extern int genbnds_(void);
-extern apop_data *get_key_text( char*, char* );
-extern char *get_key_word( char*, char* );
-
 
 int genbnds_(void)
 /******************************************************/ 
@@ -181,21 +174,22 @@ int PreChecks(void)
 {
   /* Stop program if maximum # of fields is exceded. */
   /*   Just increase the value of maxflds variable.  */
-  Apop_stopif( BFLD > maxflds, return 0, -5,
+  Tea_stopif( BFLD > maxflds, return 1, -5,
         "**** FATAL ERROR in GenBnds:  Maximum number of fields (%d) exceded. ****\n",
  	    maxflds ); 
 
   /* Stop program if max length of field names is exceded. */
   /*   Just increase the value of maxfldlen variable.      */
-  Apop_stopif( namlen > maxfldlen, return 0, -5,
+  Tea_stopif( namlen > maxfldlen, return 1, -5,
         "**** FATAL ERROR in GenBnds:  Maximum length of field name (%d) exceded. ****\n",
  	    maxfldlen ); 
 
   /* Stop program if number of Explicit ratios (per category) is exceded. */
   /*   Just increase the value of maxexps variable.  */
-  Apop_stopif( NEDFF > maxexps, return 0, -5,
+  Tea_stopif( NEDFF > maxexps, return 1, -5,
         "**** FATAL ERROR in GenBnds:  Maximum number of Expicit ratios (%d) exceded. ****\n",
  	    maxexps ); 
+  return 0;
 }
 
 
@@ -209,13 +203,13 @@ int PostChecks(void)
   #define margin .05   // margin of error
 
   /* Stop program if inconsistencies exist. */
-  Apop_stopif( incon > 0, return 0, -5,
+  Tea_stopif( incon > 0, return 1, -5,
 	       "**** FATAL ERROR in GenBnds:  %d inconsistent bounds exist. ****\n", 
 	       incon); 
 
   /* Stop program if diagonals' bounds not = 1.0 */
   for (i = 1; i <= BFLD; ++i) {
-    Apop_stopif( bnds.lower[i][i] != (double)1.0 | bnds.upper[i][i] != (double)1.0, return 0, -5,
+    Tea_stopif( bnds.lower[i][i] != (double)1.0 || bnds.upper[i][i] != (double)1.0, return 1, -5,
         "**** FATAL ERROR in GenBnds:  %s/%s bounds not = 1.0 ****\n",
  	    bnames[i], bnames[i] ); 
   }
@@ -224,28 +218,29 @@ int PostChecks(void)
   /*
   diff = MIN( bnds.lower[1][2], (double).0215853 ) / MAX( bnds.lower[1][2], (double).0215853 );
   diff = (double)1.0 - diff;
-  Apop_stopif( diff > margin, return 0, -5,
+  Tea_stopif( diff > margin, return 0, -5,
 	       "**** FATAL ERROR in GenBnds:  %s/%s lower bound not = .0215853 ****\n", 
 	       bnames[1], bnames[2] ); 
 
   diff = MIN( bnds.upper[3][8], (double)578.9274902 ) / MAX( bnds.upper[3][8], (double)578.9274902 );
   diff = (double)1.0 - diff;
-  Apop_stopif( diff > margin, return 0, -5,
+  Tea_stopif( diff > margin, return 0, -5,
 	       "**** FATAL ERROR in GenBnds:  %s/%s upper bound not = 578.9274902 ****\n", 
 	       bnames[3], bnames[8] ); 
 
   diff = MIN( bnds.upper[2][6], (double)73072.4218750 ) / MAX( bnds.upper[2][6], (double)73072.4218750 );
   diff = (double)1.0 - diff;
-  Apop_stopif( diff > margin, return 0, -5,
+  Tea_stopif( diff > margin, return 0, -5,
 	       "**** FATAL ERROR in GenBnds:  %s/%s upper bound not = 73072.4218750 ****\n", 
 	       bnames[2], bnames[6] ); 
 
   diff = MIN( bnds.lower[2][6], (double).0001406 ) / MAX( bnds.lower[2][6], (double).0001406 );
   diff = (double)1.0 - diff;
-  Apop_stopif( diff > margin, return 0, -5,
+  Tea_stopif( diff > margin, return 0, -5,
 	       "**** FATAL ERROR in GenBnds:  %s/%s lower bound not = .0001406 ****\n", 
 	       bnames[2], bnames[6] ); 
 */
+  return 0;
 }
 
 int ReadExplicits(void)
@@ -292,7 +287,7 @@ int ReadExplicits(void)
 	  if( strcmp(num, bnames[j]) == 0 ) { numff[i+1] = j; }
 	  if( strcmp(den, bnames[j]) == 0 ) { denff[i+1] = j; }
 	}
-    Apop_stopif( numff[i+1] == 0 | denff[i+1] == 0, return 0, -5,
+    Tea_stopif( numff[i+1] == 0 || denff[i+1] == 0, return 0, -5,
 		"**** FATAL ERROR in GenBnds:  Problem reading explicit ratio #%d. ****\n", i ); 
 
 	/* Place Explicit ratios into matrices. */

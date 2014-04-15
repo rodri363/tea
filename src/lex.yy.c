@@ -421,7 +421,7 @@ static yyconst flex_int32_t yy_ec[256] =
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    2,    4,    4,    5,    6,    4,    4,    7,    4,
-        4,    8,    4,    9,   10,   11,    7,   12,   12,   12,
+        4,    8,    4,    9,   10,   11,    4,   12,   12,   12,
        12,   12,   12,   12,   12,   12,   12,   13,    1,   14,
        15,   16,    4,    1,   17,   17,   17,   17,   17,   17,
        17,   17,   17,   17,   17,   17,   17,   17,   17,   17,
@@ -603,9 +603,7 @@ There's a hack to add an extra \n at the end of the file, which makes parsing ea
 
 That's all. The real work happens in editlang.y, which will make use of these tokens.
 */
-#include <apop.h>
-#include <string.h>
-#include <stdio.h>
+#include "tea.h"
 #define YYSTYPE char*
 #include "peptalk.tab.h"
 extern int lineno;        /* current line number  */
@@ -622,11 +620,11 @@ extern char parsed_type;
  */
 
 
-#line 50 "peptalk.l"
+#line 48 "peptalk.l"
 #define MAX_INCLUDE_DEPTH 100
 YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
 int include_stack_ptr = 0;
-#line 630 "lex.yy.c"
+#line 628 "lex.yy.c"
 
 #define INITIAL 0
 #define incl 1
@@ -811,10 +809,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 55 "peptalk.l"
+#line 53 "peptalk.l"
 
 
-#line 818 "lex.yy.c"
+#line 816 "lex.yy.c"
 
 	if ( !(yy_init) )
 		{
@@ -929,73 +927,73 @@ do_action:	/* This label is used only to access EOF actions. */
 	{ /* beginning of action switch */
 case 1:
 YY_RULE_SETUP
-#line 57 "peptalk.l"
+#line 55 "peptalk.l"
 { BEGIN(declarations);}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 58 "peptalk.l"
+#line 56 "peptalk.l"
 { BEGIN(INITIAL);}
 	YY_BREAK
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 59 "peptalk.l"
+#line 57 "peptalk.l"
 { lineno++; return EOL; } 
 	YY_BREAK
 case 4:
 /* rule 4 can match eol */
 YY_RULE_SETUP
-#line 60 "peptalk.l"
+#line 58 "peptalk.l"
 { parsed_type = 'i'; return TYPE; }
 	YY_BREAK
 case 5:
 /* rule 5 can match eol */
 YY_RULE_SETUP
-#line 61 "peptalk.l"
+#line 59 "peptalk.l"
 { parsed_type = 'r'; return TYPE; }
 	YY_BREAK
 case 6:
 /* rule 6 can match eol */
 YY_RULE_SETUP
-#line 62 "peptalk.l"
+#line 60 "peptalk.l"
 { parsed_type = 'c'; return TYPE; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 63 "peptalk.l"
+#line 61 "peptalk.l"
 {return WEIGHT;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 64 "peptalk.l"
+#line 62 "peptalk.l"
 { yylval = strdup(yytext); return DTEXT;}
 	YY_BREAK
 case 9:
 /* rule 9 can match eol */
 YY_RULE_SETUP
-#line 65 "peptalk.l"
+#line 63 "peptalk.l"
 { ; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 67 "peptalk.l"
+#line 65 "peptalk.l"
 BEGIN(incl);//stuff about including files that I cut/pasted it from the flex documentation.
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 69 "peptalk.l"
+#line 67 "peptalk.l"
 /* eat the whitespace */
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 70 "peptalk.l"
+#line 68 "peptalk.l"
 { /* got the include file name */
-				Apop_stopif(include_stack_ptr >= MAX_INCLUDE_DEPTH, return -1, 0, "Includes nested too deeply");
+				Tea_stopif(include_stack_ptr >= MAX_INCLUDE_DEPTH, return -1, 0, "Includes nested too deeply");
 				include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
 
 				yyin = fopen( yytext, "r" );
-				Apop_stopif(!yyin, return -1, 0, "You asked me to include %s, but I couldn't open that file.", yytext);
+				Tea_stopif(!yyin, return -1, 0, "You asked me to include %s, but I couldn't open that file.", yytext);
 
 				yy_switch_to_buffer(yy_create_buffer(yyin,YY_BUF_SIZE ) );
 
@@ -1005,7 +1003,7 @@ YY_RULE_SETUP
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(incl):
 case YY_STATE_EOF(declarations):
-#line 82 "peptalk.l"
+#line 80 "peptalk.l"
 {
             if ( --include_stack_ptr < 0 )
                 yyterminate();
@@ -1019,84 +1017,84 @@ case YY_STATE_EOF(declarations):
 case 13:
 /* rule 13 can match eol */
 YY_RULE_SETUP
-#line 93 "peptalk.l"
+#line 91 "peptalk.l"
 { return SPACE; }
 	YY_BREAK
 case 14:
 /* rule 14 can match eol */
 YY_RULE_SETUP
-#line 95 "peptalk.l"
+#line 93 "peptalk.l"
 { lineno++; return EOL; }    // one-line comments 
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 96 "peptalk.l"
+#line 94 "peptalk.l"
 { return '*';}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 97 "peptalk.l"
+#line 95 "peptalk.l"
 { return ',';}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 98 "peptalk.l"
+#line 96 "peptalk.l"
 { return ':';}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 99 "peptalk.l"
+#line 97 "peptalk.l"
 { return '-'; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 100 "peptalk.l"
+#line 98 "peptalk.l"
 { return '$'; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 101 "peptalk.l"
+#line 99 "peptalk.l"
 { return THEN; } 
 	YY_BREAK
 case 21:
 /* rule 21 can match eol */
 YY_RULE_SETUP
-#line 102 "peptalk.l"
+#line 100 "peptalk.l"
 { lineno++; return EOL; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 103 "peptalk.l"
+#line 101 "peptalk.l"
 { yylval = strdup(yytext); return TEXT;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 105 "peptalk.l"
+#line 103 "peptalk.l"
 { yylval = strdup(yytext); 
 	                             return NUMBER; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 108 "peptalk.l"
+#line 106 "peptalk.l"
 { yylval = strdup(yytext); 
                            return TEXT;}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 111 "peptalk.l"
+#line 109 "peptalk.l"
 { return OPENKEY;}
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 112 "peptalk.l"
+#line 110 "peptalk.l"
 { return CLOSEKEY;}
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 113 "peptalk.l"
+#line 111 "peptalk.l"
 ECHO;
 	YY_BREAK
-#line 1100 "lex.yy.c"
+#line 1098 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2028,7 +2026,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 113 "peptalk.l"
+#line 111 "peptalk.l"
 
 
 

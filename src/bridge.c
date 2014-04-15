@@ -25,6 +25,10 @@ char *database;
 apop_data *settings_table, *ud_queries;
 int max_lev_distance = 2;
 int num_typos;
+bool CTea=false; //Set to true iff using as a library without R.
+
+apop_data *edit_grid;
+edit_t **edit_grid_to_list;
 
 /* The implicit edit code has been removed---it never worked. The last edition that had it was 
 git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
@@ -41,7 +45,7 @@ int has_edits = 0; //incremented in peptalk.y if there's a checks{} group in the
 char *fname = "-stdin-";
 
 /* This is what the parser calls on error. */
-int yyerror(const char *s) { Apop_stopif(1, return 0, 0, "%s(%d): %s\n",fname,lineno,s); }
+int yyerror(const char *s) { Tea_stopif(1, return 0, 0, "%s(%d): %s\n",fname,lineno,s); }
 
 /**
 Each query produces a (apop_data) table of not-OK values, in the
@@ -92,6 +96,7 @@ static void grow_grid(apop_data *edit_grid, int *em_i, int toc){
     (*em_i)++;         //add a row to edit_grid->matrix.
     edit_grid->vector = apop_vector_realloc(edit_grid->vector, *em_i);
     edit_grid->matrix = apop_matrix_realloc(edit_grid->matrix, *em_i, toc);
+    edit_grid_to_list = realloc(edit_grid_to_list, sizeof(*edit_grid)* *em_i);
 }
 
 /* At this point, we have a list of tables representing each edit, in ud_queries.
@@ -119,7 +124,11 @@ void db_to_em(void){
 	while(1){
         //d = ud_explicits[current_explicit];
         if (next_phase == 's'){ //starting a new edit
-            if (!edit_grid) edit_grid = apop_data_alloc();
+            if (!edit_grid) {
+                edit_grid = apop_data_alloc();
+                free(edit_grid_to_list);
+                edit_grid_to_list = NULL;
+            }
             //We're only doing integer and text edits. If there's a real variable anywhere
             //along the row, then we'll use the sql-based edit system to make it work. 
             for (int i=0; i< edit_list[current_explicit].var_ct; i++)
@@ -129,12 +138,13 @@ void db_to_em(void){
                     next_phase='s';
                     grow_grid(edit_grid, &em_i, total_option_ct);
                     gsl_vector_set(edit_grid->vector, em_i-1, 2); //2==use the SQL-based edit system
+                    edit_grid_to_list[em_i-1] = edit_list + current_explicit;
                     goto Edited; //a use of goto! This is where we've finished an edit and are stepping forward.
                 }
             //else, standard discrete-indexed matrix
 
 			if (!d) d = apop_query_to_text("%s", ud_queries->text[current_explicit][0]);
-            Apop_stopif(d && d->error, return, 0, "query error setting up edit grid; edits after this one won't happen.");
+            Tea_stopif(d && d->error, return, 0, "query error setting up edit grid; edits after this one won't happen.");
             grow_grid(edit_grid, &em_i, total_option_ct);
             Apop_row_v(edit_grid, em_i-1, a_row)
             gsl_vector_set_all(a_row, -1); //first posn of a field==-1 ==> ignore.
@@ -354,7 +364,7 @@ void init_edit_list(){
         db_to_em();
 	}
     if (edit_list) {
-        Apop_stopif(!database,return, 0, "Please declare a database using 'database: your_db'.");
+        Tea_stopif(!database,return, 0, "Please declare a database using 'database: your_db'.");
         apop_table_exists("editinfo", 'd');
         apop_query("create table editinfo (row, edit, infotype, val1, val2);");
         if (!apop_table_exists("alternatives"))
@@ -372,10 +382,10 @@ void read_spec(char **infile, char **dbname_out){
     start_over();
     fname = strdup(*infile);
     yyin = fopen (fname, "r");
-    Apop_stopif(!yyin, return, 0, "Trouble opening spec file %s.", fname);
+    Tea_stopif(!yyin, return, 0, "Trouble opening spec file %s.", fname);
     pass=0;
     begin_transaction();
-    Apop_stopif(yyparse(), return, 0, "TEA was unable to read your spec file. This is most likely"
+    Tea_stopif(yyparse(), return, 0, "TEA was unable to read your spec file. This is most likely"
             " due to the fact that you didn't specify a database at the header of the file.");
         //fill keys table. Note that yyparse() returns 0 when parsing is successful.
     
@@ -393,10 +403,11 @@ void read_spec(char **infile, char **dbname_out){
     //Generating indices for ID
     apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key "
 					      "like 'input/%' order by count");
-    if (!tags) return;
-    for (int i=0; i< *tags->textsize;i++)
-        generate_indices(*tags->text[i]);
-    apop_data_free(tags);
+    if (tags){
+        for (int i=0; i< *tags->textsize;i++)
+            generate_indices(*tags->text[i]);
+        apop_data_free(tags);
+    }
 
     pass++;
     rewind(yyin); //go back to position zero in the config file
@@ -459,4 +470,17 @@ char get_coltype(char const* invar){
         if (!strcasecmp(invar, used_vars[v].name))
             return used_vars[v].type;
     return '\0';
+}
+
+
+//For opening a database connection from R
+void db_open(char **in){apop_db_open(*in);}
+
+void qxprintf(char **q, char *format, ...){
+    va_list ap;
+    char *r = *q;
+    va_start(ap, format);
+    Tea_stopif(vasprintf(q, format, ap)==-1, , 0, "Trouble writing to a string.");
+    va_end(ap);
+    free(r);
 }

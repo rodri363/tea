@@ -42,7 +42,21 @@ print("Exiting spec1 tests (1)")
     }, error=function(err) {
     print(paste(err)) })
 
-stopifnot(counter1 == 0)
+tryCatch({
+  ty <- stopifnot(counter1 == 0)
+  }, interrupt = function(ex) {
+    cat("An Interrupt was detected\n");
+    print(ex);
+    quit();
+  }, error = function(ex) {
+    cat("An Error was detected\n");
+    print(ex);
+    quit();
+  }, warning = function(ex) {
+    cat("A Warning was detected\n");
+    print(ex);
+    quit();
+})
 
 
 f<- file("spec2")
@@ -87,7 +101,22 @@ print("Exiting spec2 tests (2)")
 # execute the following error function:
     }, error=function(err) {
     print(paste(err)) })
-stopifnot(counter2 == 0)
+
+tryCatch({
+  ty <- stopifnot(counter2 == 0)
+  }, interrupt = function(ex) {
+    cat("An Interrupt was detected\n");
+    print(ex);
+    quit();
+  }, error = function(ex) {
+    cat("An Error was detected\n");
+    print(ex);
+    quit();
+  }, warning = function(ex) {
+    cat("A Warning was detected\n");
+    print(ex);
+    quit();
+})
 
 
 
@@ -131,7 +160,21 @@ print("Exiting spec3 tests (3)")
     print(paste(err)) })
 
 
-stopifnot(counter3 == 3)
+tryCatch({
+  ty <- stopifnot(counter3 == 3)
+  }, interrupt = function(ex) {
+    cat("An Interrupt was detected\n");
+    print(ex);
+    quit();
+  }, error = function(ex) {
+    cat("An Error was detected\n");
+    print(ex);
+    quit();
+  }, warning = function(ex) {
+    cat("A Warning was detected\n");
+    print(ex);
+    quit();
+})
 
 
 
@@ -174,4 +217,18 @@ print("Exiting spec4 tests (4)")
     }, error=function(err) {
     print(paste(err)) })
 
-stopifnot(counter4 == 1)
+tryCatch({
+  ty <- stopifnot(counter4 == 1)
+  }, interrupt = function(ex) {
+    cat("An Interrupt was detected\n");
+    print(ex);
+    quit();
+  }, error = function(ex) {
+    cat("An Error was detected\n");
+    print(ex);
+    quit();
+  }, warning = function(ex) {
+    cat("A Warning was detected\n");
+    print(ex);
+    quit();
+})

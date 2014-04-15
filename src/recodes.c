@@ -33,12 +33,12 @@ static char *one_recode_to_string(apop_data const *recode_list, int *is_formula,
             xprintf(&clauses, "%s when %s then '%s'\n", XN(clauses), *one_rc->text[1], strip(*one_rc->text[0]));
         } else if (*one_rc->textsize==1){ 
             //the default category.
-            Apop_stopif(*has_else, return NULL, 0, "You have a recode with two default categories.");
+            Tea_stopif(*has_else, return NULL, 0, "You have a recode with two default categories.");
             xprintf(&clauses, "%s else '%s'\n", 
                 clauses ? clauses : "when 0 then 0", strip(*one_rc->text[0]) );
             (*has_else)++;
         } else
-            Apop_stopif(1, return NULL, 0, "This line doesn't parse right as a recode: %s", thisrc);
+            Tea_stopif(1, return NULL, 0, "This line doesn't parse right as a recode: %s", thisrc);
         if (doedits) add_to_num_list(strip(one_rc->text[0][0]));
         apop_data_free(one_rc);
     }
@@ -75,7 +75,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         char *varname = all_recodes->text[i][0]; //just an alias
         char comma = ' ';
         apop_data *recode_list = get_key_text(*key, varname);
-        Apop_stopif(recode_list && !recode_list->textsize[0], return, 0,
+        Tea_stopif(recode_list && !recode_list->textsize[0], return, 0,
                         "%s looks like a recode field, but I can't parse "
                         "its recodes. Please check on this.", varname);
         
@@ -110,7 +110,7 @@ static void get_in_out_tabs(char const *first_or_last, char **intab, char **out_
            || apop_strcmp(first_or_last, "both"))
         *intab = get_key_word("input", "output table");
     else {//chaining from before
-        Apop_stopif(!intab, return, 0, "intab is blank but shouldn't be in this situation. Shouldn't happen.");
+        Tea_stopif(!intab, return, 0, "intab is blank but shouldn't be in this situation. Shouldn't happen.");
         free(*intab);
         *intab = strdup(*out_name);
     }
@@ -193,7 +193,7 @@ Returns 0 on OK, 1 on error.
 
 
 static int make_recode_view(char **tag, char **first_or_last){
-    Apop_stopif(!*first_or_last, return -1, 0, "first_or_last not set. Should never happen.");
+    Tea_stopif(!*first_or_last, return -1, 0, "first_or_last not set. Should never happen.");
     //first_or_last may be "first", "last", "both", or "middle"
     if (tag && !test_for_recodes(*tag)) return 0;
 
@@ -202,7 +202,7 @@ static int make_recode_view(char **tag, char **first_or_last){
     static char *intab =NULL;
     static char *out_name =NULL;
     get_in_out_tabs(*first_or_last, &intab, &out_name);
-    Apop_stopif(!out_name, return -1, 0, "Error setting recode table name.");
+    Tea_stopif(!out_name, return -1, 0, "Error setting recode table name.");
 
     char *recodestr=NULL, *group_recodestr=NULL;
     apop_table_exists(out_name, 'd');
@@ -211,7 +211,7 @@ static int make_recode_view(char **tag, char **first_or_last){
     recodes(&grgroup, tag, &group_recodestr, &intab);
     if (group_recodestr){
         char *group_id= get_key_word("group recodes", "group id");
-        Apop_stopif(!group_id, return -1, 0, "There's a group recodes section, but no \"group id\" tag.");
+        Tea_stopif(!group_id, return -1, 0, "There's a group recodes section, but no \"group id\" tag.");
         has_sqlite3_index(intab, group_id, 'y');
         apop_table_exists("tea_group_stats", 'd');
         apop_table_exists("tea_record_recodes", 'd');
@@ -233,7 +233,7 @@ static int make_recode_view(char **tag, char **first_or_last){
 }
 
 void do_recodes(){
-    Apop_stopif(get_key_word("input", "output table") == NULL, return, 0, "You didn't specify an output table in your input key so I don't know where to write your recodes. Please specify an output table in your spec file.");
+    Tea_stopif(get_key_word("input", "output table") == NULL, return, 0, "You didn't specify an output table in your input key so I don't know where to write your recodes. Please specify an output table in your spec file.");
     char *goalname; 
     asprintf(&goalname, "view%s", get_key_word("input", "output table"));
     char *overwrite = get_key_word("input", "overwrite");
@@ -249,7 +249,7 @@ void do_recodes(){
         if (recode_tags){
             if (recode_tags->textsize[0]==1) make_recode_view(NULL, (char*[]){"both"});
             else for (int i=0; i< *recode_tags->textsize; i++){
-                Apop_stopif(!(
+                Tea_stopif(!(
                         !make_recode_view(recode_tags->text[i], //pointer to list of char*s.
                             ( (i==0) ? (char*[]){"first"}
                             : (i==*recode_tags->textsize-1) ? (char*[]){"last"}

@@ -26,38 +26,94 @@ int *em_to_user, *user_to_em;
   imputed---a sort of maximal edit set.  Thus the rewrite. 
 */
 
-/* A field where all elements in em are T isn't really a part of the edit---it's just a
-   placeholder. So, check whether a field enters an edit or is just along for the ride. */
-static int entering (int const row, int const rec){
-    for (int i = find_b[rec]-1; i< find_e[rec]; i++)
-        if (!gsl_matrix_get(edit_grid->matrix, row, i))
-            return 1;
-    return 0;
-}
-
-int prune_edits(apop_data *d, int row, int col, void *us){ //callback for the fn below
+static int prune_edits(apop_data *d, int row, int col, void *us){ //callback for the fn below
     bool *usable_sql = us;
     return usable_sql[row];
 }
 
-void check_for_all_vars(bool *usable_sql, char * const restrict*record_name_in, int record_in_size){
+static void check_for_all_vars(bool *usable_sql, char * const restrict*record_name_in,
+        int record_in_size, bool *vars_used){
     for (int r=0; r< edit_grid->vector->size; r++){
-        if(apop_data_get(edit_grid, r, -1) != 2) {//won't matter in prune_edits above.
+        if(apop_data_get(edit_grid, r, -1) != 2) {
             usable_sql[r] = false;
             continue; 
         }
         usable_sql[r] = true;
-        for (int j=0; j< record_in_size; j++){
+        for (int i=0; i< edit_grid_to_list[r]->var_ct; i++){
             bool found=false;
-            for (int i=0; i< edit_list[r].var_ct; i++)
-                if (!strcmp(edit_list[r].vars_used[i].name, record_name_in[j]))
-                        {found=true; break;}
+            for (int j=0; j< record_in_size; j++)
+                if (!strcasecmp(edit_grid_to_list[r]->vars_used[i].name, record_name_in[j]))
+                        {found=vars_used[j]=true; break;}
             if (!found) {
                 usable_sql[r] = false;
                 break;
             }
         }
     }
+}
+
+static void sqlify(char * const restrict* ud_values, char * const restrict *record_name_in, 
+                         int record_in_size){
+    /*qstring will hold a query to generate a sample table, like "create table tea_test(a,
+    b); insert into tea_test values('left', 'right');"*/
+    char *qstring, *insert, comma=' ';
+    asprintf(&qstring, "create table tea_test(");
+    asprintf(&insert, "insert into tea_test values(");
+    for (int i=0; i< record_in_size; i++){
+        xprintf(&qstring, "%s%c'%s' ", qstring, comma, record_name_in[i]);
+        xprintf(&insert, "%s%c'%s' ", insert, comma, ud_values[i]);
+        comma=',';
+    }
+    xprintf(&qstring, "%s numeric); %s);", qstring, insert);
+    apop_query("%s", qstring);
+    free(insert);
+    free(qstring);
+}
+
+//call iff there are SQL edits to be checked.
+static int check_a_record_sql(char * const restrict* ud_values, char * const restrict *record_name_in, 
+                         int record_in_size,  int * failures){
+    int out = 0;
+    bool usable_sql[edit_grid->vector->size], vars_used[record_in_size];
+    memset(vars_used, 0, sizeof(bool)*record_in_size);
+    check_for_all_vars(usable_sql, record_name_in, record_in_size, vars_used);
+    begin_transaction();
+    sqlify(ud_values, record_name_in, record_in_size);
+    if (!failures){   //just want pass-fail ==> run a single yes/no query
+        char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
+              .before= "select count(*) from tea_test where (", .prune=prune_edits,
+              .prune_parameter=usable_sql);
+        if (strlen(q) != strlen("select count(*) from tea_test where ()"))//any relevant sql?
+            out += apop_query_to_float("%s", q);
+        free(q);
+    } else {         //want to know failure count per field.
+        edit_t *last_list_item = NULL;
+        for (int i=0; i< edit_grid->vector->size; i++){
+            if (last_list_item==edit_grid_to_list[i]) continue;
+            last_list_item=edit_grid_to_list[i];
+            if (!usable_sql[i]) continue;
+            int fails = apop_query_to_float("select count(*) from tea_test where (%s)",
+                                                                *edit_grid->text[i]);
+            if (fails){
+                out+=fails;
+                for (int i=0; i<last_list_item->var_ct; i++)
+                    for (int j=0; j< record_in_size; j++)
+                        if (!strcasecmp(last_list_item->vars_used[i].name, record_name_in[j]))
+                                {failures[j]++; break;}
+            }
+        }
+    }
+    apop_table_exists("tea_test", 'd');
+    commit_transaction();
+    return out;
+}
+
+/* A field where all elements in em are T isn't really a part of the edit---it's just a placeholder. */
+static int entering (int const row, int const rec){
+    for (int i = find_b[rec]-1; i< find_e[rec]; i++)
+        if (!gsl_matrix_get(edit_grid->matrix, row, i))
+            return 1;
+    return 0;
 }
 
 /** Check each edit for a failure, meaning every T in the record matches a T in the edit (i.e.
@@ -75,10 +131,10 @@ passes the edit; move on to the next.
   There is one slot per field (i.e., it is unrelated to any subset of records
   requested by the user).
   */
-static int check_a_record(int const * restrict row,  int * failures, 
-                   int rownumber, char *const *data_as_query, char * const restrict*record_name_in, int record_in_size){
+static int check_a_record_discrete(int const * restrict row,  int * failures, 
+                   int rownumber, char * const restrict*record_name_in, int record_in_size, _Bool *has_sql_edits){
     int rowfailures[nflds];
-    int out = 0, has_c_edits=0;
+    int out = 0;
     if (failures)
         memset(failures, 0, sizeof(int)*nflds);
     if (!edit_grid) return 0;
@@ -86,7 +142,7 @@ static int check_a_record(int const * restrict row,  int * failures,
         if (gsl_vector_get(edit_grid->vector, i) == 2) {//this row has real values in it; skip.
             //check that all of the variables used in the query are in the list
             //sent to consistency_check
-            has_c_edits=1; 
+            *has_sql_edits=1; 
             continue;
         }
         int rowfailed = 1; //each row is guilty until proven innocent.
@@ -146,18 +202,6 @@ static int check_a_record(int const * restrict row,  int * failures,
             }
         }
     }
-    if (has_c_edits){
-        bool usable_sql[edit_grid->vector->size];
-        check_for_all_vars(usable_sql, record_name_in, record_in_size);
-	    Apop_stopif(*data_as_query==NULL, return -1, 0, "*data_as_query is null. Should be a string of data.");
-        apop_query("%s", *data_as_query);
-        char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
-                  .before= "select count(*) from tea_test where (", .prune=prune_edits, .prune_parameter=usable_sql);
-        if (strcmp(q, "select count(*) from tea_test where ()"))//any relevant sql?
-            out = apop_query_to_float("%s", q); //matches = failure = return 1.
-        free(q);
-        apop_table_exists("tea_test", 'd');
-    }
     return out;
 }
 
@@ -165,9 +209,9 @@ static int check_a_record(int const * restrict row,  int * failures,
    an indeterminate number of variables, and that's the sort of thing most easily done via recursion. 
 
    When you get to the last field in the list, you will have a record that is ready to
-   test via check_a_record. If that function returns zero, then write to \c fillme. To
-   make life easier, <tt>fillme</tt>'s vector holds a single number: the length of the
-   array so far.
+   test via check_a_record_discrete and check_a_record_sql. If that function returns zero,
+   then write to \c fillme. To make life easier, <tt>fillme</tt>'s vector holds a
+   single number: the length of the array so far.
 
    Now that you know what happens at the end, the recursion that leads up to it will, for each field, blank out the field, then for (i= each possible record value), set the record to i, and call the function to operate on the next field down.  This loop-and-recurse setup will guarantee that the last field in the list will run a test on all possible values.
 
@@ -182,7 +226,7 @@ static int check_a_record(int const * restrict row,  int * failures,
    */
 static void do_a_combo(int *record, char *const restrict  *record_name_in, int const *user_to_em, int record_in_size, 
          int const *failed_edits_in, int this_field, int field_count, apop_data *fillme,
-		 jmp_buf jmpbuf, time_t const timeout){
+		 jmp_buf jmpbuf, time_t const timeout, char *const restrict  *ud_values){
 
     int option_ct, skipme=0;
 	int this_field_index = em_to_user[this_field];
@@ -202,10 +246,13 @@ static void do_a_combo(int *record, char *const restrict  *record_name_in, int c
         }
         if (this_field +1 < nflds)
             do_a_combo(record, record_name_in, user_to_em, record_in_size,
-							failed_edits_in, this_field+1, field_count, fillme, jmpbuf, timeout);
+							failed_edits_in, this_field+1, field_count, fillme, jmpbuf, timeout, ud_values);
         else{
 			if (timeout && time(NULL) > timeout) longjmp(jmpbuf, 1);
-            if (!check_a_record(record, NULL, 0, NULL, record_name_in, record_in_size)){//OK record; write it.
+            _Bool has_sql_edits = 0;
+            if (!check_a_record_discrete(record, NULL, 0, record_name_in, record_in_size, &has_sql_edits)
+                && (!has_sql_edits || !check_a_record_sql(ud_values, record_name_in, record_in_size, NULL))
+                ){//OK record; write it.
                 int this_row = apop_data_get(fillme, 0, -1);
                 (*gsl_vector_ptr(fillme->vector, 0))++;
                 for (int k=0; k< field_count; k++){
@@ -237,19 +284,19 @@ static void do_a_combo(int *record, char *const restrict  *record_name_in, int c
 */
 static apop_data * get_alternatives(int *restrict record, char *const  restrict  *record_name_in, 
 							int const *restrict user_to_em, int const record_in_size, 
-							int const *restrict  failing_records){
+							int const *restrict  failing_records, char *const  restrict  *ud_values){
     int total_fails = 0;
     int rows = 1;
     for (int i = 0; i< record_in_size; i++){
 	    int this_field = user_to_em[i];
-        Apop_stopif(this_field < 0, apop_data*out=apop_data_alloc(); out->error='f'; return out,
+        Tea_stopif(this_field < 0, apop_data*out=apop_data_alloc(); out->error='f'; return out,
                0,  "I couldn't find %s.", record_name_in[i]);
         total_fails += failing_records[this_field] ? 1 : 0;
         if (failing_records[this_field]){
             rows *= find_e[this_field] - find_b[this_field]+1;
         }
     }
-	Apop_stopif(!total_fails,  apop_data*out=apop_data_alloc(); out->error='c'; return out,
+	Tea_stopif(!total_fails,  apop_data*out=apop_data_alloc(); out->error='c'; return out,
                 0, "Failed internal consistency check: I marked this "
 				"record as failed but couldn't find which fields were causing failure.");
     apop_data *out = apop_data_alloc(1, rows, total_fails);
@@ -263,7 +310,7 @@ static apop_data * get_alternatives(int *restrict record, char *const  restrict 
 	double user_timeout = get_key_float("timeout", NULL);
 	time_t timeout = isnan(user_timeout) ? 0 : user_timeout+time(NULL);
 	if (!setjmp(jmpbuf))
-		do_a_combo(record, record_name_in, user_to_em, edit_grid->matrix->size2, failing_records, 0, record_in_size, out, jmpbuf, timeout);
+		do_a_combo(record, record_name_in, user_to_em, edit_grid->matrix->size2, failing_records, 0, record_in_size, out, jmpbuf, timeout, ud_values);
 	else
 		fprintf(stderr,"Timed out on consistency query. Partial alternatives returned, but set may not be complete.\n");
     out->matrix = apop_matrix_realloc(out->matrix, out->vector->data[0], out->matrix->size2);
@@ -289,8 +336,7 @@ static void setup_conversion_tables(char * const restrict* record_name_in, int r
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
 static void fill_a_record(int record[], int const record_width, char * const restrict *record_name_in, 
-                        char * const restrict* ud_values, int record_in_size, 
-                                int id, char **qstring){
+                        char * const restrict* ud_values, int record_in_size, int id){
     for (int i=0; i < record_width; i++)
         record[i]=-1;   //-1 == ignore-this-field marker
     for (int i=0; i < record_in_size; i++){
@@ -298,12 +344,12 @@ static void fill_a_record(int record[], int const record_width, char * const res
         if (ri_position == -100) continue;  //This variable wasn't declared ==> can't be in an edit.
         for(int  kk = find_b[user_to_em[i]]-1; kk< find_e[user_to_em[i]]; kk++)
           record[kk] = 0;
-        Apop_stopif(ri_position == -1 , return, 0, "I couldn't find the value %s in your "
+        Tea_stopif(ri_position == -1 , return, 0, "I couldn't find the value %s in your "
                 "declarations for the variable %s. Please remove the error from the data or "
                 "add that value to the declaration, then restart the program so I can rebuild "
                 "some internal data structures.", ud_values[i], record_name_in[i]);
         int bit = find_b[user_to_em[i]]-1 + ri_position-1;
-        Apop_stopif(bit >= record_width || bit < 0, return, 0,
+        Tea_stopif(bit >= record_width || bit < 0, return, 0,
                     "About to shift position %i in a record, but there "
                     "are only %i entries.", bit, record_width);
         record[bit] = 1;
@@ -314,18 +360,6 @@ static void fill_a_record(int record[], int const record_width, char * const res
             printf("%i\t", record[i]);
         printf("\n");
     } 
-    /*qstring will hold a query to generate a sample table, like "create table tea_test(a,
-    b); insert into tea_test values('left', 'right');"*/
-    char *insert, comma=' ';
-    asprintf(qstring, "create table tea_test(");
-    asprintf(&insert, "insert into tea_test values(");
-    for (int i=0; i< record_in_size; i++){
-        xprintf(qstring, "%s%c'%s' ", *qstring, comma, record_name_in[i]);
-        xprintf(&insert, "%s%c'%s' ", insert, comma, ud_values[i]);
-        comma=',';
-    }
-    xprintf(qstring, "%s numeric); %s);", *qstring, insert);
-    free(insert);
 }
 
 //A lengthy assertion checking that failed_fields and fails_edits are in sync.
@@ -340,43 +374,42 @@ static void do_fields_and_fails_agree(int *failed_fields, int fails_edits, int n
 apop_data * consistency_check(char * const *record_name_in, char * const *ud_values, 
 			int const *record_in_size, char const *const *what_you_want, 
 			int const *id, int *fails_edits, int *failed_fields){
-	Apop_stopif(*record_in_size <= 0, return NULL, 1, "zero record size; returning NULL.");
+	Tea_stopif(*record_in_size <= 0, return NULL, 1, "zero record size; returning NULL.");
     if (!edit_grid) init_edit_list();
     if (!edit_grid){ //then there are no edits.
 		*fails_edits = 0;
         return NULL;
 	}
     int width = edit_grid->matrix->size2;
-	Apop_stopif(!width, return NULL, 1, "zero edit grid; returning NULL.");
+	Tea_stopif(!width, return NULL, 1, "zero edit grid; returning NULL.");
     int record[width];
-    char *qstring = NULL;
     if (record_name_in) setup_conversion_tables(record_name_in, *record_in_size);
-	fill_a_record(record, width, record_name_in, ud_values, *record_in_size, *id, &qstring);
+	fill_a_record(record, width, record_name_in, ud_values, *record_in_size, *id);
+    _Bool has_sql_edits = 0;
     if (!strcmp(what_you_want[0], "passfail")){
-        *fails_edits = check_a_record(record, NULL, 0, &qstring, record_name_in, *record_in_size);
-        free(qstring);
+        *fails_edits = check_a_record_discrete(record, NULL, 0, record_name_in, *record_in_size, &has_sql_edits);
+        *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size, NULL);
         return NULL;
     }
-    *fails_edits = check_a_record(record, failed_fields, *id, &qstring, record_name_in, *record_in_size);
-    free(qstring);
+    *fails_edits = check_a_record_discrete(record, failed_fields, *id, record_name_in, *record_in_size, &has_sql_edits);
+    *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size, failed_fields);
     do_fields_and_fails_agree(failed_fields, *fails_edits, nflds);
 
     if (!strcmp(what_you_want[0], "failed_fields"))
         return NULL;
     if (!strcmp(what_you_want[0], "find_alternatives") && *fails_edits)
-		return get_alternatives(record, record_name_in, user_to_em, *record_in_size, failed_fields);
+		return get_alternatives(record, record_name_in, user_to_em, *record_in_size, failed_fields, ud_values);
 	return NULL;
 }
 
 apop_data *checkData(apop_data *data){
-
     //copy field names from the input data.
 	int nvars = data->names->colct + data->names->textct;
 	char *fields[nvars];
     memcpy(fields, data->names->col, sizeof(char*)*data->names->colct);
     memcpy(&fields[data->names->colct], data->names->text, sizeof(char*)*data->names->textct);
 
-	//now that we have the variables, we can call check_a_record for each row
+	//now that we have the variables, we can call consistency_check for each row
 	int id=1;
 	int nrow = data->matrix ? data->matrix->size1: *data->textsize;
 	int fails_edits, failed_fields[nvars];
@@ -394,8 +427,9 @@ apop_data *checkData(apop_data *data){
 						else          asprintf(&vals[jdx], "%g", v);
 					}
 
-			else vals[jdx] = data->text[idx][jdx];
+			else vals[jdx] = data->text[idx][jdx - data->names->colct];
 		}
+        memset(failed_fields, 0, nvars*sizeof(int));
 		consistency_check(fields,vals,&nvars,&what, &id,&fails_edits,failed_fields);
 		//insert failure counts
 		for(int jdx=0; jdx < nvars; jdx++){

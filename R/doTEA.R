@@ -16,7 +16,10 @@ doPreedits <- function(input_table=teaenv$active_tab){
 #'		meaning that you can re-run a script with one spec file and only wait for the
 #'		read-in once. [Technically: if present and equal to a case-insensitive version
 #'		of No, N, or 0, I won't overwrite; if present and anything else, overwrite.]
-doInput <- function(input_file=NULL,output_table=NULL,types=NULL,primary.key=NULL,indices=NULL,overwrite=NULL){
+#' @param do_preedits   If not NULL, run the pre-edits once immediately after readin in to the database,
+#`      modifying the data in place.
+doInput <- function(input_file=NULL,output_table=NULL,types=NULL,primary.key=NULL,
+                     indices=NULL,overwrite=NULL, do_preedits=NULL){
 	if(is.null(teaenv$con)) stop("You need to have a spec file read in!")
 	con <- teaenv$con #for the attach-averse
     if (teaenv$verbosity > 0)
@@ -32,7 +35,7 @@ doInput <- function(input_file=NULL,output_table=NULL,types=NULL,primary.key=NUL
 	if(is.null(tbl)) stop("I need an 'output table' name in the input section of the spec.")
 
     #Pre-edits are here for now, at read-in, on the raw data table.
-    doPreedits(tbl)
+    if (!is.null(do_preedits)) doPreedits(tbl)
 	if (dbExistsTable(teaenv$con, paste("view",tbl,sep=""))){
 		teaenv$active_tab <- paste("view",tbl,sep="")
 	} else {

@@ -15,9 +15,7 @@ There's a hack to add an extra \n at the end of the file, which makes parsing ea
 
 That's all. The real work happens in editlang.y, which will make use of these tokens.
 */
-#include <apop.h>
-#include <string.h>
-#include <stdio.h>
+#include "tea.h"
 #define YYSTYPE char*
 #include "peptalk.tab.h"
 extern int lineno;        /* current line number  */
@@ -29,7 +27,7 @@ extern char parsed_type;
 
 digit [0-9]
 space [ \t]
-text [a-zA-Z_/~'][_a-zA-Z0-9./~']*
+text [a-zA-Z_~'][_a-zA-Z0-9.~']*
 sqlpunct (==|<=|>=|[=+/(<|>)\'"?!%&]|\[|\])
 notnewline \\[ \t\n]+
 
@@ -68,11 +66,11 @@ include[ \t]*\:      BEGIN(incl);//stuff about including files that I cut/pasted
 
 <incl>[ \t]*      /* eat the whitespace */
 <incl>[^ \t\n]+   { /* got the include file name */
-				Apop_stopif(include_stack_ptr >= MAX_INCLUDE_DEPTH, return -1, 0, "Includes nested too deeply");
+				Tea_stopif(include_stack_ptr >= MAX_INCLUDE_DEPTH, return -1, 0, "Includes nested too deeply");
 				include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
 
 				yyin = fopen( yytext, "r" );
-				Apop_stopif(!yyin, return -1, 0, "You asked me to include %s, but I couldn't open that file.", yytext);
+				Tea_stopif(!yyin, return -1, 0, "You asked me to include %s, but I couldn't open that file.", yytext);
 
 				yy_switch_to_buffer( yy_create_buffer( yyin, YY_BUF_SIZE ) );
 
