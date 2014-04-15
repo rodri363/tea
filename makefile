@@ -69,8 +69,8 @@ push-pkg:
 	rm src/.gitignore
 	git add .
 	git rm -f pkg/tea*tar.gz
-	git commit -a -m 'Rebuilt package'
-	git merge -X ours remotes/origin/pkg
+	git commit -a -m 'Rebuild package based on commit `git rev-parse pkg | head -c 8`'
+	git merge -X ours remotes/origin/pkg -m "Merge version based on commit `git rev-parse pkg | head -c 8`"
 	git push origin `git rev-parse --abbrev-ref HEAD`:pkg
 	git checkout master
 	git branch -D `git branch| grep pkg-`
