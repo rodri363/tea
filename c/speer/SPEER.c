@@ -32,6 +32,7 @@ int nf; 	            /* # of failed (deleted) basic items */
 int numdel; 
 int cntdel[maxflds]; 
 int frcomp[NEDIT][maxcats];
+int nSPEERpass = 0;   /*****  FIX ME:  Not sure of SPEER's job in TEA. *****/
 
 extern int speer_(void);
 extern apop_data *get_key_text( char*, char* );
@@ -57,7 +58,18 @@ int speer_(void)
   float wgt;
   char nam[maxfldlen];
 
-  extern int edchek_(void), locate_(void), impsub_(void), PreChex(void);
+  extern int edchek_(void), locate_(void), impsub_(void), PreChex(void), readlm_(void);
+
+
+
+  /*****************  FIX ME:  Not sure of SPEER's job in TEA. ************/
+  /* Is SPEER a stand-alone, or called for every record? */
+  nSPEERpass++;
+  if( nSPEERpass > 1 ) { return 0; }
+
+  ////apop_query("drop table SPEERjunk;");
+  ////apop_query("create table SPEERjunk( cat int, c int, numpos int, denpos int, lower float, upper float );");
+
 
 /* TeaKEY( SPEERparams/BFLD, <<< BFLD = # of basic items >>>)
    TeaKEY( SPEERparams/NEDFF, <<< NEDFF = # of explicit ratios per category >>>)
@@ -87,10 +99,16 @@ int speer_(void)
  	bwgt[pos] = wgt;
   }
 
-  /* Determine which fields fail edit ratios */
+  /* Read and store implicit ratios */
+  readlm_();
+
+  /* FIX ME:  numsic is dependent on NAIC code (ie) of current record */
+  numsic = 1;   /*  delete  */
+
+  /* Determine which field(s) fail edit ratios */
   edchek_();
 
-  /* Locate basic items to be deleted and flag them */ 
+  /* Locate basic item(s) to be deleted and flag them */ 
   if (nf > 0) { locate_(); }
   
   /* Calcualte missing/deleted field(s)' imputation range(s) */
@@ -306,18 +324,37 @@ int PreChex(void)
 int readlm_(void)
 /******************************************************/ 
 /* READ AND STORE ALL LOWER & UPPER IMPLICIT RATIOS */
-/* AND CENTRAL VALUES                               */
 {
-  static int i, j, k;
+  static int c, nimpl, cat, numpos, denpos, prevcat;
+  float lower, upper;
+  char numer[maxfldlen], denom[maxfldlen];
 
-  /* OPEN AND READ FILE CONTAINING IMPLICIT RATIOS */
-  /* OPEN( 12, FILE = 'RATIOS.BND' ) */
-  for (i = 1; i <= numsic; ++i) {
-	for (j = 1; j <= BFLD; ++j) {
-	  for (k = 1; k <= BFLD; ++k) {
-         /* READ(12,2000) bnds.lwbd[i][j][k], bnds.upbd[i][j][k] */
-	  }
-	}
+  /* Read database containing implicit ratios */ 
+  apop_data *implieds = apop_query_to_text("select * from SPEERimpl;");
+
+  /* Parse database text string.  Store implicits in matricies. */
+  c = 0;
+  prevcat = 0;
+  for (nimpl = 0; nimpl <= (TOTSIC * BFLD * BFLD)-1; ++nimpl) {
+     sscanf( implieds->text[nimpl][0], "%d", &cat );
+     sscanf( implieds->text[nimpl][1], "%d", &numpos );
+     sscanf( implieds->text[nimpl][2], "%d", &denpos );
+     sscanf( implieds->text[nimpl][3], "%s", numer );
+     sscanf( implieds->text[nimpl][4], "%s", denom );
+     sscanf( implieds->text[nimpl][5], "%f", &lower );
+     sscanf( implieds->text[nimpl][6], "%f", &upper );
+
+     if( cat != prevcat ){
+	   prevcat = cat;
+	   c = c + 1;  
+	 }  
+	  
+     /* Store implicits in matricies. */
+     bnds.lwbd[c][numpos][denpos] = lower; 
+	 bnds.upbd[c][numpos][denpos] = upper;
+
+     ////apop_query("insert into SPEERjunk values( %d, %d, %d, %d, %f, %f);", 
+	 ////	         cat, c, numpos, denpos, lower, upper );
   }
 
   return 0;

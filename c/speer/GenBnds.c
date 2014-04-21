@@ -108,7 +108,7 @@ int genbnds_(void)
   /* Check for potential post-processing fatal problems. */
   PostChecks();
 
-  printf( " SPEER:  Implicit bounds -> table SPEERimpl. \n" );
+  printf( " GenBnds:  Implicit bounds -> table SPEERimpl. \n" );
 
   return 0;
 }
