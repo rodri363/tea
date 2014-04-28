@@ -6,12 +6,12 @@ SPEERparams { BFLD: 6
               NEDFF: 5
             }
 
-SPEERfields { A1900 1 0.06
-              A1821 2 0.25
-              A1800 3 0.3
-              A1741 4 0.75
-              A1742 5 0.5
-              A1798 6 1.4
+SPEERfields { A1900 1 1.1
+              A1821 2 1.2
+              A1800 3 1.3
+              A1741 4 1.3
+              A1742 5 1.4
+              A1798 6 1.5
             }
 
 ExpRatios {

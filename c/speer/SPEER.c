@@ -21,18 +21,22 @@
 int BFLD;	            /* # of basic items */
 char bnames[maxfldlen][maxflds];  /* Basic item names [name length][# of fields] */
 float bwgt[maxflds];    /* basic item weights */
-int TOTSIC;             /* # of categories of ratios */
+int TOTSIC;             /* # of user-supplied categories of ratios */
 
 /* global variables */
-float basitm[maxflds];  /* basic items */
-int namlen;             /* Length of longest basic item name */
-int numsic;
-int nblank;	            /* # of blank basic items */ 
-int nf; 	            /* # of failed (deleted) basic items */
-int numdel; 
+float basitm[maxflds];  /* basic item values */
+int cat;                /* category code */
+int catindx;            /* Current record's category code index/position in catlist[] */
+int catlist[maxcats];   /* List of category codes */
 int cntdel[maxflds]; 
 int frcomp[NEDIT][maxcats];
-int nSPEERpass = 0;   /*****  FIX ME:  Not sure of SPEER's job in TEA. *****/
+int namlen;             /* Length of longest basic item name */
+int nblank;	            /* # of blank basic items */ 
+int nf; 	            /* # of failed (deleted) basic items */
+int nrec;               /* record loop counter */
+int numdel; 
+int nSPEERpass = 0;   /*****  FIX ME:  KILL ME -- just for testing. *****/
+int ID;               /*****  FIX ME:  KILL ME -- just for testing. *****/
 
 extern int speer_(void);
 extern apop_data *get_key_text( char*, char* );
@@ -43,32 +47,36 @@ struct { float lwbd[maxcats][maxflds][maxflds]; float upbd[maxcats][maxflds][max
          float bm[maxflds][maxflds]; float tm[maxflds][maxflds];
        } bnds;
 
-/*struct { double basitm[maxflds];
-         int nblank; int nf; int numdel; int numsic;
-         int cntdel[maxflds]; int frcomp[NEDIT][maxcats];
-       } commed;
-*/
-
 
 int speer_(void)
 /******************************************************/ 
 /**** THIS IS THE DRIVER PORTION OF THE SPEER EDIT ****/
 { 
-  int i, pos;
+  int i, j, pos;
   float wgt;
   char nam[maxfldlen];
 
   extern int edchek_(void), locate_(void), impsub_(void), PreChex(void), readlm_(void);
 
+  for (i = 0; i <= maxflds-1; ++i) {
+   for (j = 0; j <= maxflds-1; ++j) {
+      bnds.bm[i][j] = (double)1.0;
+	  bnds.tm[i][j] = (double)1.0;
+  }}
 
 
-  /*****************  FIX ME:  Not sure of SPEER's job in TEA. ************/
+  /*****************  FIX ME:    KILL ME -- just for testing. ************/
   /* Is SPEER a stand-alone, or called for every record? */
   nSPEERpass++;
   if( nSPEERpass > 1 ) { return 0; }
-
-  ////apop_query("drop table SPEERjunk;");
-  ////apop_query("create table SPEERjunk( cat int, c int, numpos int, denpos int, lower float, upper float );");
+  
+  /***** FIX ME:   -- just for testing. ************/
+  ////apop_query("drop table SPEERaudit;");
+  ////apop_query("create table SPEERaudit( ID int, cat int, num text, numval float, den text, denval float, lwbd float, upbd float, lo float, up float );");
+  apop_query("drop table SPEERedited;");
+  apop_query("create table SPEERedited( ID int, cat int, b1 float, b2 float, b3 float, b4 float, b5 float, b6 float );");
+  apop_query("drop table SPEERimprange;");
+  apop_query("create table SPEERimprange( ID int, cat int, num text, lo float, up float );");
 
 
 /* TeaKEY( SPEERparams/BFLD, <<< BFLD = # of basic items >>>)
@@ -102,17 +110,43 @@ int speer_(void)
   /* Read and store implicit ratios */
   readlm_();
 
-  /* FIX ME:  numsic is dependent on NAIC code (ie) of current record */
-  numsic = 1;   /*  delete  */
+ 
+  /* Read database containing data */ 
+  /***** FIX ME:    -- just for testing. ************/
+  apop_data *rec_data = apop_query_to_text("select * from SPEERdata;");
 
-  /* Determine which field(s) fail edit ratios */
-  edchek_();
+  /* Parse database text string.  Store data in variables. */
+  /***** FIX ME:    KILL FOR LOOP -- just for testing. ************/
+  for (nrec = 0; nrec <= 9; ++nrec) {
+     sscanf( rec_data->text[nrec][0], "%d", &ID );
+     sscanf( rec_data->text[nrec][1], "%d", &cat );
+     sscanf( rec_data->text[nrec][2], "%f", &basitm[1] );
+     sscanf( rec_data->text[nrec][3], "%f", &basitm[2] );
+     sscanf( rec_data->text[nrec][4], "%f", &basitm[3] );
+     sscanf( rec_data->text[nrec][5], "%f", &basitm[4] );
+     sscanf( rec_data->text[nrec][6], "%f", &basitm[5] );
+     sscanf( rec_data->text[nrec][7], "%f", &basitm[6] );
 
-  /* Locate basic item(s) to be deleted and flag them */ 
-  if (nf > 0) { locate_(); }
+     /* catindx is dependent on category code of current record */
+     for (i = 1; i <= TOTSIC; ++i) {
+		if( cat == catlist[i] ) { catindx = i; }
+	 }
+
+     /* Determine which field(s) fail edit ratios */
+     edchek_();
+
+     /* Locate basic item(s) to be deleted and flag them */ 
+     if (nf > 0) { locate_(); }
   
-  /* Calcualte missing/deleted field(s)' imputation range(s) */
-  if (nf > 0 || nblank > 0) { impsub_(); }
+     /* Calcualte missing/deleted field(s)' imputation range(s) */
+     if (nf > 0 || nblank > 0) { impsub_(); }
+
+     /***** FIX ME:    KILL me -- just for testing. ************/
+     apop_query("insert into SPEERedited values( %d, %d, %f, %f, %f, %f, %f, %f);", 
+	 	       ID, cat, basitm[1], basitm[2], basitm[3], basitm[4], basitm[5], basitm[6] );
+
+  }/***** FIX ME:    KILL me -- just for testing. ************/
+
 
   return 0;
 }
@@ -142,9 +176,10 @@ int edchek_(void)
 	 /* *** FLAG EACH RATIO THAT FAILS AN EDIT **** */
 	 } else {
 	    for (j = i+1; j <= BFLD; ++j) {
-		   lower = bnds.lwbd[numsic][i][j] * bnds.bm[i][j];
-		   upper = bnds.upbd[numsic][i][j] * bnds.tm[i][j];
-	       if (( basitm[j] == (double)0.0  
+		   lower = bnds.lwbd[catindx][i][j] * bnds.bm[i][j];
+		   upper = bnds.upbd[catindx][i][j] * bnds.tm[i][j];
+
+		   if (( basitm[j] == (double)0.0  
 			     &&  lower > (double)0.0  &&  upper < (double)99999.0 )
 			          || 
 			   ( basitm[j] > (double)0.0 
@@ -155,6 +190,13 @@ int edchek_(void)
 		    frcomp[nf][1] = i;
 		    frcomp[nf][2] = j;
 		   }
+
+/***** FIX ME:    KILL me -- just for testing. ************/
+////if( nrec == 3 ){
+////apop_query("insert into SPEERaudit values( %d, %d, '%s', %f, '%s', %f, %f, %f, %f, %f);", 
+////       ID, cat, bnames[i], basitm[i], bnames[j], basitm[j], lower, upper,
+////   	    basitm[j]*lower, basitm[j]*upper );
+////}
 	    }
 	 }
   }
@@ -191,17 +233,22 @@ int impsub_(void)
         /* *** CALCULATE IMPUTATION RANGE/REGION **** */
 	    for (i = 1; i <= BFLD; ++i) {
 	 	   if (basitm[i] >= (double)0.0) {
-		      bl = basitm[i] * bnds.bm[k][i] * bnds.lwbd[numsic][k][i];
+		      bl = basitm[i] * bnds.bm[k][i] * bnds.lwbd[catindx][k][i];
 		      if (bl > blow) { blow = bl; }
 		   }
 		   if (basitm[i] > (double)0.0) {
-		      bu = basitm[i] * bnds.tm[k][i] * bnds.upbd[numsic][k][i];
+		      bu = basitm[i] * bnds.tm[k][i] * bnds.upbd[catindx][k][i];
 		      if (bu < bup) { bup = bu; }
 		   }
 
            /* *** IF IMPUTATION RANGE IS NOT AVAILABLE, EXIT LOOP **** */
 		   if (blow >= bup) { goto L800; }
 	    }
+
+        /***** FIX ME:   -- just for testing. ************/
+        apop_query("insert into SPEERimprange values( %d, %d, '%s', %f, %f );", 
+                   ID, cat, bnames[k], blow, bup );
+
 
 /* ****************************************** */
 /* *** CALCULATE IMPUTATION OPTIONS HERE **** */
@@ -325,7 +372,8 @@ int readlm_(void)
 /******************************************************/ 
 /* READ AND STORE ALL LOWER & UPPER IMPLICIT RATIOS */
 {
-  static int c, nimpl, cat, numpos, denpos, prevcat;
+  static int c, nimpl, numpos, denpos, prevcat;
+  ////int cat;
   float lower, upper;
   char numer[maxfldlen], denom[maxfldlen];
 
@@ -347,14 +395,12 @@ int readlm_(void)
      if( cat != prevcat ){
 	   prevcat = cat;
 	   c = c + 1;  
+       catlist[c] = cat;
 	 }  
 	  
      /* Store implicits in matricies. */
      bnds.lwbd[c][numpos][denpos] = lower; 
 	 bnds.upbd[c][numpos][denpos] = upper;
-
-     ////apop_query("insert into SPEERjunk values( %d, %d, %d, %d, %f, %f);", 
-	 ////	         cat, c, numpos, denpos, lower, upper );
   }
 
   return 0;
