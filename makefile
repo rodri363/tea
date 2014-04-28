@@ -60,13 +60,13 @@ clean:
 	rm -f tests/edit-rel_age/graph/*
 	rm -f demo/bigdemo/*.png
 
-
 push-pkg:
 	git checkout -b pkg-`git log -1 | grep commit | cut -f2 -d' ' | head -c 8`
 	make nodoc
 	for i in `git ls-files`; do git rm $$i; done
 	rsync -aP pkg/tea/ .
 	rm -r pkg/tea/
+	rm src/.gitignore
 	git add .
 	git rm -f pkg/tea*tar.gz
 	git commit -a -m 'Rebuilt package'
