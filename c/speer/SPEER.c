@@ -1,6 +1,8 @@
 /* SPEER.c */
-/* *** THE SUBROUTINES IN THIS FILE WILL BE USED FOR **** */
-/* *** EVERY APPLICATION OF SPEER                    **** */
+/*   5-13-2014   */
+
+/* This version of Tea's SPEER runs all the way thru impsub, 
+     including creating imputation ranges. */
 
 #include <stdio.h>
 #include <apop.h>
@@ -141,9 +143,17 @@ int speer_(void)
      /* Calcualte missing/deleted field(s)' imputation range(s) */
      if (nf > 0 || nblank > 0) { impsub_(); }
 
-     /***** FIX ME:    KILL me -- just for testing. ************/
-     apop_query("insert into SPEERedited values( %d, %d, %f, %f, %f, %f, %f, %f);", 
-	 	       ID, cat, basitm[1], basitm[2], basitm[3], basitm[4], basitm[5], basitm[6] );
+     /*** Create query msg, then send basic items to database ****/
+     char qury[1000] = "insert into SPEERedited values( ";
+     char qury_add[20];
+     sprintf( qury_add, "%d, %d", ID, cat );    // Create tmp string containing integers
+     strcat( qury, qury_add );
+     for (i = 1; i <= BFLD; ++i) {
+       sprintf( qury_add, ", %f", basitm[i] );  // Create tmp string containing reals
+       strcat( qury, qury_add );
+     }
+     strcat( qury, " ); " );
+     apop_query( qury );                        // Send basic items to database
 
   }/***** FIX ME:    KILL me -- just for testing. ************/
 
@@ -160,7 +170,7 @@ int edchek_(void)
 {
   static int i, j;
   static double lower, upper;
-  static int bblank[10];
+  static int bblank[maxflds];
 
   nf = 0;
   nblank = 0;
@@ -245,7 +255,7 @@ int impsub_(void)
 		   if (blow >= bup) { goto L800; }
 	    }
 
-        /***** FIX ME:   -- just for testing. ************/
+        /* Send imputation ranges for missing fields to database */
         apop_query("insert into SPEERimprange values( %d, %d, '%s', %f, %f );", 
                    ID, cat, bnames[k], blow, bup );
 
@@ -280,10 +290,10 @@ int locate_(void)
   int tmp;
 
   /* Local variables */
-  static int i, j, bdel[10];
-  static double wdeg[10], wmax;
+  static int i, j, bdel[maxflds];
+  static double wdeg[maxflds], wmax;
   static int narcs, remoov;
-  static int bdeg[10];    /* bdeg[] may actually use the '0' cell */
+  static int bdeg[maxflds];    /* bdeg[] may actually use the '0' cell */
 
   numdel = 0;
   narcs = nf;
@@ -293,7 +303,7 @@ int locate_(void)
 L100:
 
   /* ZERO OUT BASIC ITEM FAILURE COUNTERS */
-  for (i = 1; i <= 9; ++i) {
+  for (i = 1; i <= maxflds-1; ++i) {
 	bdeg[i] = 0;
 	wdeg[i] = (double)0.0;
   }
@@ -305,6 +315,20 @@ L100:
 	    ++bdeg[ frcomp[i][j] ];
 	}
   }
+
+  /****  add array bdeg[] to Tea's array of field failures  ****/
+  /*** Create query msg, then send array bdeg[] to database ****/
+  char qury[1000] = "insert into SPEERedited values( ";
+  char qury_add[20];
+  sprintf( qury_add, "%d, %d", ID, nf );    // Create tmp string containing integers
+  strcat( qury, qury_add );
+  for (i = 1; i <= BFLD; ++i) {
+    sprintf( qury_add, ", %d", bdeg[i] );   // Create tmp string containing integers
+    strcat( qury, qury_add );
+  }
+  strcat( qury, " ); " );
+  apop_query( qury );                       // Send bdeg[] to database
+
 
   /* CALCULATE EACH WEIGHTED DEGREE              */
   /* DETERMINE WHICH BASIC ITEM HAS LARGEST WDEG */
