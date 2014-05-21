@@ -13,7 +13,8 @@ As of 4 May 2010, the main() function has been removed---it works only via PEP's
 #include <stdbool.h>
 #include "internal.h"
 
-extern int speer_(void);
+////extern int speer_(void);
+extern int tmp_speer_driver(void);
 
 void generate_indices(char const *);
 
@@ -387,7 +388,7 @@ void read_spec(char **infile, char **dbname_out){
     char *bfld_exits = get_key_word("SPEERparams", "BFLD");
     if( bfld_exits ) {
         int gr = genbnds_();
-        if (gr==0) speer_();
+        if (gr==0) tmp_speer_driver();
     }
 
     //Generating indices for ID

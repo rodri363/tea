@@ -1,4 +1,5 @@
 /* ***  GENBNDS.C  **** */
+/*  5-19-2014  */
 /* *** DERIVE THE IMPLICIT UPPER & LOWER BOUNDS FROM THE **** */
 /* *** BASIC ITEM'S EXPLICIT BOUNDS.                     **** */
 
@@ -19,10 +20,12 @@
 int BFLD;	           /* # of basic items */
 char bnames[maxfldlen][maxflds];  /* Basic item names [name length][# of fields] */
 int TOTSIC;            /* # of categories of ratios */
-int ncat, cat;         /* Category loop counter, Current category code */
 int NEDFF;	           /* # of explicit ratios per category */
 int numff[maxexps];    /* Numerators of explicit ratios */
 int denff[maxexps];    /* Denominators of explicit ratios */
+apop_data *ExpBnds;    /* Temporary storage/matrix for explicit ratios. */
+
+int ncat, cat;         /* Category loop counter, Current category code */
 
 /* global variables */
 int incon = 0;         /* # of inconsistent ratios/bounds */
@@ -42,45 +45,22 @@ extern char *get_key_word( char*, char* );
 int genbnds_(void)
 /******************************************************/ 
 {
-  int i, j, k, pos;
-  float wgt;
-  char nam[maxfldlen];
+  int i, j;
 
   /* Subroutines */
   extern int ReadExplicits(void), GenImplicits(void), CheckIncon(void),
-	         PreChecks(void), PostChecks(void); 
+	         PreChecks(void), PostChecks(void), InitConsts(void); 
 
 /*****************  FIX ME:  Id rather have TEA call GenBnds only once. ************/
   /* Creating the implicit bounds needs to been done only once. */
   npass++;
   if( npass > 1 ) { return 0; }
 
-/* TeaKEY( SPEERparams/BFLD, <<< BFLD = # of basic items >>>)
-   TeaKEY( SPEERparams/NEDFF, <<< NEDFF = # of explicit ratios per category >>>)
-   TeaKEY( SPEERparams/TOTSIC, <<< TOTSIC = # of explicit ratios per category >>>)
-*/  
-  /* Incorporate SPEER parameters from .db/.spec file */
-  char *bfld_s = get_key_word("SPEERparams", "BFLD");
-  //// if (!bfld_s) return -2; //no Speer segment in the spec file.
-  char *nedff_s = get_key_word("SPEERparams", "NEDFF");
-  char *totsic_s = get_key_word("SPEERparams", "TOTSIC");
-
-  BFLD = atoi( bfld_s );
-  NEDFF = atoi( nedff_s );
-  TOTSIC = atoi( totsic_s );
+  /* Initialize constants and arrays that drive SPEER. */
+  InitConsts();
 
   /* Check for potential pre-processing fatal problems. */
   PreChecks();
-
-  /* TeaKEY( SPEERfields, <<< Basic item names:  listed in imputation order. >>>) */
-  /* Get field names from .db/.spec file & store them in an array */
-  /* Determine longest field name for check later on              */
-  apop_data *Bnames_s = get_key_text("SPEERfields", NULL);
-  for (i = 0; i <= BFLD-1; ++i) {
-    sscanf( Bnames_s->text[i][0], "%s %d %f", nam, &pos, &wgt );
-    strcpy( bnames[pos], nam );
-	if( strlen(bnames[pos]) > namlen ) { namlen = strlen(bnames[pos]); }
-  }
 
   /* Create output tables */
   /* SPEERimpl table contains Implicit ratios/bounds. */
@@ -175,6 +155,60 @@ int GenImplicits(void)
 }
 
 
+int InitConsts(void)
+/*****************************************************/ 
+/* Initialize constants and arrays that drive SPEER. */
+{
+  int i, pos, prevsic;
+  float wgt;
+  char nam[maxfldlen];
+
+  /* TeaKEY( SPEERparams/BFLD, <<< BFLD = # of basic items >>>)
+     TeaKEY( SPEERparams/NEDFF, <<< NEDFF = # of explicit ratios per category >>>)
+     TeaKEY( SPEERparams/TOTSIC, <<< TOTSIC = # of explicit ratios per category >>>) */
+   
+  /* Incorporate SPEER parameters from .db/.spec file */
+  char *bfld_s = get_key_word("SPEERparams", "BFLD");
+  //// if (!bfld_s) return -2; //no Speer segment in the spec file.
+  BFLD = atoi( bfld_s );
+
+  ////char *nedff_s = get_key_word("SPEERparams", "NEDFF");
+  ////char *totsic_s = get_key_word("SPEERparams", "TOTSIC");
+  ////NEDFF = atoi( nedff_s );
+  ////TOTSIC = atoi( totsic_s );
+
+  /* TeaKEY( SPEERfields, <<< Basic item names:  listed in imputation order. >>>) */
+  /* Get field names from .db/.spec file & store them in an array */
+  /* Determine longest field name for check later on              */
+  apop_data *Bnames_s = get_key_text("SPEERfields", NULL);
+  for (i = 0; i <= BFLD-1; ++i) {
+    sscanf( Bnames_s->text[i][0], "%s %d %f", nam, &pos, &wgt );
+    strcpy( bnames[pos], nam );
+	if( strlen(bnames[pos]) > namlen ) { namlen = strlen(bnames[pos]); }
+  }
+ 
+  /* TeaKEY( ExpRatios, <<< User-supplied Explicit ratios for basic items. >>>) */
+  /* Get Explicit bounds from file. */
+  ////apop_data *ExpBnds = get_key_text("ExpRatios", NULL);
+  ExpBnds = get_key_text("ExpRatios", NULL);
+
+  /* Determine # of categories and # of Expicit ratios per category */
+  prevsic = 0;
+  TOTSIC = 0;
+  NEDFF = 0;
+  for (i = 0; i <= *ExpBnds->textsize - 1; ++i) {
+     sscanf( ExpBnds->text[i][0], "%d", &cat );
+	 NEDFF++;
+	 if( cat != prevsic ){
+		TOTSIC++;
+        NEDFF = 1;
+		prevsic = cat;
+	 }
+  }
+
+}
+
+
 int PreChecks(void)
 /******************************************************/ 
 /* Potential pre-processing fatal problems. */
@@ -258,16 +292,16 @@ int ReadExplicits(void)
   static double temp;
   float lo, up;
 
-  /* *** INITIALIZE BOUNDS FOR EACH CATEGOR **** */
-  for (i = 1; i <= BFLD; ++i) {
-    for (j = 1; j <= BFLD; ++j) {
+  /* *** INITIALIZE BOUNDS FOR EACH CATEGORY **** */
+  for (i = 1; i <= maxflds; ++i) {
+    for (j = 1; j <= maxflds; ++j) {
         bnds.lower[i][j] = (double)0.0;
 	    bnds.upper[i][j] = (double)99999.9;
 	}
   }
 
 /* *** INITIALIZE IDENTITY DIAGONAL. **** */
-  for (i = 1; i <= BFLD; ++i) {
+  for (i = 1; i <= maxflds; ++i) {
 	  bnds.lower[i][i] = (double)1.0;
 	  bnds.upper[i][i] = (double)1.0;
   }
@@ -277,10 +311,6 @@ int ReadExplicits(void)
 /* *** IMPORT EXPLICIT RATIOS HERE. **** */
 /*****************************************/
   char num[maxfldlen], den[maxfldlen];
- 
-  /* TeaKEY( ExpRatios, <<< User-supplied Explicit ratios for basic items. >>>) */
-  /* Get Explicit bounds from .db */
-  apop_data *ExpBnds = get_key_text("ExpRatios", NULL);
 
   /* Parse ExpBnds string */
   /* Determine/fill numff & denff arrays.  Then place Explicit ratios into matrices. */

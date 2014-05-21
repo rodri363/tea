@@ -2,8 +2,6 @@ database: SPEER.db
 id: SSN
     
 SPEERparams { BFLD: 6
-              TOTSIC: 9
-              NEDFF: 5
             }
 
 SPEERfields { A1900 1 1.1
