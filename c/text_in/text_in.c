@@ -19,12 +19,12 @@ int has_sqlite3_index(char const *table, char const *column, char make_idx){
     apop_data *indices = apop_query_to_mixed_data("mtm", "pragma index_list(%s)", table);
     int has_it = 0;
     if (!indices) goto out;
-    Apop_stopif(indices->error, apop_data_free(indices); return -1, 0, "error running "
+    Tea_stopif(indices->error, apop_data_free(indices); return -1, 0, "error running "
             " 'pragma index_list(%s)'. Check table name? Running SQLite?", table);
     for (int i=0; i<*indices->textsize; i++){
         apop_data *coldata = apop_query_to_mixed_data("mmt", "pragma index_info(%s)", *indices->text[i]);
         if (!coldata || !*coldata->textsize) continue;
-        Apop_stopif(coldata->error, apop_data_free(coldata); return -1, 0, "error running "
+        Tea_stopif(coldata->error, apop_data_free(coldata); return -1, 0, "error running "
                 " 'pragma index_info(%s)'. Check table/index name?", *indices->text[i]);
         if (!strcasecmp(*coldata->text[0], column)) { 
             has_it=1; 
@@ -99,9 +99,9 @@ int join_tables(){
     char *specid = get_key_word("join", "field");
     char *idcol = specid ? specid : get_key_word("id", NULL);
     char *outview = get_key_word("join", "output table");
-    Apop_stopif(!jointo || !addtab || !outview, return -1, 0, "If you have a 'join' segment in the spec, it has to have "
+    Tea_stopif(!jointo || !addtab || !outview, return -1, 0, "If you have a 'join' segment in the spec, it has to have "
                     "a 'host' key, an 'add' key, and an 'output table' key.");
-    Apop_stopif(!idcol, return -1, 0, "You asked me to join %s and %s, but I have no 'id' column name "
+    Tea_stopif(!idcol, return -1, 0, "You asked me to join %s and %s, but I have no 'id' column name "
                         "on which to join (put it outside of all groups in the spec, "
                         "and until we get to implementing otherwise, it has to be the same for both tables).", addtab, jointo);
     has_sqlite3_index(jointo, idcol, 'y');
@@ -147,7 +147,7 @@ static int text_in_by_tag(char const *tag){
                     || !strcasecmp(overwrite,"0") )
             free(overwrite), overwrite = NULL;
 
-    Apop_stopif(!file_in, return -1, 0,  "I don't have an input file name");
+    Tea_stopif(!file_in, return -1, 0,  "I don't have an input file name");
 
     char *file_in_copy;
     char *sas_post_script;
@@ -155,8 +155,8 @@ static int text_in_by_tag(char const *tag){
     asprintf(&sas_post_script, "sas7bdat");
     file_in_copy += strlen(file_in) - 8;
 
-    Apop_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
-    Apop_stopif(!overwrite && apop_table_exists(table_out), return 0, 0,
+    Tea_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
+    Tea_stopif(!overwrite && apop_table_exists(table_out), return 0, 0,
                         "Table %s exists; skipping the input from file %s.", table_out, file_in);
 
     // Script that converts a sas input file into a regular text file
@@ -165,7 +165,7 @@ static int text_in_by_tag(char const *tag){
          * file that can be parsed just as any other file by TEA. The file gets written to
          * the database given by the user in their spec file. Remark that we don't
          * need to check that the given file exists because this is already handled by the
-         * Apop_stopif statement above.
+         * Tea_stopif statement above.
          */
 
         char *basename = gnu_c_basename(strndup(file_in, strlen(file_in)-9));

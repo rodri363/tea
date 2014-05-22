@@ -46,7 +46,7 @@ int blank_fingerprints(char const **datatab){
     
     sprintf(apop_opts.db_name_column, "%s", id);
     apop_data *prints = apop_query_to_data("select * from vflags");
-    Apop_stopif(!prints || prints->error, return -1, 0, 
+    Tea_stopif(!prints || prints->error, return -1, 0, 
             "vflags exists, but select * from vflags failed.");
     for (int i=0; i< prints->matrix->size1; i++){
         //mm is a matrix with one row; v is the vector view.
@@ -150,14 +150,14 @@ double en(apop_data *in){
    
    */
 apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *orig,  int cutctr){
-    Apop_stopif(!raked, return NULL, 0, "NULL raking results.");
+    Tea_stopif(!raked, return NULL, 0, "NULL raking results.");
     double s = apop_sum(raked->weights);
-    Apop_stopif(isnan(s), return NULL, 0, "NaNs in raking results.");
-    Apop_stopif(!s, return NULL, 0, "No weights in raking results.");
+    Tea_stopif(isnan(s), return NULL, 0, "NaNs in raking results.");
+    Tea_stopif(!s, return NULL, 0, "No weights in raking results.");
     bool done = false;
     apop_map(raked, .fn_rp=cull, .param=fin, .inplace='v');
     done = apop_sum(raked->weights);
-    Apop_stopif(!done, return NULL, 0, "Still couldn't find something to draw.");
+    Tea_stopif(!done, return NULL, 0, "Still couldn't find something to draw.");
     return apop_estimate(raked, apop_pmf);
 }
 
@@ -180,7 +180,7 @@ apop_data *get_data_for_em(const char *datatab, char *catlist, const char *id_co
                     weight_col ? ',' : ' ',
                     XN(weight_col), /*previous_filltab ? dt :*/datatab, catlist ? "where": " ", XN(catlist));
     free(varlist);
-    Apop_stopif(!d || d->error, return d, 0, "Query trouble.");
+    Tea_stopif(!d || d->error, return d, 0, "Query trouble.");
     if (!d->weights) {
         if (weight_col){
             Apop_col_tv(d, weight_col, wc);
@@ -225,14 +225,14 @@ static void rake_to_completion(char const *datatab, char const *underlying,
     //if (previous_filltab) check_out_impute(&dxx, /*&dt*/ NULL, &zero, NULL, &previous_filltab);
 
     apop_data *d = get_data_for_em(datatab, catlist, id_col, weight_col, previous_filltab, is);
-    Apop_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
-    Apop_stopif(d->error, return, 0, "query error.");
+    Tea_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
+    Tea_stopif(d->error, return, 0, "query error.");
     int count_of_nans = apop_map_sum(d, .fn_d=nnn);
     if (!count_of_nans) return;
     
     apop_data *raked = em_weight(d, .tolerance=1e-3);
-    Apop_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
-    Apop_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
+    Tea_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
+    Tea_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
 
 
     /*
@@ -264,7 +264,7 @@ apop_data_free(dcp);
         apop_model *m = prep_the_draws(raked, focusn, original_weights, 0); 
         if (!m || m->error) goto end; //get it on the next go `round.
         for (int drawno=0; drawno< draw_count; drawno++){
-            Apop_stopif(!focus->names, goto end, 0, "focus->names is NULL. This should never have happened.");
+            Tea_stopif(!focus->names, goto end, 0, "focus->names is NULL. This should never have happened.");
             apop_draw(cp_to_fill->data, r, m);
             writeout(fillins, cp_to_fill, focus, &ctr, drawno);
         }
@@ -291,7 +291,7 @@ apop_data_free(dcp);
 static int lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
     double temp_out[m->parameters->vector->size+1];
     m->draw = apop_ols->draw;
-    Apop_stopif(apop_draw(temp_out, r, m), out[0]=NAN; return 1,
+    Tea_stopif(apop_draw(temp_out, r, m), out[0]=NAN; return 1,
             0, "OLS draw failed.");
     m->draw = lil_ols_draw;
     *out = temp_out[0];
@@ -341,10 +341,10 @@ static char *construct_a_query(char const *datatab, char const *underlying, char
             /* apop_data *category_str = apop_query_to_text("select %s from %s where %s is \
                       null limit 1", n, datatab, n);
 
-            Apop_stopif(category_str == NULL, return, 0, "I returned a NULL apop_data \
+            Tea_stopif(category_str == NULL, return, 0, "I returned a NULL apop_data \
                     ptr. Something is wrong here."); 
 
-            Apop_stopif(strcmp(**category_str->text, "NaN"), return, 0, "You gave me a null \
+            Tea_stopif(strcmp(**category_str->text, "NaN"), return, 0, "You gave me a null \
                     category. You should either check your syntax to make sure that \
                     you're giving me the right value, or consider imputing the \
                     category you gave me at an earlier point in your spec file."); */
@@ -406,16 +406,16 @@ apop_data *nans_no_constraints, *notnans_no_constraints;
 char *last_no_constraint;
 
 void verify(impustruct is){
-    /*Apop_stopif(is.isnan && !is.notnan, return, 0, "Even with no constraints, I couldn't find any "
+    /*Tea_stopif(is.isnan && !is.notnan, return, 0, "Even with no constraints, I couldn't find any "
                 "non-NaN records to use for fitting a model and drawing values for %s.", is.depvar);*/
     if (is.notnan){
         int v= apop_opts.verbose; apop_opts.verbose=0;
-        Apop_stopif(gsl_isnan(apop_matrix_sum((is.notnan)->matrix)+apop_sum((is.notnan)->vector)), 
+        Tea_stopif(gsl_isnan(apop_matrix_sum((is.notnan)->matrix)+apop_sum((is.notnan)->vector)), 
                 return, 0, 
                 "NULL values or infinities where there shouldn't be when fitting the model for %s.", is.depvar);
         apop_opts.verbose=v;
     }
-    Apop_assert_c(is.isnan, , 2, "%s had no missing values. This sometimes happens when the fields used for sub-classes "
+    Tea_stopif(!is.isnan, return, 2, "%s had no missing values. This sometimes happens when the fields used for sub-classes "
             "still has missing values. Perhaps do an imputation for these fields and add an 'earlier output table' line to "
             "this segment of the spec.", is.depvar);
 }
@@ -475,8 +475,8 @@ static void get_nans_and_notnans(impustruct *is, char const* index, char const *
          //but we'll need the text for the consistency checking anyway.
 
          //Check whether isnan is null somewhere
-         Apop_stopif(!is->isnan, return, 0, "query returned no data.");
-         Apop_stopif(is->isnan->error, return, 0, "query failed.");
+         Tea_stopif(!is->isnan, return, 0, "query returned no data.");
+         Tea_stopif(is->isnan->error, return, 0, "query failed.");
          apop_text_alloc(is->isnan, is->isnan->matrix->size1, is->isnan->matrix->size2);
          for (int i=0; i< is->isnan->matrix->size1; i++)
              for (int j=0; j< is->isnan->matrix->size2; j++)
@@ -501,10 +501,10 @@ static void model_est(impustruct *is, int *model_id){
             //the actual depvar got factor-ized in prep_for_draw.
 //            apop_data_to_dummies(is->isnan, i, .keep_first='y', .append='y'); //presumably has the same structure.
         }
-    Apop_stopif(notnan->vector && isnan(apop_vector_sum(notnan->vector)), return, 
+    Tea_stopif(notnan->vector && isnan(apop_vector_sum(notnan->vector)), return, 
             0, "NaNs in the not-NaN vector that I was going to use to estimate "
             "the imputation model. This shouldn't happen");
-    Apop_stopif(notnan->matrix && isnan(apop_matrix_sum(notnan->matrix)), return,
+    Tea_stopif(notnan->matrix && isnan(apop_matrix_sum(notnan->matrix)), return,
             0, "NaNs in the not-NaN matrix that I was going to use to estimate "
             "the imputation model. This shouldn't happen");
     if (is->is_hotdeck) apop_data_pmf_compress(notnan);
@@ -512,7 +512,7 @@ static void model_est(impustruct *is, int *model_id){
 
     install_data_to_R(notnan, is->base_model); //no-op if not an R model.
 	is->fitted_model = apop_estimate(notnan, is->base_model);
-    Apop_stopif(!is->fitted_model, return, 0, "model fitting fail.");
+    Tea_stopif(!is->fitted_model, return, 0, "model fitting fail.");
     if (!strcmp(is->base_model->name, "multinomial"))
         apop_data_set(is->fitted_model->parameters, .row=0, .col=-1, .val=1);
     if (!strcmp(is->base_model->name, "Ordinary Least Squares"))
@@ -627,7 +627,7 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
                                             "order by %s",
 									 id_col, is.depvar, datatab, is.depvar, id_col);
     if (!nanvals) return NULL; //query worked, nothing found.
-    Apop_stopif(nanvals->error, return NULL, 0, "Error querying for missing values.");
+    Tea_stopif(nanvals->error, return NULL, 0, "Error querying for missing values.");
     if (verbose){
         printf("For %s, the following NULLs:\n", is.depvar);
         apop_data_show(nanvals); //may print NULL.
@@ -669,7 +669,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 	static char const *const whattodo="passfail";
     double x;
     apop_draw(&x, r, is->fitted_model);
-    Apop_stopif(isnan(x), return out, 0, "I drew NaN from the fitted model. Something is wrong.");
+    Tea_stopif(isnan(x), return out, 0, "I drew NaN from the fitted model. Something is wrong.");
     apop_data *rd = get_data_from_R(is->fitted_model);
     if (rd) {
         x = rd->vector ? *rd->vector->data : *rd->matrix->data;
@@ -707,13 +707,13 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
                         int model_id, int draw, apop_data *nanvals, char *filltab){
     char type = get_coltype(is->depvar);
     int col_of_interest=apop_name_find(is->isnan->names, is->depvar, type !='c' && is->isnan->names->colct ? 'c' : 't');
-    Apop_stopif(col_of_interest < -1, return, 0, "I couldn't find %s in the list of column names.", is->depvar);
+    Tea_stopif(col_of_interest < -1, return, 0, "I couldn't find %s in the list of column names.", is->depvar);
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         char *name = is->isnan->names->row[rowindex];
         if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)==-1){
             //Then this is already done. Verify in the main list; continue.
             char *pd; asprintf(&pd, "%s.", name);
-            Apop_stopif(mark_an_id(pd, nanvals->names->row, nanvals->names->rowct, 'y')==-1,
+            Tea_stopif(mark_an_id(pd, nanvals->names->row, nanvals->names->rowct, 'y')==-1,
                 free(pd); continue, 0, "A sublist asked me to impute for ID %s, but I couldn't "
                     "find that ID in the main list of NaNs.", name);
             free(pd);
@@ -726,7 +726,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
         do drew = onedraw(r, is, type, id_number, fail_id, 
                           model_id, full_record, col_of_interest);
         while (drew.is_fail && tryctr++ < 1000);
-        Apop_stopif(drew.is_fail, , 0, "I just made a thousand attempts to find an "
+        Tea_stopif(drew.is_fail, , 0, "I just made a thousand attempts to find an "
             "imputed value that passes checks, and couldn't. "
             "Something's wrong that a computer can't fix.\n "
             "I'm at id %i.", id_number);
@@ -736,7 +736,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
                                 ? ext_from_ri(is->depvar, drew.pre_round+1)
                                 : strdup(drew.textx); //I should save the numeric val.
 
-	Apop_stopif(isnan(atof(final_value)), return, 0, "I drew a blank from the imputed column when I shouldn't have for record %i.", id_number);
+	Tea_stopif(isnan(atof(final_value)), return, 0, "I drew a blank from the imputed column when I shouldn't have for record %i.", id_number);
 
         apop_query("insert into %s values(%i, '%s', '%s', '%s');",
                        filltab,  draw, final_value, is->isnan->names->row[rowindex], is->depvar);
@@ -883,7 +883,7 @@ apop_model *tea_get_model_by_name(char *name, impustruct *model){
 				: &null_model;
         if (using_r && !strcmp(out->name, "Null model")) //probably an R model.
             out= rapop_model_from_registry(name);
-        Apop_stopif(!strcmp(out->name, "Null model"), return &(apop_model){}, 0, "model selection fail.");
+        Tea_stopif(!strcmp(out->name, "Null model"), return &(apop_model){}, 0, "model selection fail.");
         Apop_model_add_group(out, apop_parts_wanted, .predicted='y'); //no cov
         if (!strcmp(out->name, "PDF or sparse matrix")) out->dsize=-2;
         return out;
@@ -912,7 +912,7 @@ impustruct read_model_info(char const *configbase, char const *tag, char const *
                 " *([^,]*[^ ]) *(,|$) *", &outputvarlist);
     apop_regex(get_key_word_tagged(configbase, "input vars", tag),
                 " *([^,]*[^ ]) *(,|$) *", &indepvarlist);
-    Apop_stopif(!varlist && !outputvarlist, return (impustruct){.error=1}, 0, "I couldn't find a 'vars' or 'output vars' line in the %s segment", configbase);
+    Tea_stopif(!varlist && !outputvarlist, return (impustruct){.error=1}, 0, "I couldn't find a 'vars' or 'output vars' line in the %s segment", configbase);
 
 	impustruct model = (impustruct) {.position=-2, .vartypes=strdup("n")};
     model.depvar = strdup(outputvarlist ? **outputvarlist->text : **varlist->text);
@@ -923,7 +923,7 @@ impustruct read_model_info(char const *configbase, char const *tag, char const *
     //find the right model.
     char *model_name = get_key_word_tagged(configbase, "method", tag);
     model.base_model = tea_get_model_by_name(model_name, &model);
-    Apop_stopif(!strlen(model.base_model->name), model.error=1; return model, 0, "model selection fail; you requested %s.", model_name);
+    Tea_stopif(!strlen(model.base_model->name), model.error=1; return model, 0, "model selection fail; you requested %s.", model_name);
 
 /* In this section, we construct the select clause that will produce the data we need for estimation. apop_query_to_mixed_data also requires a list of type elements, so get that too.
 
@@ -983,17 +983,17 @@ int do_impute(char **tag, char **idatatab){
      * If they haven't we alert them to this and exit the function.
      */
 
-    Apop_stopif(get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
-    Apop_stopif(get_key_word("impute", "input table") == NULL, return -1, 0, "You need to specify an input table in your impute key.");
-    Apop_stopif(get_key_word("impute", "method") == NULL, return -1, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
+    Tea_stopif(get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
+    Tea_stopif(get_key_word("impute", "input table") == NULL, return -1, 0, "You need to specify an input table in your impute key.");
+    Tea_stopif(get_key_word("impute", "method") == NULL, return -1, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
     
     //This fn does nothing but read the config file and do appropriate setup.
     //See impute_a_variable for the real work.
-    Apop_stopif(!*tag, return -1, 0, "All the impute segments really should be tagged.");
-    Apop_stopif(!*idatatab, return -1, 0, "I need an input table, "
+    Tea_stopif(!*tag, return -1, 0, "All the impute segments really should be tagged.");
+    Tea_stopif(!*idatatab, return -1, 0, "I need an input table, "
                         "via a '%s/input table' key. Or, search the documentation "
                         "for the active table (which is currently not set).", configbase);
-    Apop_stopif(!apop_table_exists(*idatatab), return -1, 0, "'%s/input table' is %s, but I can't "
+    Tea_stopif(!apop_table_exists(*idatatab), return -1, 0, "'%s/input table' is %s, but I can't "
                      "find that table in the db.", configbase, *idatatab);
 
     char *underlying = get_key_word_tagged(configbase, "underlying table", *tag);
@@ -1017,7 +1017,7 @@ int do_impute(char **tag, char **idatatab){
 
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
     if (!out_tab && previous_fill_tab) out_tab = previous_fill_tab;
-    Apop_stopif(!out_tab, out_tab = "filled",
+    Tea_stopif(!out_tab, out_tab = "filled",
         0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name than specify one in your spec file.");
 
     char *id_col= get_key_word(NULL, "id");
@@ -1045,14 +1045,14 @@ int do_impute(char **tag, char **idatatab){
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
 
     impustruct model = read_model_info(configbase, *tag, id_col);
-    Apop_stopif(model.error, return -1, 0, "Trouble reading in model info.");
+    Tea_stopif(model.error, return -1, 0, "Trouble reading in model info.");
 
     if (model.is_em) {
         apop_data *catlist=NULL;
         if (category_matrix){
             char *cats = apop_text_paste(category_matrix, .between=", ");
             catlist = apop_query_to_text("select distinct %s from %s", cats, *idatatab);
-            Apop_stopif(!catlist || catlist->error, return -1, 0, 
+            Tea_stopif(!catlist || catlist->error, return -1, 0, 
                 "Trouble querying for categories [select distinct %s from %s].", cats, *idatatab);
         }
         for (int i=0; i< (catlist ? *catlist->textsize: 1); i++){

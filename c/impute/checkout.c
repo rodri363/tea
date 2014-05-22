@@ -13,7 +13,7 @@ extern char *datatab;
 
 void check_out_impute(char **origin, char **destin, int *imputation_number, char **subset, char **filltabin){
     char *filltab = (filltabin && *filltabin) ? *filltabin : "filled";
-    Apop_stopif(!origin || !*origin, return, 0, "NULL origin table, but I need that.");
+    Tea_stopif(!origin || !*origin, return, 0, "NULL origin table, but I need that.");
     char *id_column= get_key_word(NULL, "id");
     const char *dest = destin ? *destin : NULL;
     int use_rowids = 0;
@@ -32,10 +32,10 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
                         );
     } else dest = *origin;
     has_sqlite3_index(dest, use_rowids ? "id_col" : id_column, 'y');
-    Apop_stopif(!apop_table_exists(filltab), return , 0, "No table named '%s'; did you already doMImpute()?", filltab);
+    Tea_stopif(!apop_table_exists(filltab), return , 0, "No table named '%s'; did you already doMImpute()?", filltab);
     apop_data *fills = apop_query_to_text("select %s, field, value from %s where draw+0.0=%i"
                                               , id_column, filltab, *imputation_number);
-    Apop_stopif(!fills || fills->error, return, 0, "Expected fill-in table "
+    Tea_stopif(!fills || fills->error, return, 0, "Expected fill-in table "
                 "%s, but couldn't query it.", filltab);
     begin_transaction();
     if (fills)

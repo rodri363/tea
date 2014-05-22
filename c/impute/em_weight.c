@@ -55,16 +55,17 @@ void merge_two_sets(apop_data *left, apop_data *right){
     apop_data_stack(left, right, .inplace='y');
 }
 
-
 // Zero out the weights of those rows that don't match.
 static double cull2(apop_data const *onerow, apop_data *cullback){
+    #pragma omp parallel for
     for (int row=0; row<cullback->matrix->size1; row++){
         Apop_row(cullback, row, cull_row);
+        if (!*cull_row->weights->data) continue;
         for (int i=0; i< cull_row->matrix->size2; i++){
-            double this = apop_data_get(onerow, .col=i);
+            double this= onerow->matrix->data[i];
             if (isnan(this)) continue;
-            if (apop_data_get(cull_row, .col=i) != this) {
-                gsl_vector_set(cullback->weights, row, 0);
+            if (cull_row->matrix->data[i] != this) {
+                *cull_row->weights->data= 0;
                 break;
             }
         }
@@ -170,7 +171,7 @@ apop_data *em_weight_base(em_weight_s in){
             Apop_row(in.d, i, row);
             if (isnan(apop_matrix_sum(row->matrix))) {
                 if (!cp) cp = apop_data_copy(prior_candidate);
-                else gsl_vector_memcpy(cp->weights, prior_candidate->weights);
+                else     gsl_vector_memcpy(cp->weights, prior_candidate->weights);
 
                 (ctr<saturated ? cull_w_nans : cull2)(row, cp);
                 //if (!done_culling && !cp->matrix) continue;

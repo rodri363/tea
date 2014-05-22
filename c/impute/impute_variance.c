@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include "tea.h"
 #include "imputation_variance.h"
 #define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
@@ -96,8 +97,8 @@ apop_data* multiple_imputation_variance_base(multiple_imputation_variance_t in){
       give any named column, be it numeric or text, for every piece of input info. That means a whole lot 
       of checking around to determine what goes where---and a macro.  */
 
-    Apop_assert_c(in.base_data,NULL, 1, "It doesn't make sense to impute over a NULL data set.");
-    Apop_assert_c(in.fill_ins, NULL, 1, "Didn't receive a fill-in table. Returning NULL.");
+    Tea_stopif(!in.base_data, return NULL, 1, "It doesn't make sense to impute over a NULL data set.");
+    Tea_stopif(!in.fill_ins, return NULL, 1, "Didn't receive a fill-in table. Returning NULL.");
     data_to_data stat = in.stat? in.stat : colmeans;
 
 //At the end of this macro, you've got rowcol and rowtype, valuecol and valuetype, &c.

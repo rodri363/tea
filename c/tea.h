@@ -14,13 +14,19 @@
 
 #define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
-#undef Apop_assert_c
-#define Apop_assert_c(test, returnval, level, ...) if (!(test)) \
-			{if (apop_opts.verbose >= level) warning(__VA_ARGS__); return returnval;}
+//If running as a C library without R, warning messages have to be treated differently.
+extern _Bool CTea;
 
-#undef Apop_stopif
-#define Apop_stopif(test, returnop, level, ...) if (test) \
-			{if (apop_opts.verbose >= level) Rf_warning(__VA_ARGS__); Apop_maybe_abort(level);  returnop;}
+#define Tea_stopif(test, returnop, level, ...)      \
+    if (CTea)                                       \
+        {Apop_stopif(test, returnop, level, __VA_ARGS__);}    \
+    else if (test){                                 \
+        if (apop_opts.verbose >= level)             \
+            Rf_warning(__VA_ARGS__);                \
+        Apop_maybe_abort(level);                    \
+        returnop;                                   \
+    }
+
 
 
 /*

@@ -24,7 +24,7 @@ void reset_ri_ext_table(){
 static void ri_ext_init(){
     ri_ext=malloc(sizeof(apop_data*)*(total_var_ct));
     ri_ext_len=0;
-    Apop_stopif(!used_vars, return, 0, "No used_vars list. Please add a \"fields\" section declaring the variables you want me to use.");
+    Tea_stopif(!used_vars, return, 0, "No used_vars list. Please add a \"fields\" section declaring the variables you want me to use.");
     for (int v=0; used_vars[v].name; v++){
         char *q; 
         if (!apop_table_exists(used_vars[v].name) ||
@@ -54,7 +54,7 @@ static apop_data *get_named_tab(char const *varname){
    returned -1 means variable found, but value wasn't.
  */
 int ri_from_ext(char const *varname, char const * ext_val){
-    Apop_stopif(!ext_val, return -1, 0, "You asked about an actual NULL.");
+    Tea_stopif(!ext_val, return -1, 0, "You asked about an actual NULL.");
     if (!strcmp(ext_val, "NULL")) ext_val = apop_opts.nan_string;
     apop_data *this = get_named_tab(varname);
     if (!this) return -100;
@@ -76,14 +76,14 @@ int ri_from_ext(char const *varname, char const * ext_val){
 char * ext_from_ri(char const *varname, int const ri_val){
     apop_data *this = get_named_tab(varname);
     if (this->matrix && this->matrix->size1){
-        Apop_stopif(ri_val > this->matrix->size1, return strdup("NULL"), 0,
+        Tea_stopif(ri_val > this->matrix->size1, return strdup("NULL"), 0,
             "You're asking for value %i of variable %s, but it only "
             "has %zu values.", ri_val, varname, this->matrix->size1);
         char *out;
         asprintf(&out, "%g", apop_data_get(this, ri_val-1));
         return out;
     } else {
-        Apop_stopif(ri_val > *this->textsize, return strdup("NULL"), 0,
+        Tea_stopif(ri_val > *this->textsize, return strdup("NULL"), 0,
             "You're asking for value %i of variable %s, but it only "
             "has %zu values.", ri_val, varname, *this->textsize);
         return strdup(*this->text[ri_val-1]);

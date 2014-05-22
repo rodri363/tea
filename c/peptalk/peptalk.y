@@ -235,7 +235,7 @@ static void set_database(char *dbname){  //only on pass 0.
     if (!strcmp(dbname, "mem")) dbname=":memory:";
     if (verbose) printf("opening database %s.\n", dbname);
     transacting=0; //reset the begin/commit counter.
-    Apop_stopif(apop_db_open(dbname), return, 0, "failed to open database %s", dbname);
+    Tea_stopif(apop_db_open(dbname), return, 0, "failed to open database %s", dbname);
     database= strdup(dbname);
     apop_table_exists("keys", 'd');
     apop_table_exists("variables", 'd');
@@ -251,15 +251,15 @@ int add_keyval(char *key, char *val){
     if (!sval) return 0;
 	if (apop_strcmp(skey, "database"))
 		set_database(sval);
-	Apop_stopif(!database, return -1, 0, "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".");
+	Tea_stopif(!database, return -1, 0, "The first item in the config file (.spec) needs to be \"database:db_file_name.db\".");
         if (strcmp(rest ? (rest + 1) : skey,"paste in")) { //disagree i.e. not a paste in
   	  apop_query("insert into keys values (\"%s\", \"%s\", %i, \"%s\")", skey, XN(tag), ++val_count, sval);
         // paste in macro code by selecting lines from the database
         } else {
 	  // select from keys what was stored in the macro where tag = skey
             apop_data *pastein = apop_query_to_text("select * from keys where key like '%s%%'",sval);
-            Apop_stopif(!pastein, return -1, -1,"paste in macro %s not found in keys table.",sval);
-            Apop_stopif(pastein->error,return -1, -1,"SQL: query for %s failed.",sval);
+            Tea_stopif(!pastein, return -1, -1,"paste in macro %s not found in keys table.",sval);
+            Tea_stopif(pastein->error,return -1, -1,"SQL: query for %s failed.",sval);
             for (int j = 0;j < pastein->textsize[0];j++) {
               char *nkey, *vkey;
               nkey = malloc(100);
@@ -364,7 +364,7 @@ char *make_case_list(char *in){
 void add_to_num_list(char *v){
     if (pass !=0) return;
     char *vs = strip(v);
-    Apop_assert_c(!(parsed_type=='r' && (v && strlen(vs)>0)), , 1,
+    Tea_stopif(parsed_type=='r' && (v && strlen(vs)>0), return, 1,
          "I ignore ranges for real variables. Please add limits in the check{} section.");
     if (parsed_type=='r') return; 
 /*	if (apop_strcmp(vs, "*")){
@@ -413,9 +413,9 @@ void add_to_num_list(char *v){
 
 void add_to_num_list_seq(char *min, char*max){
     if (pass !=0) return;
-    Apop_assert_c(parsed_type!='r', , 1,
+    Tea_stopif(parsed_type=='r', return, 1,
          "TEA ignores ranges for real variables. Pleas	e add limits in the check{} section.");
-    Apop_stopif(atoi(min)>=atoi(max),return,0,"Maximum value %s does not exceed Minimum values %s",max,min);
+    Tea_stopif(atoi(min)>=atoi(max), return , 0, "Maximum value %s does not exceed Minimum values %s",max,min);
     for (int i = atoi(min); i<=atoi(max);i++){
         apop_query("insert into %s values (%i);", current_var, i);
 		optionct[total_var_ct-1]++;
@@ -492,7 +492,7 @@ void moreblob(char **out, char* so_far, char *more){
             else           asprintf(&var_list, "%s, %s", more, var_list);
             if (!isreal){
                 if (!datatab) datatab = get_key_word("input","output table");
-                Apop_stopif(!datatab, return, 0, "I need the name of the data table so I can set up the recodes."
+                Tea_stopif(!datatab, return, 0, "I need the name of the data table so I can set up the recodes."
                                      " Put an 'output table' key in the input segment of the spec.");
                 if (!apop_table_exists(more))
                     apop_query( "create table %s as "
@@ -525,7 +525,7 @@ void extend_key(char *key_in){
 
 void reduce_key(char *in){
     //Pop a key segment off the stack
-    Apop_stopif(!current_key, return, 0, "The {curly braces} don't seem to match. Please "
+    Tea_stopif(!current_key, return, 0, "The {curly braces} don't seem to match. Please "
             "check your last few changes.");
     int i;
     for (i=strlen(current_key); i > -1; i--)
@@ -570,7 +570,7 @@ void add_check(char *this_query){
     if (pass !=1 || !this_query || !strip(this_query)) 
         return;  //only after declaration pass; no blanks
     has_edits=1;
-	Apop_stopif(!var_list, return, 0, 
+	Tea_stopif(!var_list, return, 0, 
 				"The query \n%s\ndoesn't use any declared variables, which is a problem. "
                 "Please check your typing/syntax, and make sure you've declared the variables you'd "
                 "like me to check.\n", this_query);

@@ -25,6 +25,7 @@ char *database;
 apop_data *settings_table, *ud_queries;
 int max_lev_distance = 2;
 int num_typos;
+bool CTea=false; //Set to true iff using as a library without R.
 
 /* The implicit edit code has been removed---it never worked. The last edition that had it was 
 git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
@@ -41,7 +42,7 @@ int has_edits = 0; //incremented in peptalk.y if there's a checks{} group in the
 char *fname = "-stdin-";
 
 /* This is what the parser calls on error. */
-int yyerror(const char *s) { Apop_stopif(1, return 0, 0, "%s(%d): %s\n",fname,lineno,s); }
+int yyerror(const char *s) { Tea_stopif(1, return 0, 0, "%s(%d): %s\n",fname,lineno,s); }
 
 /**
 Each query produces a (apop_data) table of not-OK values, in the
@@ -134,7 +135,7 @@ void db_to_em(void){
             //else, standard discrete-indexed matrix
 
 			if (!d) d = apop_query_to_text("%s", ud_queries->text[current_explicit][0]);
-            Apop_stopif(d && d->error, return, 0, "query error setting up edit grid; edits after this one won't happen.");
+            Tea_stopif(d && d->error, return, 0, "query error setting up edit grid; edits after this one won't happen.");
             grow_grid(edit_grid, &em_i, total_option_ct);
             Apop_row_v(edit_grid, em_i-1, a_row)
             gsl_vector_set_all(a_row, -1); //first posn of a field==-1 ==> ignore.
@@ -354,7 +355,7 @@ void init_edit_list(){
         db_to_em();
 	}
     if (edit_list) {
-        Apop_stopif(!database,return, 0, "Please declare a database using 'database: your_db'.");
+        Tea_stopif(!database,return, 0, "Please declare a database using 'database: your_db'.");
         apop_table_exists("editinfo", 'd');
         apop_query("create table editinfo (row, edit, infotype, val1, val2);");
         if (!apop_table_exists("alternatives"))
@@ -372,10 +373,10 @@ void read_spec(char **infile, char **dbname_out){
     start_over();
     fname = strdup(*infile);
     yyin = fopen (fname, "r");
-    Apop_stopif(!yyin, return, 0, "Trouble opening spec file %s.", fname);
+    Tea_stopif(!yyin, return, 0, "Trouble opening spec file %s.", fname);
     pass=0;
     begin_transaction();
-    Apop_stopif(yyparse(), return, 0, "TEA was unable to read your spec file. This is most likely"
+    Tea_stopif(yyparse(), return, 0, "TEA was unable to read your spec file. This is most likely"
             " due to the fact that you didn't specify a database at the header of the file.");
         //fill keys table. Note that yyparse() returns 0 when parsing is successful.
     

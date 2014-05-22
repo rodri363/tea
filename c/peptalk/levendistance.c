@@ -16,7 +16,7 @@
  *  by checking whether a user's key is within Min_ham_distance of an accepted 
  *  key.
  *
- *  If num_differences == 0 || num_differences > max_lev_distance then Apop_stopif 
+ *  If num_differences == 0 || num_differences > max_lev_distance then Tea_stopif 
  *  won't get executed above in check_levenshtein_distances. Otherwise, if the keys have at most
  *  max_lev_distance differences then it will.
  */
@@ -47,7 +47,7 @@ static int levenshtein_distance(char *s1, char *s2) {
   * calls hamming_distance to find the hamming distance for each of the keys in 
   * userkeys in comparison with the list of acceptable keys. 
   * If hamming_distance > 0 && < 3 then we alert user that they might have meant to 
-  * put in the correct key using Apop_stopif
+  * put in the correct key using Tea_stopif
   */
 
 #include "keylist"
@@ -68,7 +68,7 @@ int check_levenshtein_distances(int max_lev_distance){
                 closest = *keyptr;    
             }
         }
-        Apop_stopif(min_distance > 0 && min_distance <= max_lev_distance, typo_counter++ , 0, 
+        Tea_stopif(min_distance > 0 && min_distance <= max_lev_distance, typo_counter++ , 0, 
                             "You wrote %s for one of the keys in your spec file. Did you "
                             "mean to write %s?", *userkeys->text[i], closest);
     }

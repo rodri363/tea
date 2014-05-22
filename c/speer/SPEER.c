@@ -2,11 +2,8 @@
 /* *** THE SUBROUTINES IN THIS FILE WILL BE USED FOR **** */
 /* *** EVERY APPLICATION OF SPEER                    **** */
 
-#include <stdio.h>
-#include <apop.h>
+#include "tea.h"
 #include <string.h>
-//// #include <stdlib.h>
-#include <sqlite3.h>
 
 /* global constants */
 //// #define BFLD 9
@@ -32,10 +29,6 @@ int nf; 	            /* # of failed (deleted) basic items */
 int numdel; 
 int cntdel[maxflds]; 
 int frcomp[NEDIT][maxcats];
-
-extern int speer_(void);
-extern apop_data *get_key_text( char*, char* );
-extern char *get_key_word( char*, char* );
 
 /* Implicit ratios and their multipliers */
 struct { float lwbd[maxcats][maxflds][maxflds]; float upbd[maxcats][maxflds][maxflds];
@@ -288,13 +281,13 @@ int PreChex(void)
 {
   /* Stop program if maximum # of fields is exceded. */
   /*   Just increase the value of maxflds variable.  */
-  Apop_stopif( BFLD > maxflds, return 0, -5,
+  Tea_stopif( BFLD > maxflds, return 0, -5,
         "**** FATAL ERROR in SPEER:  Maximum number of fields (%d) exceded. ****\n",
  	    maxflds ); 
 
   /* Stop program if max length of field names is exceded. */
   /*   Just increase the value of maxfldlen variable.      */
-  Apop_stopif( namlen > maxfldlen, return 0, -5,
+  Tea_stopif( namlen > maxfldlen, return 0, -5,
         "**** FATAL ERROR in SPEER:  Maximum length of field name (%d) exceded. ****\n",
  	    maxfldlen ); 
 

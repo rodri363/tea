@@ -149,7 +149,7 @@ static int check_a_record(int const * restrict row,  int * failures,
     if (has_c_edits){
         bool usable_sql[edit_grid->vector->size];
         check_for_all_vars(usable_sql, record_name_in, record_in_size);
-	    Apop_stopif(*data_as_query==NULL, return -1, 0, "*data_as_query is null. Should be a string of data.");
+	    Tea_stopif(*data_as_query==NULL, return -1, 0, "*data_as_query is null. Should be a string of data.");
         apop_query("%s", *data_as_query);
         char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
                   .before= "select count(*) from tea_test where (", .prune=prune_edits, .prune_parameter=usable_sql);
@@ -242,14 +242,14 @@ static apop_data * get_alternatives(int *restrict record, char *const  restrict 
     int rows = 1;
     for (int i = 0; i< record_in_size; i++){
 	    int this_field = user_to_em[i];
-        Apop_stopif(this_field < 0, apop_data*out=apop_data_alloc(); out->error='f'; return out,
+        Tea_stopif(this_field < 0, apop_data*out=apop_data_alloc(); out->error='f'; return out,
                0,  "I couldn't find %s.", record_name_in[i]);
         total_fails += failing_records[this_field] ? 1 : 0;
         if (failing_records[this_field]){
             rows *= find_e[this_field] - find_b[this_field]+1;
         }
     }
-	Apop_stopif(!total_fails,  apop_data*out=apop_data_alloc(); out->error='c'; return out,
+	Tea_stopif(!total_fails,  apop_data*out=apop_data_alloc(); out->error='c'; return out,
                 0, "Failed internal consistency check: I marked this "
 				"record as failed but couldn't find which fields were causing failure.");
     apop_data *out = apop_data_alloc(1, rows, total_fails);
@@ -298,12 +298,12 @@ static void fill_a_record(int record[], int const record_width, char * const res
         if (ri_position == -100) continue;  //This variable wasn't declared ==> can't be in an edit.
         for(int  kk = find_b[user_to_em[i]]-1; kk< find_e[user_to_em[i]]; kk++)
           record[kk] = 0;
-        Apop_stopif(ri_position == -1 , return, 0, "I couldn't find the value %s in your "
+        Tea_stopif(ri_position == -1 , return, 0, "I couldn't find the value %s in your "
                 "declarations for the variable %s. Please remove the error from the data or "
                 "add that value to the declaration, then restart the program so I can rebuild "
                 "some internal data structures.", ud_values[i], record_name_in[i]);
         int bit = find_b[user_to_em[i]]-1 + ri_position-1;
-        Apop_stopif(bit >= record_width || bit < 0, return, 0,
+        Tea_stopif(bit >= record_width || bit < 0, return, 0,
                     "About to shift position %i in a record, but there "
                     "are only %i entries.", bit, record_width);
         record[bit] = 1;
@@ -340,14 +340,14 @@ static void do_fields_and_fails_agree(int *failed_fields, int fails_edits, int n
 apop_data * consistency_check(char * const *record_name_in, char * const *ud_values, 
 			int const *record_in_size, char const *const *what_you_want, 
 			int const *id, int *fails_edits, int *failed_fields){
-	Apop_stopif(*record_in_size <= 0, return NULL, 1, "zero record size; returning NULL.");
+	Tea_stopif(*record_in_size <= 0, return NULL, 1, "zero record size; returning NULL.");
     if (!edit_grid) init_edit_list();
     if (!edit_grid){ //then there are no edits.
 		*fails_edits = 0;
         return NULL;
 	}
     int width = edit_grid->matrix->size2;
-	Apop_stopif(!width, return NULL, 1, "zero edit grid; returning NULL.");
+	Tea_stopif(!width, return NULL, 1, "zero edit grid; returning NULL.");
     int record[width];
     char *qstring = NULL;
     if (record_name_in) setup_conversion_tables(record_name_in, *record_in_size);

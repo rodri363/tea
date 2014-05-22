@@ -53,7 +53,7 @@ static int rel_draw(double *out, gsl_rng *r, apop_model *m){
                 1+ (int)(gsl_rng_uniform(r)*apop_query_to_float("select count(*) from tea_hhs")));
         this_hh = apop_query_to_data("select perel from tea_hhs where "
                     "mafid = %i", hh_id);
-        Apop_stopif (!this_hh || this_hh->error, *out=GSL_NAN; return 1,
+        Tea_stopif (!this_hh || this_hh->error, *out=GSL_NAN; return 1,
                 0, "Something went wrong drawing a household from my "
                     "table of households, tea_hh.");
     }
