@@ -1,5 +1,5 @@
 /* SPEER.c */
-/*   5-21-2014   */
+/*   5-27-2014   */
 
 /* This version of Tea's SPEER runs all the way thru impsub, 
      including creating imputation ranges. */
@@ -27,12 +27,17 @@ int catindx;            /* Current record's category code index/position in catl
 int catlist[maxcats];   /* List of category codes */
 int cntdel[maxflds]; 
 int frcomp[NEDIT][maxcats];
+int initSPEER = 0;      /* initialization flag */
 int namlen;             /* Length of longest basic item name */
 int nblank;	            /* # of blank basic items */ 
 int nf; 	            /* # of failed (deleted) basic items */
 int nrec;               /* record loop counter */
 int numdel; 
-int nSPEERpass = 0;   
+
+
+int nSPEERpass = 0;   /************  FIX ME:  just for testing. ************/
+
+
 
 /* global variables - record vars */
 float basitm[maxflds];  /* record's basic item values */
@@ -106,6 +111,8 @@ int speer_( int IDnum, int CategCode, float FldVals[] )
   cat = CategCode;
   for (i = 1; i <= sizeof(FldVals)-1; ++i) { basitm[i] = FldVals[i]; }
 
+  ////printf( "  In speer_: %d %d %f %f %f %f %f %f \n", IDnum, CategCode, 
+  ////     basitm[1], basitm[2], basitm[3], basitm[4], basitm[5], basitm[6] );
 
   for (i = 0; i <= maxflds-1; ++i) {
    for (j = 0; j <= maxflds-1; ++j) {
@@ -114,11 +121,11 @@ int speer_( int IDnum, int CategCode, float FldVals[] )
   }}
 
   /* These subs only need to be run once per data file. */
-  if( nSPEERpass == 1 ) { 
+  if( initSPEER == 0 ) { 
 	InitConstants();  /* Initialize constants and arrays that drive SPEER. */
     readlm_();        /* Read and store implicit ratios */
+    initSPEER = 1;
   }
-  nSPEERpass++;
  
      /* Check for potential pre-processing fatal problems. */
      PreChex();        

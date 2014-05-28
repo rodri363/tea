@@ -27,6 +27,7 @@ apop_data *settings_table, *ud_queries;
 int max_lev_distance = 2;
 int num_typos;
 
+
 /* The implicit edit code has been removed---it never worked. The last edition that had it was 
 git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
 git-svn-id: svn+ssh://svn.r-forge.r-project.org/svnroot/tea@107 edb9625f-4e0d-4859-8d74-9fd3b1da38cb
@@ -461,3 +462,4 @@ char get_coltype(char const* invar){
             return used_vars[v].type;
     return '\0';
 }
+
