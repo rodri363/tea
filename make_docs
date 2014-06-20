@@ -1,0 +1,28 @@
+This_dir=`pwd`
+Tmp_dir=~/tmp
+
+if [ ! -e $Tmp_dir/tea ] ; then
+    mkdir -p $Tmp_dir
+    cd $Tmp_dir
+    git clone $This_dir
+    cd $This_dir
+    git remote rm origin
+    git remote add origin git@github.com:rodri363/tea.git
+fi
+cd $Tmp_dir/tea
+        git checkout gh-pages
+
+cd $This_dir/doc; 
+    m4 -P make_key_html.m4 `find ../pkg/tea/ -name '*.c' -or -name '*.h' -or -name '*.R'` div.m4 key_prints.m4| sed 's/^#//'> $Tmp_dir/tea/keys.html
+    cp $This_dir/doc/*.css $This_dir/doc/*.html $Tmp_dir/tea/
+cd  $This_dir
+
+cat << ----
+
+OK, done. If you're ready to publish:
+
+cd $Tmp_dir/tea
+git add .
+git commit -a -m "More documentation"
+git push origin gh-pages
+----
