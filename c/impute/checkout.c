@@ -22,6 +22,7 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
         id_column = strdup("rowid");
     }
     sprintf(apop_opts.db_name_column, "%s",  id_column);
+    begin_transaction();
     if (dest){
         apop_table_exists(dest, 'd');
         apop_query("create table %s as select %s * from %s %s %s", 
@@ -37,13 +38,11 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
                                               , id_column, filltab, *imputation_number);
     Tea_stopif(!fills || fills->error, return, 0, "Expected fill-in table "
                 "%s, but couldn't query it.", filltab);
-    begin_transaction();
-    if (fills)
-        for(int i=0; i< *fills->textsize; i++)
-            apop_query("update %s set %s = '%s' "
-                       "where %s = %s", 
-                          dest, fills->text[i][0], fills->text[i][1], 
-                          id_column, fills->names->row[i]);
+    for(int i=0; i< *fills->textsize; i++)
+        apop_query("update %s set %s = '%s' "
+                   "where %s = %s", 
+                      dest, fills->text[i][0], fills->text[i][1], 
+                      id_column, fills->names->row[i]);
     commit_transaction();
     apop_data_free(fills);
     free(id_column);

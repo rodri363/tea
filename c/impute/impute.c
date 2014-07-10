@@ -9,8 +9,6 @@
 extern char *datatab;
 void qxprintf(char **q, char *format, ...); //bridge.c
 char *process_string(char *inquery, char **typestring); //parse_sql.c
-void xprintf(char **q, char *format, ...); //parse_sql.c
-char *strip (const char*); //peptalk.y
 #define XN(in) ((in) ? (in) : "")
 
 apop_model *relmodel; //impute/rel.c
@@ -77,7 +75,7 @@ void index_cats(char const *tab, apop_data const *category_matrix){
 ///// second method: via raking
 
 /* Zero out the weights of those rows that don't match. 
- * Thanks to copy_by_name, we know that the two input data sets match.
+ * Thanks to copy_by_name, we know that the column list for the two input data sets match.
  */
 double cull(apop_data *onerow, void *subject_row_in){
     apop_data *subject_row = subject_row_in;
@@ -90,7 +88,7 @@ double cull(apop_data *onerow, void *subject_row_in){
         if (dist< 1e-5) continue;
         else {
             if (!subject_row->more) *onerow->weights->data = 0;
-            else {
+            else {   //if allow_near_misses on this field then weight, don't cull.
                 char type = subject_row->more->text[i][0][0];
                 *onerow->weights->data *= (type=='r') ? 1/(1+dist): 0;
             }
@@ -119,7 +117,7 @@ double count_diffs(apop_data *onerow, void *subject_row_in){
    be the same fields, and we aren't guaranteed that the raking
    gave us data in the right format(BK: check this?). Copy the 
    raked output to explicitly fit the data format. */
-apop_data *copy_by_name(apop_data *data, apop_data const *form){
+apop_data *copy_by_name(apop_data const *data, apop_data const *form){
     apop_data *out= apop_data_alloc(data->matrix->size1, form->matrix->size2);
     apop_name_stack(out->names, data->names, 'r');
     apop_name_stack(out->names, form->names, 'c');
@@ -132,11 +130,6 @@ apop_data *copy_by_name(apop_data *data, apop_data const *form){
         }
     }
     return out;
-}
-
-double en(apop_data *in){ 
-    double w = gsl_vector_get(in->weights, 0);
-    return w*log2(w);
 }
 
 /* We have raked output, and will soon be making draws from it. 
@@ -213,46 +206,13 @@ void get_types(apop_data *raked){
         apop_text_add(names, i, 0, "%c", get_coltype(raked->names->col[i]));
 }
 
-static void rake_to_completion(char const *datatab, char const *underlying,
-        impustruct is, int min_group_size, gsl_rng *r,
-        int draw_count, char *catlist,
-        apop_data const *fingerprint_vars, char const *id_col,
-        char const *weight_col, char const *fill_tab, char const *margintab,
-        char *previous_filltab){
-
-    //char *dt="tea_co", *dxx=(char*)datatab;
-    //int zero=0;
-    //if (previous_filltab) check_out_impute(&dxx, /*&dt*/ NULL, &zero, NULL, &previous_filltab);
-
-    apop_data *d = get_data_for_em(datatab, catlist, id_col, weight_col, previous_filltab, is);
-    Tea_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
-    Tea_stopif(d->error, return, 0, "query error.");
-    int count_of_nans = apop_map_sum(d, .fn_d=nnn);
-    if (!count_of_nans) return;
-    
-    apop_data *raked = em_weight(d, .tolerance=1e-3);
-    Tea_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
-    Tea_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
-
-
-    /*
-apop_data *dcp = apop_data_sort(apop_data_pmf_compress(apop_data_copy(d)));
-asprintf(&dcp->names->title, "<<<<<<<<<<<<<<<<<<<<<<<<<<<");
-asprintf(&raked->names->title, ">>>>>>>>>>>>>>>>>>>>>>>>>>>");
-apop_data_pmf_compress(raked);
-apop_data_sort(raked);
-apop_data_print(dcp, .output_name="ooo", .output_append='a');
-apop_data_print(raked, .output_name="ooo", .output_append='a');
-apop_data_free(dcp);
-*/
-
+apop_data *make_rake_draws(apop_data const *d, apop_data *raked, impustruct is, int count_of_nans, gsl_rng *r, int draw_count, int *ctr){
     gsl_vector *original_weights = apop_vector_copy(raked->weights);
     gsl_vector *cp_to_fill = gsl_vector_alloc(d->matrix->size2);
     Apop_row(raked, 0, firstrow);
     apop_data *name_sorted_cp = copy_by_name(d, firstrow);
     if (is.allow_near_misses) get_types(name_sorted_cp); //add a list of types as raked->more.
     apop_data *fillins = apop_text_alloc(apop_data_alloc(count_of_nans*draw_count, 2), count_of_nans*draw_count, 2);
-    int ctr = 0;
     for (size_t i=0; i< d->matrix->size1; i++){
         Apop_matrix_row(d->matrix, i, focusv);    //as vector
         if (!isnan(apop_sum(focusv))) continue;
@@ -266,23 +226,59 @@ apop_data_free(dcp);
         for (int drawno=0; drawno< draw_count; drawno++){
             Tea_stopif(!focus->names, goto end, 0, "focus->names is NULL. This should never have happened.");
             apop_draw(cp_to_fill->data, r, m);
-            writeout(fillins, cp_to_fill, focus, &ctr, drawno);
+            writeout(fillins, cp_to_fill, focus, ctr, drawno);
         }
         end:
         apop_model_free(m);
         gsl_vector_memcpy(raked->weights, original_weights);
     }
+    apop_data_free(name_sorted_cp);
+    gsl_vector_free(original_weights);
+    gsl_vector_free(cp_to_fill);
+    return fillins;
+}
+
+void diagnostic_print(apop_data *d, apop_data *raked){
+    apop_data *dcp = apop_data_sort(apop_data_pmf_compress(apop_data_copy(d)));
+    asprintf(&dcp->names->title, "<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+    asprintf(&raked->names->title, ">>>>>>>>>>>>>>>>>>>>>>>>>>>");
+    apop_data_pmf_compress(raked);
+    apop_data_sort(raked);
+    apop_data_print(dcp, .output_name="ooo", .output_append='a');
+    apop_data_print(raked, .output_name="ooo", .output_append='a');
+    apop_data_free(dcp);
+}
+
+static void rake_to_completion(char const *datatab, char const *underlying,
+        impustruct is, int min_group_size, gsl_rng *r,
+        int draw_count, char *catlist,
+        apop_data const *fingerprint_vars, char const *id_col,
+        char const *weight_col, char const *fill_tab, char const *margintab,
+        char *previous_filltab){
+
+    apop_data *d = get_data_for_em(datatab, catlist, id_col, weight_col, previous_filltab, is);
+    Tea_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
+    Tea_stopif(d->error, return, 0, "query error.");
+    int count_of_nans = apop_map_sum(d, .fn_d=nnn);
+    if (!count_of_nans) return;
+    if (is.allow_near_misses) get_types(d); //add a list of types as d->more
+    
+    apop_data *raked = em_weight(d, .tolerance=1e-3);
+    Tea_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
+    Tea_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
+
+    //diagnostic_print(d, raked);
+
+    int ctr = 0;
+    apop_data *fillins = make_rake_draws(d, raked, is, count_of_nans, r, draw_count, &ctr);
     apop_matrix_realloc(fillins->matrix, ctr, fillins->matrix->size2);
     apop_text_alloc(fillins, ctr, 2);
-    apop_data_free(name_sorted_cp);
     begin_transaction();
     if (fillins->matrix) apop_data_print(fillins, .output_name=fill_tab, .output_type='d', .output_append='a');
     commit_transaction();
     apop_data_free(fillins);
     //apop_data_print(raked, .output_name="ooo", .output_append='a');
     apop_data_free(raked); //Thrown away.
-    gsl_vector_free(cp_to_fill);
-    gsl_vector_free(original_weights);
     apop_data_free(d);
 }
 
@@ -470,8 +466,8 @@ static void get_nans_and_notnans(impustruct *is, char const* index, char const *
     apop_data_listwise_delete(is->notnan, .inplace='y');
     if (!strcmp(is->vartypes, "all numeric")){
          is->isnan = q2 ? 
-              apop_query_to_data("%s %s is null union %s", q, is->depvar, q2)
-            : apop_query_to_data("%s %s is null", q, is->depvar);
+              apop_query_to_data("%s %s is null union %s order by %s", q, is->depvar, q2, id_col)
+            : apop_query_to_data("%s %s is null order by %s", q, is->depvar, id_col);
          //but we'll need the text for the consistency checking anyway.
 
          //Check whether isnan is null somewhere
@@ -624,7 +620,7 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
     //db_name_column may be rowid, which would srsly screw us up.
     //first pass: get the full list of NaNs; no not-NaNs yet.
     apop_data *nanvals = apop_query_to_data("select distinct %s, %s from %s where %s is null "
-                                            "order by %s",
+                                            "order by %s+0.0",
 									 id_col, is.depvar, datatab, is.depvar, id_col);
     if (!nanvals) return NULL; //query worked, nothing found.
     Tea_stopif(nanvals->error, return NULL, 0, "Error querying for missing values.");
