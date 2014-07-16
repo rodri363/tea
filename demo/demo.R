@@ -1,7 +1,7 @@
 library(tea)
 library(ggplot2)
 readSpec("demo.spec")
-doMImpute()
+#doMImpute()
 
 
 

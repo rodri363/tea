@@ -1,6 +1,6 @@
 
 plotWage <- function(outname){
-    checkOutImpute("viewdc", "ok", filltab="imputes")
+    checkOutImpute("ok", "viewdc", filltab="imputes")
     dfok <-teaTable("ok", cols="WAGP")
     dfdc <-teaTable("dc", cols="WAGP", where="WAGP is not null")
     dfok$WAGP <- log10(as.integer(dfok$WAGP)+1)
@@ -23,7 +23,7 @@ plotWage <- function(outname){
 }
 
 plotAge <- function(outname){
-    checkOutImpute("viewdc", "ok", filltab="imputes")
+    checkOutImpute("ok", "viewdc", filltab="imputes")
     dfok <-teaTable("ok", cols="AGEP")
     dfdc <-teaTable("dc", cols="AGEP", where="AGEP is not null")
     #dfok$WAGP <- as.integer(dfok$WAGP)

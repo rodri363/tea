@@ -23,7 +23,6 @@ extern _Bool CTea;
     else if (test){                                 \
         if (apop_opts.verbose >= level)             \
             Rf_warning(__VA_ARGS__);                \
-        Apop_maybe_abort(level);                    \
         returnop;                                   \
     }
 

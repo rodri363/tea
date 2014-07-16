@@ -149,7 +149,7 @@ keylist_item: preedit
            | keyval
            | keygroup
            | EOL
-           | error   {warning("Trouble parsing an item [%s] in the list of fields[%d]", $1, lineno);}
+           | error   {warning("Trouble parsing an item [%s] in the list of fields on line %d", $1, lineno);}
 	   | blob { if (apop_strcmp(current_key, "checks")) {add_check($1);}
                    else if(add_keyval(current_key, $1) != -1){} else YYABORT;}
            ;            // See reason above in keyval statement declaration 
