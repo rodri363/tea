@@ -394,8 +394,8 @@ void add_to_num_list(char *v){
 				apop_query("insert into %s values ('%s');", current_var, vs);
                 if (parsed_type == 'i' && *tail != '\0')
                     Apop_notify(0, "The variable %s is set to integer type, but I can't "
-                                "cleanly parse %s as a number. Please fix the value or add"
-                                "a type specifier of 'cat'.", current_var, vs);
+                                "cleanly parse %s as a number. Please fix the value or change the "
+                                "type specifier to 'cat'.", current_var, vs);
             } else
 				apop_query("insert into %s values (%s);", current_var, vs);
 		}

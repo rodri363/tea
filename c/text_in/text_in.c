@@ -133,7 +133,7 @@ TeaKEY(input/primary key, <<<The name of the column to act as the primary key. U
 
 TeaKEY(input/indices, <<<Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect. Remark, however, that we've moved the function generate_indices(table_out) to bridge.c:428 to after the recodes.>>>)
 
-TeaKEY(input/missing marker, <<<How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.>>>)
+TeaKEY(input/missing marker, <<<How your text file indicates missing data. Popular choices include NA, ., NaN, N/A, et cetera.>>>)
 */
 static int text_in_by_tag(char const *tag){
     char *file_in   = get_key_word_tagged("input", "input file", tag);
