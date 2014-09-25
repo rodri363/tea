@@ -250,13 +250,13 @@ void test_ols(gsl_rng *r){
 
     char *specname = "spec";
     write_a_file(specname, "database:olsdb.db\n"
-                "id: id_col \n"
+                "id: id_col \n\n"
                 "input { input file: olsdata \n"
                 "output table: olsdata} \n"
                 "fields {  \n"
                 "Y: real \n"
-                "fish: int  1-10\n"
-                "norm: real  } \n"
+                "fish: int 1-10 \n"
+                "norm: real \n} \n"
                 "impute { input table: olsdata \n"
                 "output table: olsfills\n"
                 "output vars: norm\n"
