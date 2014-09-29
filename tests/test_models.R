@@ -12,7 +12,7 @@ DF <- data.frame(va=rnorm(kN,0,1),
 #test multinomial regression
 modmnl <- setupRapopModel(mcmc.mnl)
 modlist <- list(Formula=vb ~ va + vc + vd,Data=DF)
-fit <- estimateRapopModel(modlist,modmnl)
+fit <- RapopModelEstimate(modlist,modmnl)
 print(table(DF$vb))
 
 #new data, leaving out two of the factor levels of the response
@@ -72,7 +72,7 @@ DF <- data.frame(va=Va,vb=Vb,vc=Vc,vd=Vd)
 modreg <- setupRapopModel(mcmc.reg)
 #modlist <- list(Formula=va ~ vb + vc + vd,Data=DF)
 modlist <- list(Formula=va ~ vc,Data=DF)
-fit <- estimateRapopModel(modlist,modreg)
+fit <- RapopModelEstimate(modlist,modreg)
 
 #lots of implicates
 fit$env$Newdata <- DF
