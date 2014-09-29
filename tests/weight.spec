@@ -11,7 +11,7 @@ input {
 	}
 }
 
-fields  {
+fields {
     AGEP: int [1] 0-116
     SEX: cat [0] 1, 2, NA
     state: cat [0.12] AL, AK, AS, AZ, AR, CA, CO, CT, DE, DC, FM, FL,     \
@@ -25,7 +25,7 @@ fields  {
     SCHL: int [1.0] 0-24
 }
 
-recodes  {
+recode  {
 	CATAGE {
 		1|AGEP between 0 and 15
 		2|AGEP between 16 and 64
