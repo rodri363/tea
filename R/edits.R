@@ -1,6 +1,15 @@
 # get_edit_vars and init_edit_list seemed unused; deleted.
 # Restore via git checkout 6c8a929c .
 
+
+#' Open a database with a given name for use by tea.
+#' This is normally done for you by readSpec. Use this if you don't have a spec file 
+#' but want to run some queries on an already-processed database.
+teaConnect <-function(dbname){
+    teaenv$con <- dbConnect(dbDriver("SQLite"), dbname)
+    .C("db_open", dbname)
+}
+
 #' read specification file into keys SQLite table
 #' @param spec the configuration file to read (as character path)
 #' @param nlines the maximal number of lines to read from the config
@@ -21,6 +30,8 @@ readSpec <- function(spec,nlines=1000){
     }
     teaenv$verbosity <- 0
 }
+
+
 
 #' Interface with C-side record consistency checking
 #' @param vals variable names

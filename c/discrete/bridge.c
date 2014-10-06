@@ -461,3 +461,6 @@ char get_coltype(char const* invar){
             return used_vars[v].type;
     return '\0';
 }
+
+//For opening a database connection from R
+void db_open(char **in){apop_db_open(*in);}
