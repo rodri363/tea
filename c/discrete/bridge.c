@@ -394,10 +394,11 @@ void read_spec(char **infile, char **dbname_out){
     //Generating indices for ID
     apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key "
 					      "like 'input/%' order by count");
-    if (!tags) return;
-    for (int i=0; i< *tags->textsize;i++)
-        generate_indices(*tags->text[i]);
-    apop_data_free(tags);
+    if (tags){
+        for (int i=0; i< *tags->textsize;i++)
+            generate_indices(*tags->text[i]);
+        apop_data_free(tags);
+    }
 
     pass++;
     rewind(yyin); //go back to position zero in the config file
@@ -462,5 +463,15 @@ char get_coltype(char const* invar){
     return '\0';
 }
 
+
 //For opening a database connection from R
 void db_open(char **in){apop_db_open(*in);}
+
+void qxprintf(char **q, char *format, ...){
+    va_list ap;
+    char *r = *q;
+    va_start(ap, format);
+    Tea_stopif(vasprintf(q, format, ap)==-1, , 0, "Trouble writing to a string.");
+    va_end(ap);
+    free(r);
+}

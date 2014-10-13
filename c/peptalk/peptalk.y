@@ -185,7 +185,7 @@ num_item : NUMBER '-' NUMBER  {add_to_num_list_seq($1, $3);}
          | DTEXT               {add_to_num_list($1);}
          | '*'               {add_to_num_list("*");}
          |'$' NUMBER           {used_vars[total_var_ct-1].weight = atof($2);}
-         | error   			{Rf_warning("Error in list around [%s] line [%d].", $1,lineno);}
+         | error   			{Rf_error("Error in list around [%s] line [%d].", $1,lineno);}
          ;
 
 blob : blob blob_elmt {moreblob(&$$,$1,$2);}

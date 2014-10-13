@@ -98,7 +98,7 @@ impute{
     seed:2332
 
     paste in: catagesx
-
+	# syntax error
     method:ols 
 	output vars:logWAGP 
 	input vars:SCHL, SEX  
