@@ -382,7 +382,6 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
 }
 
 apop_data *checkData(apop_data *data){
-
     //copy field names from the input data.
 	int nvars = data->names->colct + data->names->textct;
 	char *fields[nvars];
@@ -407,8 +406,9 @@ apop_data *checkData(apop_data *data){
 						else          asprintf(&vals[jdx], "%g", v);
 					}
 
-			else vals[jdx] = data->text[idx][jdx];
+			else vals[jdx] = data->text[idx][jdx - data->names->colct];
 		}
+        memset(failed_fields, 0, nvars*sizeof(int));
 		consistency_check(fields,vals,&nvars,&what, &id,&fails_edits,failed_fields);
 		//insert failure counts
 		for(int jdx=0; jdx < nvars; jdx++){

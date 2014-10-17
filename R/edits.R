@@ -74,5 +74,5 @@ CheckBounds <- function(Vvar,kname,con){
 }
 
 CheckDF <- function(df){
-	return(.Call("RCheckData",df))
+	return(as.data.frame(.Call("RCheckData",df)))
 }
