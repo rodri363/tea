@@ -79,19 +79,32 @@ static int check_a_record_sql(char * const restrict* ud_values, char * const res
     check_for_all_vars(usable_sql, record_name_in, record_in_size, vars_used);
     begin_transaction();
     sqlify(ud_values, record_name_in, record_in_size);
-    char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
-              .before= "select count(*) from tea_test where (", .prune=prune_edits, .prune_parameter=usable_sql);
-    if (strcmp(q, "select count(*) from tea_test where ()")){//any relevant sql?
-        int fails = apop_query_to_float("%s", q);
-        if (fails){
-            out+=fails;
-            if (failures)
-                for (int i=0; i<record_in_size; i++) if (vars_used[i]) failures[i]++;
+    if (!failures){   //just want pass-fail ==> run a single yes/no query
+        char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
+              .before= "select count(*) from tea_test where (", .prune=prune_edits,
+              .prune_parameter=usable_sql);
+        if (strlen(q) != strlen("select count(*) from tea_test where ()"))//any relevant sql?
+            out += apop_query_to_float("%s", q);
+        free(q);
+    } else {         //want to know failure count per field.
+        edit_t *last_list_item = NULL;
+        for (int i=0; i< edit_grid->vector->size; i++){
+            if (last_list_item==edit_grid_to_list[i]) continue;
+            last_list_item=edit_grid_to_list[i];
+            if (!usable_sql[i]) continue;
+            int fails = apop_query_to_float("select count(*) from tea_test where (%s)",
+                                                                *edit_grid->text[i]);
+            if (fails){
+                out+=fails;
+                for (int i=0; i<last_list_item->var_ct; i++)
+                    for (int j=0; j< record_in_size; j++)
+                        if (!strcasecmp(last_list_item->vars_used[i].name, record_name_in[j]))
+                                {failures[j]++; break;}
+            }
         }
     }
     apop_table_exists("tea_test", 'd');
     commit_transaction();
-    free(q);
     return out;
 }
 
