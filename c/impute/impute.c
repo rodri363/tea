@@ -1017,7 +1017,7 @@ int do_impute(char **tag, char **idatatab){
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
     if (!out_tab && previous_fill_tab) out_tab = previous_fill_tab;
     Tea_stopif(!out_tab, out_tab = "filled",
-        0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name than specify one in your spec file.");
+        0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
 
     char *id_col= get_key_word(NULL, "id");
     if (!id_col) {
