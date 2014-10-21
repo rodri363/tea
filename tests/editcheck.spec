@@ -19,11 +19,14 @@ checks {
 
     y1=3 and y2=2
 
-    #sum is even
+    #sum is odd
     (y1+y2) % 2 = 1
 
     y1=1
 
     y2*weights > 100
+
+    #sum is even
+    weights/y1 > 30
 
 }
