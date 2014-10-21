@@ -174,7 +174,8 @@ void db_to_em(void){
             field = pull_index(d->names->text[current_col]);
             ud_val = d->text[current_row][current_col];
             if (verbose) printf("Add edit.\tfield %i\t val %s\n", field, ud_val);
-            gsl_matrix_set(edit_grid->matrix, em_i-1,find_b[field]-1+atoi(ud_val)-1, 1);
+            int ri_position = ri_from_ext(d->names->text[current_col], ud_val);
+            gsl_matrix_set(edit_grid->matrix, em_i-1,find_b[field]-1+ri_position-1, 1);
 
             int k, already_recorded = 0;
             for (k=0; em_i <= edit_grid->textsize[0] && k < edit_grid->textsize[1]; k++)
