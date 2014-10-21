@@ -27,6 +27,9 @@ int max_lev_distance = 2;
 int num_typos;
 bool CTea=false; //Set to true iff using as a library without R.
 
+apop_data *edit_grid;
+edit_t **edit_grid_to_list;
+
 /* The implicit edit code has been removed---it never worked. The last edition that had it was 
 git commit 51e31ffeeb100fb8a30fcbe303739b43a459fd59
 git-svn-id: svn+ssh://svn.r-forge.r-project.org/svnroot/tea@107 edb9625f-4e0d-4859-8d74-9fd3b1da38cb
@@ -93,6 +96,7 @@ static void grow_grid(apop_data *edit_grid, int *em_i, int toc){
     (*em_i)++;         //add a row to edit_grid->matrix.
     edit_grid->vector = apop_vector_realloc(edit_grid->vector, *em_i);
     edit_grid->matrix = apop_matrix_realloc(edit_grid->matrix, *em_i, toc);
+    edit_grid_to_list = realloc(edit_grid_to_list, sizeof(*edit_grid)* *em_i);
 }
 
 /* At this point, we have a list of tables representing each edit, in ud_queries.
@@ -120,7 +124,11 @@ void db_to_em(void){
 	while(1){
         //d = ud_explicits[current_explicit];
         if (next_phase == 's'){ //starting a new edit
-            if (!edit_grid) edit_grid = apop_data_alloc();
+            if (!edit_grid) {
+                edit_grid = apop_data_alloc();
+                free(edit_grid_to_list);
+                edit_grid_to_list = NULL;
+            }
             //We're only doing integer and text edits. If there's a real variable anywhere
             //along the row, then we'll use the sql-based edit system to make it work. 
             for (int i=0; i< edit_list[current_explicit].var_ct; i++)
@@ -130,6 +138,7 @@ void db_to_em(void){
                     next_phase='s';
                     grow_grid(edit_grid, &em_i, total_option_ct);
                     gsl_vector_set(edit_grid->vector, em_i-1, 2); //2==use the SQL-based edit system
+                    edit_grid_to_list[em_i-1] = edit_list + current_explicit;
                     goto Edited; //a use of goto! This is where we've finished an edit and are stepping forward.
                 }
             //else, standard discrete-indexed matrix

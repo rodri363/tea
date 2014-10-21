@@ -40,8 +40,8 @@ static void check_for_all_vars(bool *usable_sql, char * const restrict*record_na
         usable_sql[r] = true;
         for (int j=0; j< record_in_size; j++){
             bool found=false;
-            for (int i=0; i< edit_list[r].var_ct; i++)
-                if (!strcmp(edit_list[r].vars_used[i].name, record_name_in[j]))
+            for (int i=0; i< edit_grid_to_list[r]->var_ct; i++)
+                if (!strcmp(edit_grid_to_list[r]->vars_used[i].name, record_name_in[j]))
                         {found=true; break;}
             if (!found) {
                 usable_sql[r] = false;

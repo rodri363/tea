@@ -24,6 +24,6 @@ checks {
 
     y1=1
 
-#y2*weight < 100
+    y2*weight < 100
 
 }
