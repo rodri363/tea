@@ -14,4 +14,4 @@ install_github("rodri363/tea", ref="pkg")
 
 ## Installation for Users
 
-Tea can be installed on any Linux system.  A script called "take tea" will extract the necessary files to run tea.  The script also modifies the users ~/.bashrc file, which allows execution of Tea through R.
+Tea can be installed on any Linux system.  A script called "take_tea" will extract the necessary files to run tea.  The script also modifies the users ~/.bashrc file, which allows execution of Tea through R.  This script can be requested from the developers.
