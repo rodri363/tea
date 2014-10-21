@@ -10,7 +10,7 @@ input {
 fields{
     y1: int 1, 2, 3, 4
     y2: int 1, 2, 3, 4
-    weight: real
+    weights: real
 }
 
 checks {
@@ -24,6 +24,6 @@ checks {
 
     y1=1
 
-    y2*weight < 100
+    y2*weights > 100
 
 }

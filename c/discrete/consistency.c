@@ -31,18 +31,19 @@ static int prune_edits(apop_data *d, int row, int col, void *us){ //callback for
     return usable_sql[row];
 }
 
-static void check_for_all_vars(bool *usable_sql, char * const restrict*record_name_in, int record_in_size){
+static void check_for_all_vars(bool *usable_sql, char * const restrict*record_name_in,
+        int record_in_size, bool *vars_used){
     for (int r=0; r< edit_grid->vector->size; r++){
-        if(apop_data_get(edit_grid, r, -1) != 2) {//won't matter in prune_edits above.
+        if(apop_data_get(edit_grid, r, -1) != 2) {
             usable_sql[r] = false;
             continue; 
         }
         usable_sql[r] = true;
-        for (int j=0; j< record_in_size; j++){
+        for (int i=0; i< edit_grid_to_list[r]->var_ct; i++){
             bool found=false;
-            for (int i=0; i< edit_grid_to_list[r]->var_ct; i++)
-                if (!strcmp(edit_grid_to_list[r]->vars_used[i].name, record_name_in[j]))
-                        {found=true; break;}
+            for (int j=0; j< record_in_size; j++)
+                if (!strcasecmp(edit_grid_to_list[r]->vars_used[i].name, record_name_in[j]))
+                        {found=vars_used[j]=true; break;}
             if (!found) {
                 usable_sql[r] = false;
                 break;
@@ -71,19 +72,26 @@ static void sqlify(char * const restrict* ud_values, char * const restrict *reco
 
 //call iff there are SQL edits to be checked.
 static int check_a_record_sql(char * const restrict* ud_values, char * const restrict *record_name_in, 
-                         int record_in_size){
+                         int record_in_size,  int * failures){
     int out = 0;
-    bool usable_sql[edit_grid->vector->size];
-    check_for_all_vars(usable_sql, record_name_in, record_in_size);
+    bool usable_sql[edit_grid->vector->size], vars_used[record_in_size];
+    memset(vars_used, 0, sizeof(bool)*record_in_size);
+    check_for_all_vars(usable_sql, record_name_in, record_in_size, vars_used);
     begin_transaction();
     sqlify(ud_values, record_name_in, record_in_size);
     char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
               .before= "select count(*) from tea_test where (", .prune=prune_edits, .prune_parameter=usable_sql);
-    if (strcmp(q, "select count(*) from tea_test where ()"))//any relevant sql?
-        out += apop_query_to_float("%s", q); //matches = failure = return 1.
+    if (strcmp(q, "select count(*) from tea_test where ()")){//any relevant sql?
+        int fails = apop_query_to_float("%s", q);
+        if (fails){
+            out+=fails;
+            if (failures)
+                for (int i=0; i<record_in_size; i++) if (vars_used[i]) failures[i]++;
+        }
+    }
+    apop_table_exists("tea_test", 'd');
     commit_transaction();
     free(q);
-    apop_table_exists("tea_test", 'd');
     return out;
 }
 
@@ -230,7 +238,7 @@ static void do_a_combo(int *record, char *const restrict  *record_name_in, int c
 			if (timeout && time(NULL) > timeout) longjmp(jmpbuf, 1);
             _Bool has_sql_edits = 0;
             if (!check_a_record_discrete(record, NULL, 0, record_name_in, record_in_size, &has_sql_edits)
-                && (!has_sql_edits || !check_a_record_sql(ud_values, record_name_in, record_in_size))
+                && (!has_sql_edits || !check_a_record_sql(ud_values, record_name_in, record_in_size, NULL))
                 ){//OK record; write it.
                 int this_row = apop_data_get(fillme, 0, -1);
                 (*gsl_vector_ptr(fillme->vector, 0))++;
@@ -367,11 +375,11 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
     _Bool has_sql_edits = 0;
     if (!strcmp(what_you_want[0], "passfail")){
         *fails_edits = check_a_record_discrete(record, NULL, 0, record_name_in, *record_in_size, &has_sql_edits);
-        *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size);
+        *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size, NULL);
         return NULL;
     }
     *fails_edits = check_a_record_discrete(record, failed_fields, *id, record_name_in, *record_in_size, &has_sql_edits);
-    *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size);
+    *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size, failed_fields);
     do_fields_and_fails_agree(failed_fields, *fails_edits, nflds);
 
     if (!strcmp(what_you_want[0], "failed_fields"))
