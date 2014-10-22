@@ -88,7 +88,7 @@ impute{
 
     method: hot deck
 	output vars: SCHL
-	input vars: SCHL
+#	input vars: SCHL
 }
 
 impute{
