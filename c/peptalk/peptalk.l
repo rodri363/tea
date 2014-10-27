@@ -27,7 +27,7 @@ extern char parsed_type;
 
 digit [0-9]
 space [ \t]
-text [a-zA-Z_/~'][_a-zA-Z0-9./~']*
+text [a-zA-Z_~'][_a-zA-Z0-9.~']*
 sqlpunct (==|<=|>=|[=+/(<|>)\'"?!%&]|\[|\])
 notnewline \\[ \t\n]+
 

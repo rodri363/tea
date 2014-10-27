@@ -74,7 +74,7 @@ impute{
 
     method: hot deck
 	output vars: SEX
-	input vars: SEX
+#	input vars: SEX
 }
 
 

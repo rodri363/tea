@@ -80,11 +80,13 @@ void index_cats(char const *tab, apop_data const *category_matrix){
 double cull(apop_data *onerow, void *subject_row_in){
     apop_data *subject_row = subject_row_in;
     for (int i=0; i< subject_row->matrix->size2; i++){
-        double this = apop_data_get(subject_row, .col=i);
+       // double this = apop_data_get(subject_row, .col=i);
+        double this = gsl_matrix_get(subject_row->matrix, 0, i);
         if (isnan(this)) continue;
         /* If match or no information, then continue
          * If not a match, then reweight by 1/distance? */
-        double dist = fabs(apop_data_get(onerow, .col=i) - this);
+        //double dist = fabs(apop_data_get(onerow, .col=i) - this);
+        double dist = fabs(gsl_matrix_get(onerow->matrix, 0, i) - this);
         if (dist< 1e-5) continue;
         else {
             if (!subject_row->more) *onerow->weights->data = 0;
@@ -189,7 +191,8 @@ apop_data *get_data_for_em(const char *datatab, char *catlist, const char *id_co
 
 void writeout(apop_data *fillins, gsl_vector *cp_to_fill, apop_data const *focus, int *ctr, int drawno){
     for (size_t j=0; j< focus->matrix->size2; j++)  
-        if (isnan(apop_data_get(focus, .col=j))){
+     //   if (isnan(apop_data_get(focus, .col=j))){
+        if (isnan(gsl_matrix_get(focus->matrix, 0, j))){
             apop_text_add(fillins, *ctr, 0, *focus->names->row);
             apop_text_add(fillins, *ctr, 1, focus->names->col[j]);
             gsl_matrix_set(fillins->matrix, *ctr, 0, drawno);
@@ -1014,7 +1017,7 @@ int do_impute(char **tag, char **idatatab){
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
     if (!out_tab && previous_fill_tab) out_tab = previous_fill_tab;
     Tea_stopif(!out_tab, out_tab = "filled",
-        0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name than specify one in your spec file.");
+        0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
 
     char *id_col= get_key_word(NULL, "id");
     if (!id_col) {

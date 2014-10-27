@@ -133,7 +133,7 @@ TeaKEY(input/primary key, <<<The name of the column to act as the primary key. U
 
 TeaKEY(input/indices, <<<Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect. Remark, however, that we've moved the function generate_indices(table_out) to bridge.c:428 to after the recodes.>>>)
 
-TeaKEY(input/missing marker, <<<How your text file indicates missing data. Popular choices include "NA", ".", "NaN", "N/A", et cetera.>>>)
+TeaKEY(input/missing marker, <<<How your text file indicates missing data. Popular choices include NA, ., NaN, N/A, et cetera.>>>)
 */
 static int text_in_by_tag(char const *tag){
     char *file_in   = get_key_word_tagged("input", "input file", tag);
@@ -149,18 +149,12 @@ static int text_in_by_tag(char const *tag){
 
     Tea_stopif(!file_in, return -1, 0,  "I don't have an input file name");
 
-    char *file_in_copy;
-    char *sas_post_script;
-    asprintf(&file_in_copy, file_in);
-    asprintf(&sas_post_script, "sas7bdat");
-    file_in_copy += strlen(file_in) - 8;
-
     Tea_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
     Tea_stopif(!overwrite && apop_table_exists(table_out), return 0, 0,
                         "Table %s exists; skipping the input from file %s.", table_out, file_in);
 
     // Script that converts a sas input file into a regular text file
-    if(strcmp(file_in_copy, sas_post_script) == 0){
+    if(strrchr(file_in, '.') && strcmp(strrchr(file_in, '.'), "sas7bdat") == 0){
         /* Below we write a shell script to convert the user's SAS input file into a text
          * file that can be parsed just as any other file by TEA. The file gets written to
          * the database given by the user in their spec file. Remark that we don't
