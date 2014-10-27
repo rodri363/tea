@@ -75,7 +75,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         char *varname = all_recodes->text[i][0]; //just an alias
         char comma = ' ';
         apop_data *recode_list = get_key_text(*key, varname);
-        Tea_stopif(recode_list && !recode_list->textsize[0], return, 0,
+        Tea_stopif(!(recode_list && *recode_list->textsize), return, 0,
                         "%s looks like a recode field, but I can't parse "
                         "its recodes. Please check on this.", varname);
         
