@@ -208,8 +208,8 @@ void just_like_the_R_test(){
 }
 
 void test_ols(gsl_rng *r){
-    apop_model *xlist = apop_model_stack(
-                apop_model_stack(
+    apop_model *xlist = apop_model_cross(
+                apop_model_cross(
                 apop_model_set_parameters(apop_uniform, 1, 1), //a constant.
                 apop_model_set_parameters(apop_normal, 2, 1)),
                 apop_model_set_parameters(apop_poisson, 2));
@@ -281,9 +281,9 @@ void test_ols(gsl_rng *r){
     impute(&d);
 
     
- /*   apop_model *stacked = apop_model_stack(apop_multivariate_normal,
+ /*   apop_model *stacked = apop_model_cross(apop_multivariate_normal,
                                            apop_wishart);
-    apop_settings_add(stacked, apop_stack, splitpage, "for wishart");
+    apop_settings_add(stacked, apop_cross, splitpage, "for wishart");
 
     apop_data_add_page(norm_data, wishart_data, "for wishart");
     apop_model *estimated = apop_estimate(norm_data, stacked);

@@ -13,6 +13,7 @@ or it could be
     age/2. + 7
 */
 static char *one_recode_to_string(apop_data const *recode_list, int *is_formula, int *has_else, int doedits){
+    if (!recode_list) return NULL;
     char *clauses=NULL;
     for (int j=0; j < *recode_list->textsize; j++){
         apop_data *one_rc = NULL;
@@ -88,6 +89,9 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         if (doedits) add_var(varname, 1, 'n');
         if (verbose) printf("%s recode list size: %zu\n",varname,recode_list->textsize[0]);
         char *clauses = one_recode_to_string(recode_list, &is_formula, &has_else, doedits);
+        Tea_stopif(!clauses, return, 0,
+                        "%s looks like a recode field, but it has a blank or unparseable recode. "
+                        "Please check on this.", varname);
 
         //clauses is now the core of a variable definition. Wrap it and add it to the list.
         if (!is_formula && !has_else) asprintf(&clauses, "%s else null\n", clauses);
