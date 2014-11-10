@@ -430,7 +430,7 @@ int get_num_typos(){
 void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *is_sub){
 	apop_data *dout = *is_sub 
                         ? get_sub_key(group ? *group : NULL, key ? *key : NULL)
-                        : get_key_text_tagged(group ? *group : NULL, *key, (tag ? *tag:NULL));
+                        : get_key_text_tagged(group ? *group : NULL, key ? *key : NULL, (tag ? *tag:NULL));
 	if (!dout){
 	    *out = 0;
 	    return;
@@ -442,7 +442,7 @@ void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *i
 void get_key_text_for_R(char **group, char **key, char **tag, char **out, int *is_sub){
 	apop_data *dout = (*is_sub)
     	                ? get_sub_key(*group, key ? *key : NULL)
-	                    : get_key_text_tagged(*group, *key, (tag ? *tag:NULL));
+	                    : get_key_text_tagged(*group, key ? *key :NULL, (tag ? *tag:NULL));
 	if (!dout) return;
     for (int i=0; i< dout->textsize[0]; i++)
         out[i] = strdup(dout->text[i][0]);
