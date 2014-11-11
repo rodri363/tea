@@ -60,6 +60,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
                 "(key like '%s%%' and key not like '%s%%no checks' and key not like 'group recodes/group id')"
                 " order by tag", *key, *key);
     if (!all_recodes || !*all_recodes->textsize) return;
+
     for(int i=0; i < *all_recodes->textsize; i++) // "recodes/var1" ==> "var1"
         *all_recodes->text[i] = strrchr(*all_recodes->text[i], '/')+1;
     if (verbose) apop_data_show(all_recodes);

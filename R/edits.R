@@ -6,6 +6,7 @@
 #' This is normally done for you by readSpec. Use this if you don't have a spec file 
 #' but want to run some queries on an already-processed database.
 teaConnect <-function(dbname){
+    teaenv$dbname <- dbname
     teaenv$con <- dbConnect(dbDriver("SQLite"), dbname)
     .C("db_open", dbname)
 }
@@ -76,3 +77,35 @@ CheckBounds <- function(Vvar,kname,con){
 CheckDF <- function(df){
 	return(as.data.frame(.Call("RCheckData",df)))
 }
+
+blankOne <- function(r, tabname, idcolname, id){
+    m <- max(r) # greater than zero, because of the if statement in the caller below.
+    blankme <- sample(names(r)[r[]==m], 1)
+    print(paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
+    dbGetQuery(teaenv$con, paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
+}
+
+EditTable <- function(tabname, where=NULL){
+    t <- teaTable(tabname, where=where)
+    idcolname <- teaGetKey("id")
+    idcol <- teaTable(tabname, cols=idcolname, where=where)
+    fail <- TRUE
+    while (fail) {
+        fail <- FALSE
+        glitches <- as.data.frame(.Call("RCheckData",t))
+
+        for (i in 1:nrow(glitches)){
+            r <- glitches[i,]
+            browser()
+            if (sum(r)>0){
+                fail <- TRUE
+                blankOne(r, tabname, idcolname, idcol[[i]])
+            }        
+        }
+
+        if (fail){
+            .C("impute", as.character(tabname))
+        }
+    }
+}
+EditTable("viewaz")
