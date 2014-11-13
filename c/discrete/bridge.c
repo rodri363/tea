@@ -319,11 +319,9 @@ void set_key_text_for_R(char **group, char **key, char **value){
 
 void start_over(){ //Reset everything in case this wasn't the first call
     extern int file_read, impute_is_prepped;
-    extern apop_data *pre_edits;
     free(edit_list); 
     reset_ri_ext_table();
     apop_data_free(edit_grid);
-    apop_data_free(pre_edits);
     edit_list = NULL;
     if (used_vars){
         for (int i=0; used_vars[i].name; i++)

@@ -12,6 +12,7 @@ extern used_var_t *used_vars;
 
 typedef struct{
     char *clause;           //the original text
+    char *pre_edit;         //if of the form (if=>then), this is the then; else NULL.
     used_var_t *vars_used;  //the list of variables used
     int var_ct;             //the length of that vars_used matrix
 } edit_t;

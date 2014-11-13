@@ -107,7 +107,6 @@ used_var_t *used_vars;
 edit_t *edit_list;
 char *var_list, *current_key, parsed_type;
 int val_count, preed2;
-apop_data *pre_edits;
 int pass, has_edits, file_read;
 char  *nan_marker;
 double nextweight;
@@ -544,18 +543,16 @@ by store_right below.  */
 
 void do_preedits(char **datatab){
     //takes in pointer-to-string for compatibility with R.
-	if (pre_edits)
-		for (int i=0; i < pre_edits->textsize[0]; i++)
-			apop_query("update %s %s", *datatab, pre_edits->text[i][0]);
+    for (int i=0; i < query_ct; i++)
+        if (edit_list[i].pre_edit)
+			apop_query("update %s %s", *datatab, edit_list[i].pre_edit);
 }
 
 /* I store a list of pre-edits in preedits, visible anywhere internal.h is present.
    They're read here, and then executed using do_preedits.  */
 void store_right(char *fix){ 
     if (pass !=1) return;
-    int ts = pre_edits ? pre_edits->textsize[0] : 0;
-    pre_edits = apop_text_alloc(pre_edits, ts+1, 1);
-    apop_text_add(pre_edits,ts,0, " set %s where %s;", fix, last_preed);
+    asprintf(&edit_list[query_ct-1].pre_edit," set %s where %s;", fix, last_preed);
     free(last_preed);
 }
 
