@@ -17,13 +17,14 @@ complicated procedures.
 TEA has a two-stage build process. The first stage uses all sorts of tricks to build a
 standard R package, and the second stage uses standard R tools to compile the
 now-standard R package.  If you're reading this, then you have successfully cloned the
-R-forge repository. Now, just run make in the base directory. A {package
+Github repository. Now, just run make in the base directory. A {package
 base}/pkg/tea/ directory gets generated and filled with those things (and only those things)
 that go into an R package. make will then run R CMD check/build/install as well.
 
 You can call
 make nodoc
-to compile without documentation, which saves a minute or two.
+to compile without documentation, which saves a minute or two (and is what you'll have
+to do if you don't have the right tools to generate the documentation).
 
 You can also call
 make clean 
@@ -32,6 +33,10 @@ some other temp files that got made along the way. I tell you this to stress tha
 making changes, make them in the {package base}/R, c, doc, tests, ... directories, not
 the second-stage {package base}/pkg/tea directory, which is considered to be disposable,
 to be re-generated whenever desired.
+
+Call
+make test
+to run the unit tests and R's package lint.
 
 
 This should be enough to get you started. Further notes about the build scripts:
@@ -86,7 +91,8 @@ discrete/consistency.c:
 discrete/name_conversions.c:
     Users can declare whatever junk they want for the values of their variables: state
     names are text (AK, AL, AZ...WY), race takes on somewhat haphazard values like 101,
-    102, 201, 203,..., and so on. I will refer to these as external field values.
+    102, 201, 203,..., and so on. I will refer to these as user-defined (ud) or external
+    field values.
 
     name_conversions.c maintains a structure holding conversions between external values and
     row indices, which start at zero and are sequential.
@@ -148,7 +154,7 @@ name conversions:
     as above, there is a conversion table between
     ri=rowid=a numeric value
     and
-    ext=the user-defined numeric or text value.
+    ext=ud=the external, user-defined numeric or text value.
 
     It's hidden behind getter/setter functions. Probably all you need are the lookups:
     char * ext_from_ri(char const *varname, int const ri_val)
@@ -162,7 +168,7 @@ used_vars:
     the global list of variables declared. It includes both real and
     categorical/integer values, which the name_conversions may not.
 
-    The only part that's really interesting about the used_vars structure is that it
+    The part that's really interesting about the used_vars structure is that it
     has a type marker, which is where you can look to check whether a variable is real,
     int, or char.
 
@@ -179,6 +185,7 @@ The edits: edit_list, edit_grid, total_var_ct
 
     typedef struct{
         char *clause;           //the original text
+        char *pre_edit;         //if of the form (if=>then), this is the then; else NULL.
         used_var_t *vars_used;  //the list of variables used
         int var_ct;             //the length of that vars_used matrix
     } edit_t;
@@ -215,7 +222,7 @@ This is most of the parsing, but there are a few exceptions:
 
 --numerical ranges (0-100) get expanded.
 
---the consistency checks and recodes need some special TLC, because of how the queries get run.
+--the consistency checks and recodes need special care, because of how the queries get run.
 
 --Field declarations for ints and cats induce the creation of a table in the database,
 for generating the consistency checks. I currently never delete them, so they get to

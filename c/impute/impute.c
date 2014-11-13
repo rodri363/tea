@@ -725,7 +725,9 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
         do drew = onedraw(r, is, type, id_number, fail_id, 
                           model_id, full_record, col_of_interest);
         while (drew.is_fail && tryctr++ < 1000);
-        Tea_stopif(drew.is_fail, , 0, "I just made a thousand attempts to find an "
+        Tea_stopif(drew.is_fail, 
+                apop_query("insert into tea_fails values(%i)", id_number)
+                , 0, "I just made a thousand attempts to find an "
             "imputed value that passes checks, and couldn't. "
             "Something's wrong that a computer can't fix.\n "
             "I'm at id %i.", id_number);
@@ -1097,6 +1099,9 @@ void impute(char **idatatab){
         if (!out_tab) out_tab = "filled";
         apop_table_exists(out_tab, 'd');
     }
+
+    apop_table_exists("tea_fails", 'd');
+    apop_query("create table tea_fails('id')");
 
     for (int i=0; i< *tags->textsize; i++)
         do_impute(tags->text[i], idatatab);

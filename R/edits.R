@@ -96,7 +96,6 @@ EditTable <- function(tabname, where=NULL){
 
         for (i in 1:nrow(glitches)){
             r <- glitches[i,]
-            browser()
             if (sum(r)>0){
                 fail <- TRUE
                 blankOne(r, tabname, idcolname, idcol[[i]])
@@ -106,6 +105,7 @@ EditTable <- function(tabname, where=NULL){
         if (fail){
             .C("impute", as.character(tabname))
         }
+        #These are rowids where we couldn't draw a consistent record
+        hardFails <- teaTable("tea_fails")
     }
 }
-EditTable("viewaz")
