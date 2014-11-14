@@ -470,13 +470,17 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         //copy the new impute to full_record, for re-testing
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
         int size_as_int =*full_record->textsize;
+        char *post_preedit[size_as_int];
+        memset(post_preedit, 0, sizeof(char*)*size_as_int);
         consistency_check((char *const *)(full_record->names->text ? full_record->names->text : full_record->names->col),
                           (char *const *)full_record->text[0],
                           &size_as_int,
                           &whattodo,
                           &id_number,
                           &out.is_fail,
-                          NULL);//record_fails);
+                          NULL, post_preedit);//record_fails);
+
+        //check post_preedit for changes here
     }
     return out;
 }
