@@ -398,7 +398,8 @@ static void do_fields_and_fails_agree(int *failed_fields, int fails_edits, int n
 /* see tea.h for documentation.  */
 apop_data * consistency_check(char * const *record_name_in, char * const *ud_values, 
 			int const *record_in_size, char const *const *what_you_want, 
-			int const *id, int *fails_edits, int *failed_fields){
+			int const *id, int *fails_edits, int *failed_fields,
+            char * restrict *ud_post_preedit){
 	Tea_stopif(*record_in_size <= 0, return NULL, 1, "zero record size; returning NULL.");
     if (!edit_grid) init_edit_list();
     if (!edit_grid){ //then there are no edits.
@@ -413,11 +414,11 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
     _Bool has_sql_edits = 0;
     if (!strcmp(what_you_want[0], "passfail")){
         *fails_edits = check_a_record_discrete(record, NULL, 0, record_name_in, *record_in_size, &has_sql_edits);
-        *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size, NULL, NULL);
+        *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size, NULL, ud_post_preedit);
         return NULL;
     }
     *fails_edits = check_a_record_discrete(record, failed_fields, *id, record_name_in, *record_in_size, &has_sql_edits);
-    *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size, failed_fields, NULL);
+    *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size, failed_fields, ud_post_preedit);
     do_fields_and_fails_agree(failed_fields, *fails_edits, nflds);
 
     if (!strcmp(what_you_want[0], "failed_fields"))
@@ -455,7 +456,7 @@ apop_data *checkData(apop_data *data){
 			else vals[jdx] = data->text[idx][jdx - data->names->colct];
 		}
         memset(failed_fields, 0, nvars*sizeof(int));
-		consistency_check(fields,vals,&nvars,&what, &id,&fails_edits,failed_fields);
+		consistency_check(fields,vals,&nvars,&what, &id,&fails_edits,failed_fields, NULL);
 		//insert failure counts
 		for(int jdx=0; jdx < nvars; jdx++){
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);

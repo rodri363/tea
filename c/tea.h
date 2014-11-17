@@ -100,7 +100,7 @@ Any existing table at that point in the alternatives list gets freed when I writ
   */
 apop_data * consistency_check(char * const *record_name_in, char * const *ud_values, 
 			int const *record_in_size, char const *const *what_you_want, 
-			int const *id, int *fails_edits, int *failed_fields);
+			int const *id, int *fails_edits, int *failed_fields, char * restrict *ud_post_preedit);
 
 apop_data *checkData(apop_data *data);
 
