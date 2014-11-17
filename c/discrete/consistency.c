@@ -74,7 +74,7 @@ bool run_preedits(char * const restrict* ud_values, char * const restrict *recor
                          int record_in_size, char *restrict* ud_post_preedit, char const *preed
                          ){
     bool out=false;
-    apop_query("%s", preed);
+    apop_query("update tea_test %s", preed);
     apop_data *newvals = apop_query_to_text("select * from tea_test");
     for (int f=0; f< record_in_size; f++){
         if (strcmp(newvals->text[0][f], ud_values[f])) {
@@ -165,6 +165,7 @@ static int check_a_record_discrete(int const * restrict row,  int * failures,
     if (!edit_grid) return 0;
     for (int i=0; i < edit_grid->matrix->size1; i++){
         if (gsl_vector_get(edit_grid->vector, i) == 2) {//this row has real values in it; skip.
+            //
             //check that all of the variables used in the query are in the list
             //sent to consistency_check
             *has_sql_edits=1; 

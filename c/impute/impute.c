@@ -443,7 +443,7 @@ The parent function, make_a_draw, then either writes the imputation to the db or
 */
 static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
         char type, int id_number, 
-        int model_id, apop_data *full_record, int col_of_interest){
+        int model_id, apop_data *full_record, int col_of_interest, char*restrict *post_preedit){
     a_draw_struct out = { };
 	static char const *const whattodo="passfail";
     double x;
@@ -470,8 +470,6 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         //copy the new impute to full_record, for re-testing
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
         int size_as_int = full_record->textsize[1];
-        char *post_preedit[size_as_int];
-        memset(post_preedit, 0, sizeof(char*)*size_as_int);
         consistency_check((char *const *)(full_record->names->text ? full_record->names->text : full_record->names->col),
                           (char *const *)full_record->text[0],
                           &size_as_int,
@@ -479,12 +477,18 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
                           &id_number,
                           &out.is_fail,
                           NULL, post_preedit);
-
-        for (int i=0; i< size_as_int; i++)
-            if (post_preedit[i])
-                full_record->text[0][i] = post_preedit[i];
     }
     return out;
+}
+
+static void setit(char const *tabname, int draw, char const *final_value, char const *id,
+                char const *field_name, int autofill){
+        if (!autofill)
+            apop_query("insert into %s values(%i, '%s', '%s', '%s');",
+                       tabname,  draw, final_value, is->isnan->names->row[rowindex], is->depvar);
+        else
+            apop_query("update %s set %s = '%s' where  %s='%s');",
+                       tabname, is->depvar, final_value, id_col, is->isnan->names->row[rowindex]);
 }
 
 //a shell for do onedraw() while (!done).
@@ -509,8 +513,11 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         a_draw_struct drew;
         //apop_data *full_record = Apop_r(is->isnan, rowindex);
         apop_data *full_record = apop_query_to_text("select * from %s where %s=%i", dt, id_col, id_number);
+        int full_size = full_record->textsize[1];
+        char *post_preedit[full_size];
+        memset(post_preedit, 0, sizeof(char*)*full_size);
         do drew = onedraw(r, is, type, id_number,
-                          model_id, full_record, col_of_interest);
+                          model_id, full_record, col_of_interest, post_preedit);
         while (drew.is_fail && tryctr++ < 1000);
         Tea_stopif(drew.is_fail, 
                 apop_query("insert into tea_fails values(%i)", id_number)
@@ -527,13 +534,17 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
 	Tea_stopif(isnan(atof(final_value)), return, 0, "I drew a blank from the imputed column "
                                                     "when I shouldn't have for record %i.", id_number);
 
-        if (!autofill)
-            apop_query("insert into %s values(%i, '%s', '%s', '%s');",
-                       filltab,  draw, final_value, is->isnan->names->row[rowindex], is->depvar);
-        else
-            apop_query("update %s set %s = '%s' where  %s='%s');",
-                       datatab, is->depvar, final_value, id_col, is->isnan->names->row[rowindex]);
-        
+        char *got_depvar=false;
+        for (int i=0; i< full_size; i++)
+            if (post_preedit[i]){
+                setit(autofill?tabname:filltab, draw, final_value, is->isnan->names->row[rowindex], 
+                        full_record->names->text[i], autofill);
+                if (!strcmp(full_record->names->text[i], is->depvar)) got_depvar=true;
+            }
+
+        if (!got_depvar)
+            setit(autofill?tabname:filltab, draw, final_value, is->isnan->names->row[rowindex], 
+                    is->depvar, autofill);
         apop_data_free(full_record);
         free(final_value);
         free(drew.textx);
