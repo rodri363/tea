@@ -442,7 +442,7 @@ then sending it to consistency_check for an up-down vote.
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
 */
 static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
-        char type, int id_number, int fail_id, 
+        char type, int id_number, 
         int model_id, apop_data *full_record, int col_of_interest){
     a_draw_struct out = { };
 	static char const *const whattodo="passfail";
@@ -464,8 +464,8 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         if (is->textdep && (f = apop_data_get_factor_names(is->fitted_model->data, .type='t')))
              out.textx = strdup(*f->text[(int)x]);
         else asprintf(&out.textx, "%g", x);
-/*        apop_query("insert into impute_log values(%i, %i, %i, %g, '%s', 'cc')",
-                                id_number, fail_id, model_id, out.pre_round, out.textx);
+/*        apop_query("insert into impute_log values(%i, %i, %g, '%s', 'cc')",
+                                id_number,  model_id, out.pre_round, out.textx);
 */
         //copy the new impute to full_record, for re-testing
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
@@ -478,16 +478,18 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
                           &whattodo,
                           &id_number,
                           &out.is_fail,
-                          NULL, post_preedit);//record_fails);
+                          NULL, post_preedit);
 
-        //check post_preedit for changes here
+        for (int i=0; i< size_as_int; i++)
+            if (post_preedit[i])
+                full_record->text[0][i] = post_preedit[i];
     }
     return out;
 }
 
 //a shell for do onedraw() while (!done).
-static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id, int model_id,
-                         const char *datatab, const char *id_col, int draw, apop_data *nanvals, char *filltab, int autofill){
+static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
+                        int model_id, int draw, apop_data *nanvals, char *filltab){
     char type = get_coltype(is->depvar);
     int col_of_interest=apop_name_find(is->isnan->names, is->depvar, type !='c' && is->isnan->names->colct ? 'c' : 't');
     Tea_stopif(col_of_interest < -1, return, 0, "I couldn't find %s in the list of column names.", is->depvar);
@@ -505,8 +507,9 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id, int model_id,
         int tryctr=0;
         int id_number = atoi(is->isnan->names->row[rowindex]);
         a_draw_struct drew;
-        Apop_row(is->isnan, rowindex, full_record);
-        do drew = onedraw(r, is, type, id_number, fail_id, 
+        //apop_data *full_record = Apop_r(is->isnan, rowindex);
+        apop_data *full_record = apop_query_to_text("select * from %s where %s=%i", dt, id_col, id_number);
+        do drew = onedraw(r, is, type, id_number,
                           model_id, full_record, col_of_interest);
         while (drew.is_fail && tryctr++ < 1000);
         Tea_stopif(drew.is_fail, 
@@ -531,6 +534,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id, int model_id,
             apop_query("update %s set %s = '%s' where  %s='%s');",
                        datatab, is->depvar, final_value, id_col, is->isnan->names->row[rowindex]);
         
+        apop_data_free(full_record);
         free(final_value);
         free(drew.textx);
     }
@@ -557,7 +561,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         const int min_group_size, gsl_rng *r, const int draw_count, apop_data *category_matrix, 
         const apop_data *fingerprint_vars, const char *id_col, char *filltab,
         char *previous_filltab, int autofill){
-    static int fail_id=0, model_id=-1;
+    static int model_id=-1;
     apop_data *nanvals = get_all_nanvals(*is, id_col, datatab);
     if (!nanvals) return;
     char *dt;
@@ -599,7 +603,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                 model_est(is, &model_id); //notnan may be pmf_compressed here.
                 prep_for_draw(is->notnan, is);
                 for (int innerdraw=0; innerdraw< innermax; innerdraw++)
-                    make_a_draw(is, r, ++fail_id, model_id, dt, id_col,
+                    make_a_draw(is, r, id_col, dt, model_id,
                                     GSL_MAX(outerdraw, innerdraw), nanvals, filltab, autofill);
                 apop_model_free(is->fitted_model); //if (is_hotdeck) apop_data_free(is->fitted_model->data);
                 bail:
@@ -683,8 +687,8 @@ apop_model *tea_get_model_by_name(char *name, impustruct *model){
 void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
     int seed = get_key_float(configbase, "seed");
     *r = apop_rng_alloc((!isnan(seed) && seed>=0) ? seed : 35);
-    apop_table_exists("impute_log", 'd');
-    apop_query("create table impute_log (%s, 'fail_id', 'model', 'draw', 'declared', 'status')", id_col);
+    //apop_table_exists("impute_log", 'd');
+    //apop_query("create table impute_log (%s, 'model', 'draw', 'declared', 'status')", id_col);
     if (!apop_table_exists("model_log"))
         apop_query("create table model_log ('model_id', 'parameter', 'value')");
 }
@@ -886,6 +890,7 @@ void impute(char **idatatab, int *autofill){
     
     //The actual function starts here:
     apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
+    Tea_stopif(!tags, return, 0, "No 'impute' section found in the spec file");
     for (int i=0; i< *tags->textsize; i++){
         char *out_tab = get_key_word_tagged(configbase, "output table", *tags->text[i]);
         if (!out_tab) out_tab = "filled";
