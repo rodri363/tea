@@ -89,7 +89,8 @@ bool run_preedits(char * const restrict* ud_values, char * const restrict *recor
 //call iff there are SQL edits to be checked.
 static int check_a_record_sql(char * const restrict* ud_values, char * const restrict *record_name_in, 
                          int record_in_size,  int * failures,
-                         char *restrict* ud_post_preedit //if we don't wan't preedits, NULL
+                         char *restrict* ud_post_preedit, //if we don't wan't preedits, NULL
+                         int wanted_preed  //if the discrete edits found a failure, its row number is here; else -1.
                          ){
     int out = 0;
     bool usable_sql[edit_grid->vector->size], vars_used[record_in_size];
@@ -97,7 +98,7 @@ static int check_a_record_sql(char * const restrict* ud_values, char * const res
     check_for_all_vars(usable_sql, record_name_in, record_in_size, vars_used);
     begin_transaction();
     sqlify(ud_values, record_name_in, record_in_size);
-    if (!failures && !ud_post_preedit){   //just want pass-fail ==> run a single yes/no query
+    if (!failures && !ud_post_preedit && wanted_preed<0){   //just want pass-fail ==> run a single yes/no query
         char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
               .before= "select count(*) from tea_test where (", .prune=prune_edits,
               .prune_parameter=usable_sql);
@@ -108,17 +109,18 @@ static int check_a_record_sql(char * const restrict* ud_values, char * const res
         edit_t *last_list_item = NULL;
         bool pre_edits_changed_something = false;
         for (int i=0; i< edit_grid->vector->size; i++){
-            if (last_list_item==edit_grid_to_list[i]) continue;
+            if (last_list_item==edit_grid_to_list[i] && wanted_preed!=i) continue;
             last_list_item=edit_grid_to_list[i];
-            if (!usable_sql[i]) continue;
-            int fails = apop_query_to_float("select count(*) from tea_test where (%s)",
+            if (!usable_sql[i] && wanted_preed<0) continue;
+            int fails = wanted_preed==i ? 1
+                         : apop_query_to_float("select count(*) from tea_test where (%s)",
                                                                 *edit_grid->text[i]);
             if (fails){
                 char *preed = edit_grid_to_list[i]->pre_edit;
-                if (ud_post_preedit && preed) 
+                if (ud_post_preedit && preed)
                     pre_edits_changed_something = run_preedits(ud_values, record_name_in,
                                                         record_in_size, ud_post_preedit, preed);
-                out+=fails;
+                out+=wanted_preed !=i && fails;
                 if (failures)
                     for (int i=0; i<last_list_item->var_ct; i++)
                         for (int j=0; j< record_in_size; j++)
@@ -157,7 +159,8 @@ passes the edit; move on to the next.
   requested by the user).
   */
 static int check_a_record_discrete(int const * restrict row,  int * failures, 
-                   int rownumber, char * const restrict*record_name_in, int record_in_size, _Bool *has_sql_edits){
+                   int rownumber, char * const restrict*record_name_in,
+                   int record_in_size, bool *has_sql_edits, int *run_this_preedit){
     int rowfailures[nflds];
     int out = 0;
     if (failures)
@@ -226,8 +229,13 @@ static int check_a_record_discrete(int const * restrict row,  int * failures,
                     printf("\n");
                 }
             }
+            if (*run_this_preedit){ //then we will be applying the preedits
+                *run_this_preedit=i;
+                goto done;
+            } 
         }
     }
+    done:
     return out;
 }
 
@@ -276,8 +284,9 @@ static void do_a_combo(int *record, char *const restrict  *record_name_in, int c
         else{
 			if (timeout && time(NULL) > timeout) longjmp(jmpbuf, 1);
             bool has_sql_edits = 0;
-            if (!check_a_record_discrete(record, NULL, 0, record_name_in, record_in_size, &has_sql_edits)
-                && (!has_sql_edits || !check_a_record_sql(ud_values, record_name_in, record_in_size, NULL, NULL))
+            int want_preedits = 0;
+            if (!check_a_record_discrete(record, NULL, 0, record_name_in, record_in_size, &has_sql_edits, &want_preedits)
+                && (!has_sql_edits || !check_a_record_sql(ud_values, record_name_in, record_in_size, NULL, NULL, -1))
                 ){//OK record; write it.
                 int this_row = apop_data_get(fillme, 0, -1);
                 (*gsl_vector_ptr(fillme->vector, 0))++;
@@ -412,14 +421,15 @@ apop_data * consistency_check(char * const *record_name_in, char * const *ud_val
     int record[width];
     if (record_name_in) setup_conversion_tables(record_name_in, *record_in_size);
 	fill_a_record(record, width, record_name_in, ud_values, *record_in_size, *id);
-    _Bool has_sql_edits = 0;
-    if (!strcmp(what_you_want[0], "passfail")){
-        *fails_edits = check_a_record_discrete(record, NULL, 0, record_name_in, *record_in_size, &has_sql_edits);
-        *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size, NULL, ud_post_preedit);
-        return NULL;
-    }
-    *fails_edits = check_a_record_discrete(record, failed_fields, *id, record_name_in, *record_in_size, &has_sql_edits);
-    *fails_edits += has_sql_edits && check_a_record_sql(ud_values, record_name_in, *record_in_size, failed_fields, ud_post_preedit);
+    bool has_sql_edits = 0;
+    int wanted_preed=-1;
+    bool pf = !strcmp(what_you_want[0], "passfail");
+    *fails_edits = check_a_record_discrete(record, (pf ? NULL:failed_fields), (pf ? 0:*id),
+                            record_name_in, *record_in_size, &has_sql_edits, &wanted_preed);
+    if (!ud_post_preedit) wanted_preed=-1;//don't apply preedit, even if a failure was found.
+    *fails_edits += (has_sql_edits||wanted_preed>=0) 
+                       && check_a_record_sql(ud_values, record_name_in, *record_in_size, (pf? NULL:failed_fields), ud_post_preedit, wanted_preed);
+    if (pf) return NULL;
     do_fields_and_fails_agree(failed_fields, *fails_edits, nflds);
 
     if (!strcmp(what_you_want[0], "failed_fields"))

@@ -139,7 +139,7 @@ void db_to_em(void){
                     grow_grid(edit_grid, &em_i, total_option_ct);
                     gsl_vector_set(edit_grid->vector, em_i-1, 2); //2==use the SQL-based edit system
                     edit_grid_to_list[em_i-1] = edit_list + current_explicit;
-                    goto Edited; //a use of goto! This is where we've finished an edit and are stepping forward.
+                    goto Edited; //We've finished an edit and are stepping forward.
                 }
             //else, standard discrete-indexed matrix
 
@@ -148,6 +148,7 @@ void db_to_em(void){
             grow_grid(edit_grid, &em_i, total_option_ct);
             Apop_row_v(edit_grid, em_i-1, a_row)
             gsl_vector_set_all(a_row, -1); //first posn of a field==-1 ==> ignore.
+            edit_grid_to_list[em_i-1] = edit_list + current_explicit;
             if (verbose) printf("Next edit.\n");
 
             next_phase = 'd';

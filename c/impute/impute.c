@@ -534,7 +534,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
 	Tea_stopif(isnan(atof(final_value)), return, 0, "I drew a blank from the imputed column "
                                                     "when I shouldn't have for record %i.", id_number);
 
-        char *got_depvar=false;
+        bool got_depvar=false;
         for (int i=0; i< full_size; i++)
             if (post_preedit[i]){
                 setit(autofill?tabname:filltab, draw, final_value, is->isnan->names->row[rowindex], 
