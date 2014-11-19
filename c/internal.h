@@ -8,6 +8,7 @@ typedef struct{
     double weight;
     int last_query;
     char type;
+    apop_data *edit_associates; //vars that appear in an edit alongside this one.
 } used_var_t;
 extern used_var_t *used_vars;
 

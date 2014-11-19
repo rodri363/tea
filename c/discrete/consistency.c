@@ -86,6 +86,8 @@ bool run_preedits(char * const restrict* ud_values, char * const restrict *recor
     return out;
 }
 
+static void record_failures(
+
 //call iff there are SQL edits to be checked.
 static int check_a_record_sql(char * const restrict* ud_values, char * const restrict *record_name_in, 
                          int record_in_size,  int * failures,
@@ -159,7 +161,7 @@ passes the edit; move on to the next.
   requested by the user).
   */
 static int check_a_record_discrete(int const * restrict row,  int * failures, 
-                   int rownumber, char * const restrict*record_name_in,
+                   int rownumber, char * const restrict* record_names,
                    int record_in_size, bool *has_sql_edits, int *run_this_preedit){
     int rowfailures[nflds];
     int out = 0;
@@ -168,7 +170,7 @@ static int check_a_record_discrete(int const * restrict row,  int * failures,
     if (!edit_grid) return 0;
     for (int i=0; i < edit_grid->matrix->size1; i++){
         if (gsl_vector_get(edit_grid->vector, i) == 2) {//this row has real values in it; skip.
-            //
+
             //check that all of the variables used in the query are in the list
             //sent to consistency_check
             *has_sql_edits=1; 
@@ -260,7 +262,8 @@ static int check_a_record_discrete(int const * restrict row,  int * failures,
    */
 static void do_a_combo(int *record, char *const restrict  *record_name_in, int const *user_to_em, int record_in_size, 
          int const *failed_edits_in, int this_field, int field_count, apop_data *fillme,
-		 jmp_buf jmpbuf, time_t const timeout, char *const restrict  *ud_values){
+		 jmp_buf jmpbuf, time_t const timeout, char *const restrict  *ud_values,
+         int const *em_to_user, int const * user_to_em){
 
     int option_ct, skipme=0;
 	int this_field_index = em_to_user[this_field];
@@ -280,7 +283,7 @@ static void do_a_combo(int *record, char *const restrict  *record_name_in, int c
         }
         if (this_field +1 < nflds)
             do_a_combo(record, record_name_in, user_to_em, record_in_size,
-							failed_edits_in, this_field+1, field_count, fillme, jmpbuf, timeout, ud_values);
+							failed_edits_in, this_field+1, field_count, fillme, jmpbuf, timeout, ud_values, em_to_user, user_to_em);
         else{
 			if (timeout && time(NULL) > timeout) longjmp(jmpbuf, 1);
             bool has_sql_edits = 0;
@@ -345,7 +348,8 @@ static apop_data * get_alternatives(int *restrict record, char *const  restrict 
 	double user_timeout = get_key_float("timeout", NULL);
 	time_t timeout = isnan(user_timeout) ? 0 : user_timeout+time(NULL);
 	if (!setjmp(jmpbuf))
-		do_a_combo(record, record_name_in, user_to_em, edit_grid->matrix->size2, failing_records, 0, record_in_size, out, jmpbuf, timeout, ud_values);
+		do_a_combo(record, record_name_in, user_to_em, edit_grid->matrix->size2, failing_records, 0, record_in_size, 
+                            out, jmpbuf, timeout, ud_values, em_to_user, user_to_em);
 	else
 		fprintf(stderr,"Timed out on consistency query. Partial alternatives returned, but set may not be complete.\n");
     out->matrix = apop_matrix_realloc(out->matrix, out->vector->data[0], out->matrix->size2);

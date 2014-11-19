@@ -410,6 +410,39 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
     return nanvals;
 }
 
+static char *get_edit_associates(char const*depvar, char const*dt, char const*id_col, int id_number){
+    used_var_t *this = used_vars;
+    for( ; this && strcmp(this->name, depvar); this++) 
+        ;//loop `til we find the right entry
+    Tea_stopif(!this, return NULL, 0, "Can't find %s in the list of declared variables", depvar);
+
+    if (!this->edit_associates){
+        this->edit_associates = apop_data_alloc();
+        for(edit_t *this_ed=edit_list; this_ed->clause; this_ed++){
+            bool use_this_edit=false;
+            for(int i=0; i< this_ed->var_ct; i++)
+                if ((use_this_edit=!strcasecmp(depvar, this_ed->vars_used[i].name))) break;
+            if (!use_this_edit) continue;
+
+            apop_data *this_ed_list = apop_data_alloc();
+            for(int i=0; i< this_ed->var_ct; i++){
+                this_ed_list = apop_text_alloc(this_ed_list, *this_ed_list->textsize+1, 1);
+                apop_text_add(this_ed_list, *this_ed_list->textsize-1, 0, this_ed->vars_used[i].name);
+            }
+            this->edit_associates= apop_data_stack(this->edit_associates, this_ed_list);
+            apop_data_free(this_ed_list);
+        }
+        apop_data_pmf_compress(this->edit_associates);
+    }
+
+    if (!*this->edit_associates->textsize) return NULL;
+    char *tail;
+    asprintf(&tail, " from %s where %s=%i", dt, id_col, id_number);
+    char *out = apop_text_paste(this->edit_associates, .between=", ",  .before="select ", .after=tail);
+    free(tail);
+    return out;
+}
+
 //static int forsearch(const void *a, const void *b){return strcmp(a, *(char**)b);}
 static int forsearch(const void *a, const void *b){
     //long int -> int conversion could break, so return just 1, -1, or 0.
@@ -467,6 +500,8 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 /*        apop_query("insert into impute_log values(%i, %i, %g, '%s', 'cc')",
                                 id_number,  model_id, out.pre_round, out.textx);
 */
+        if (!full_record) return out; //no associated edits.
+        
         //copy the new impute to full_record, for re-testing
         apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
         int size_as_int = full_record->textsize[1];
@@ -512,8 +547,11 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         int id_number = atoi(is->isnan->names->row[rowindex]);
         a_draw_struct drew;
         //apop_data *full_record = Apop_r(is->isnan, rowindex);
-        apop_data *full_record = apop_query_to_text("select * from %s where %s=%i", dt, id_col, id_number);
-        int full_size = full_record->textsize[1];
+        char *associated_query = get_edit_associates(is->depvar, dt, id_col, id_number);
+        apop_data *full_record = associated_query ? apop_query_to_text(associated_query) : NULL;
+printf("for %s:\n", is->depvar);
+apop_data_show(full_record);
+        int full_size = full_record ? full_record->textsize[1]: 0;
         char *post_preedit[full_size];
         memset(post_preedit, 0, sizeof(char*)*full_size);
         do drew = onedraw(r, is, type, id_number,
@@ -545,6 +583,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         if (!got_depvar)
             setit(autofill?tabname:filltab, draw, final_value, is->isnan->names->row[rowindex], 
                     is->depvar, autofill);
+        apop_data_free(full_record);
         apop_data_free(full_record);
         free(final_value);
         free(drew.textx);
@@ -894,12 +933,6 @@ if(catlist) printf("%s\n", catlist->text[i][0]);
 /* TeaKEY(impute, <<<The key where the user defines all of the subkeys related to the doMImpute() part of the imputation process. For details on these subkeys, see their descriptions elsewhere in the appendix.>>>)
  */
 void impute(char **idatatab, int *autofill){ 
-    /* At the beginning of this function, we check the spec file to verify that the
-     * user has specified all of the necessary keys for impute(...) to function correctly.
-     * If they haven't we alert them to this and exit the function.
-     */
-    
-    //The actual function starts here:
     apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
     Tea_stopif(!tags, return, 0, "No 'impute' section found in the spec file");
     for (int i=0; i< *tags->textsize; i++){
