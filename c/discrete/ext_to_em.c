@@ -18,7 +18,7 @@ void order_things(char * const * record_in, char *const *record_names, int recor
         oext_vals[j] = blank;
     for (int i=0; i< record_size; i++)
         for (int j=0; j< total_var_ct; j++)
-            if (!strcmp(used_vars[j].name, record_names[i]) && used_vars[j].type != 'r'){
+            if (!strcmp(used_vars[j].name, record_names[i])  ){// && used_vars[j].type != 'r'){
                 oext_vals[j] = record_in[i];
                 break;
             }
@@ -29,7 +29,7 @@ void order_things_int(int * ints_in, char *const *record_names, int record_size,
         oint_vals[j] = &negone;
     for (int i=0; i< record_size; i++)
         for (int j=0; j< total_var_ct; j++)
-            if (!strcmp(used_vars[j].name, record_names[i]) && used_vars[j].type != 'r'){
+            if (!strcmp(used_vars[j].name, record_names[i]) ){ //&& used_vars[j].type != 'r'){
                 oint_vals[j] = &ints_in[i];
                 break;
             }

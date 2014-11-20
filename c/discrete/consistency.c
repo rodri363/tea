@@ -114,7 +114,9 @@ static int check_a_record_sql(char ** oext_values, int ** ofailures,
                 if (ofailures)
                     for (int i=0; i<total_var_ct; i++){
                         if (*oext_values[i]=='\0') continue; //skip non-entering.
-                        (*ofailures[i])++;
+                        for (int j=0; j< last_list_item->var_ct; j++)//is this var. used in this edit?
+                            if (!strcasecmp(last_list_item->vars_used[j].name, used_vars[i].name))
+                                {(*ofailures[i])++; break;}
                     }
             }
             if (pre_edits_changed_something) break;
@@ -258,7 +260,8 @@ static void do_a_combo(int *record, char **oext_values,
 		 jmp_buf jmpbuf, time_t const timeout){
 
     int option_ct, skipme=0;
-	if (*oext_values[this_field]==-1 || !*failed_edits_in[this_field]){//not a failed field; skip.
+	if (*oext_values[this_field]==-1 || !*failed_edits_in[this_field]
+           || used_vars[this_field].type=='r'){//not a failed field or DISCRETE editable; skip.
 		skipme=1;
 		option_ct=1;
 	}
@@ -342,28 +345,30 @@ static apop_data * get_alternatives(int *record, char ** oext_values,
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
 static void fill_a_record(int *record, int record_width, char * const restrict *oext_values, int id){
-    for (int i=0; i < record_width; i++)
-        record[i]=-1;   //-1 == ignore-this-field marker
+    for (int rctr=0; rctr < record_width; rctr++)
+        record[rctr]=-1;   //-1 == ignore-this-field marker
+    int rctr=0; //i is the index for oext_values or used_vars; rctr for record.
     for (int i=0; i < total_var_ct; i++){
-        if (*oext_values[i]=='\0') continue; //blank==not entering ==>skip
+        if (*oext_values[i]=='\0' ||used_vars[i].type=='r') continue;
         int ri_position = ri_from_ext(used_vars[i].name, oext_values[i]);
         if (ri_position == -100) continue;  //This variable wasn't declared ==> can't be in an edit.
-        for(int  kk = find_b[i]-1; kk< find_e[i]; kk++)
+        for(int  kk = find_b[rctr]-1; kk< find_e[rctr]; kk++)
             record[kk] = 0;
         Tea_stopif(ri_position == -1 , return, 0, "I couldn't find the value %s in your "
                 "declarations for the variable %s. Please remove the error from the data or "
                 "add that value to the declaration, then restart the program so I can rebuild "
                 "some internal data structures.", oext_values[i], used_vars[i].name);
-        int bit = find_b[i]-1 + ri_position-1;
+        int bit = find_b[rctr]-1 + ri_position-1;
         Tea_stopif(bit >= record_width || bit < 0, return, 0,
                     "About to shift position %i in a record, but there "
                     "are only %i entries.", bit, record_width);
         record[bit] = 1;
+        rctr++;
     }
     if (verbose){
         printf("record %i:\n", id);
-        for (int i=0; i< record_width; i++)
-            printf("%i\t", record[i]);
+        for (int rctr=0; rctr< record_width; rctr++)
+            printf("%i\t", record[rctr]);
         printf("\n");
     } 
 }
