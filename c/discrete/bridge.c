@@ -17,7 +17,7 @@ extern int speer_(void);
 
 void generate_indices(char const *);
 
-int edit_ct, nflds, errorcount, verbose, run_number, explicit_ct;
+int edit_ct, errorcount, verbose, run_number, explicit_ct;
 int *find_b, *find_e;
 FILE *yyin;
 int total_var_ct, *optionct;
@@ -334,7 +334,6 @@ void start_over(){ //Reset everything in case this wasn't the first call
     fname = "-stdin-";
     lineno = 1;
     pass = 0;
-    nflds = 0;
     edit_ct = 0;
     query_ct = 0;
     has_edits = 0;
@@ -347,8 +346,8 @@ void start_over(){ //Reset everything in case this wasn't the first call
 }
 
 void setup_findxbe(){
-    find_b = malloc(sizeof(int)*nflds);
-    find_e = malloc(sizeof(int)*nflds);
+    find_b = malloc(sizeof(int)*total_var_ct);
+    find_e = malloc(sizeof(int)*total_var_ct);
     find_b[0] = 1;
     find_e[0] = optionct[0];
     for(int i =1; i< total_var_ct; i++){
@@ -358,7 +357,7 @@ void setup_findxbe(){
 }
 
 void init_edit_list(){
-	if (nflds){
+	if (total_var_ct){
         setup_findxbe();
         db_to_em();
 	}
@@ -413,7 +412,6 @@ void read_spec(char **infile, char **dbname_out){
 	lineno=1;
     yyparse();   //use the parser to assemble edits
     //Apop_assert(!errorcount, "%i errors. Please fix and re-run.\n", errorcount);
-    nflds = total_var_ct;
 	dbname_out[0] = strdup(database);
     join_tables();
     commit_transaction();
