@@ -635,7 +635,7 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
 }
 
 //static int forsearch(const void *a, const void *b){return strcmp(a, *(char**)b);}
-static int forsearch(const void *a, const void *b){return atoi((char*)a) - atoi(*(char**)b);}
+static int forsearch(const void *a, const void *b){return atol((char*)a) - atol(*(char**)b);}
 
 static int mark_an_id(const char *target, char * const *list, int len, char just_check){
     char **found = bsearch(target, list, len, sizeof(char*), forsearch);
