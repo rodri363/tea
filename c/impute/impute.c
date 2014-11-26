@@ -481,8 +481,8 @@ static void get_nans_and_notnans(impustruct *is, char const* index, char const *
              for (int j=0; j< is->isnan->matrix->size2; j++)
                  apop_text_add(is->isnan, i, j, "%g", apop_data_get(is->isnan, i, j));
     } else is->isnan = q2 ? 
-              apop_query_to_text("%s %s is null union %s", q, is->depvar, q2)
-            : apop_query_to_text("%s %s is null", q, is->depvar);
+              apop_query_to_text("%s %s is null union %s order by %s", q, is->depvar, q2, id_col)
+            : apop_query_to_text("%s %s is null order by %s", q, is->depvar, id_col);
     free(q); q=NULL;
     free(q2); q2=NULL;
     verify(*is);
@@ -635,7 +635,11 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
 }
 
 //static int forsearch(const void *a, const void *b){return strcmp(a, *(char**)b);}
-static int forsearch(const void *a, const void *b){return atol((char*)a) - atol(*(char**)b);}
+static int forsearch(const void *a, const void *b){
+    //long int -> int conversion could break, so return just 1, -1, or 0.
+    long int diff= atol((char*)a) - atol(*(char**)b);
+    return diff > 0 ? 1 : (diff < 0 ? -1 : 0);
+}
 
 static int mark_an_id(const char *target, char * const *list, int len, char just_check){
     char **found = bsearch(target, list, len, sizeof(char*), forsearch);
