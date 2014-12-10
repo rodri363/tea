@@ -80,15 +80,26 @@ CheckDF <- function(df){
 
 blankOne <- function(r, tabname, idcolname, id){
     m <- max(r) # greater than zero, because of the if statement in the caller below.
+#browser()
     blankme <- sample(names(r)[r[]==m], 1)
     print(paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
     dbGetQuery(teaenv$con, paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
 }
 
+#' Take in the name of a table in the database and an optional 'where' clause;
+#' pull the subset specified, and check each row.
+#' If a row fails, blank the element that fails the most edits (in case of ties,
+#' randomly draw among the most failed), then call the imputation routine on that row.
 EditTable <- function(tabname, where=NULL){
+    if (!is.character(tabname)) {
+        print("Give this function a name from the database.")
+        return(NULL)
+    }
+
     t <- teaTable(tabname, where=where)
     idcolname <- teaGetKey("id")
     idcol <- teaTable(tabname, cols=idcolname, where=where)
+#browser()
     fail <- TRUE
     autofill <- 1
     while (fail) {
@@ -99,7 +110,7 @@ EditTable <- function(tabname, where=NULL){
             r <- glitches[i,]
             if (sum(r)>0){
                 fail <- TRUE
-                blankOne(r, tabname, idcolname, idcol[[i]])
+                blankOne(r, tabname, idcolname, idcol[[1]][i])
             }        
         }
 
@@ -110,3 +121,5 @@ EditTable <- function(tabname, where=NULL){
         hardFails <- teaTable("tea_fails")
     }
 }
+
+

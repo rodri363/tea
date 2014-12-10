@@ -476,7 +476,7 @@ The parent function, make_a_draw, then either writes the imputation to the db or
 */
 static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
         char type, int id_number, 
-        int model_id, apop_data *full_record, int col_of_interest, char*restrict *post_preedit){
+        int model_id, char **oext_values, int col_of_interest){
     a_draw_struct out = { };
 	static char const *const whattodo="passfail";
     double x;
@@ -500,18 +500,12 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 /*        apop_query("insert into impute_log values(%i, %i, %g, '%s', 'cc')",
                                 id_number,  model_id, out.pre_round, out.textx);
 */
-        if (!full_record) return out; //no associated edits.
+        if (!oext_values) return out; //no associated edits.
         
         //copy the new impute to full_record, for re-testing
-        apop_text_add(full_record, 0, col_of_interest, "%s", out.textx);
-        int size_as_int = full_record->textsize[1];
-        consistency_check((char *const *)(full_record->names->text ? full_record->names->text : full_record->names->col),
-                          (char *const *)full_record->text[0],
-                          &size_as_int,
-                          &whattodo,
-                          &id_number,
-                          &out.is_fail,
-                          NULL, post_preedit);
+        asprintf(oext_values+col_of_interest, "%s", out.textx);
+        //int size_as_int = full_record->textsize[1];
+        cc2(oext_values, &whattodo, &id_number, &out.is_fail, NULL, /*do_preedits=*/true);
     }
     return out;
 }
@@ -530,8 +524,10 @@ static void setit(char const *tabname, int draw, char const *final_value, char c
 static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
                         int model_id, int draw, apop_data *nanvals, char *filltab){
     char type = get_coltype(is->depvar);
-    int col_of_interest=apop_name_find(is->isnan->names, is->depvar, type !='c' && is->isnan->names->colct ? 'c' : 't');
-    Tea_stopif(col_of_interest < -1, return, 0, "I couldn't find %s in the list of column names.", is->depvar);
+    int col_of_interest;
+    for (col_of_interest=0; col_of_interest<total_var_ct; col_of_interest++)
+        if (!strcmp(is->depvar, used_vars[col_of_interest].name)) break;
+    Tea_stopif(col_of_interest==total_var_ct, return, 0, "I couldn't find %s in the list of column names.", is->depvar);
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         char *name = is->isnan->names->row[rowindex];
         if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)==-1){
@@ -548,14 +544,13 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         a_draw_struct drew;
         //apop_data *full_record = Apop_r(is->isnan, rowindex);
         char *associated_query = get_edit_associates(is->depvar, dt, id_col, id_number);
-        apop_data *full_record = associated_query ? apop_query_to_text(associated_query) : NULL;
-printf("for %s:\n", is->depvar);
-apop_data_show(full_record);
-        int full_size = full_record ? full_record->textsize[1]: 0;
-        char *post_preedit[full_size];
-        memset(post_preedit, 0, sizeof(char*)*full_size);
-        do drew = onedraw(r, is, type, id_number,
-                          model_id, full_record, col_of_interest, post_preedit);
+        apop_data *drecord = associated_query ? apop_query_to_text(associated_query) : NULL;
+
+        char *oext_values[total_var_ct], *pre_preedit[total_var_ct];
+        order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
+        for (int i=0; i< total_var_ct; i++) pre_preedit[i] = strdup(oext_values[i]);
+
+        do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest);
         while (drew.is_fail && tryctr++ < 1000);
         Tea_stopif(drew.is_fail, 
                 apop_query("insert into tea_fails values(%i)", id_number)
@@ -573,20 +568,20 @@ apop_data_show(full_record);
                                                     "when I shouldn't have for record %i.", id_number);
 
         bool got_depvar=false;
-        for (int i=0; i< full_size; i++)
-            if (post_preedit[i]){
+        for (int i=0; i< total_var_ct; i++)
+            if (strcmp(oext_values[i], pre_preedit[i])){
                 setit(autofill?tabname:filltab, draw, final_value, is->isnan->names->row[rowindex], 
                         full_record->names->text[i], autofill);
-                if (!strcmp(full_record->names->text[i], is->depvar)) got_depvar=true;
+                if (!strcmp(used_vars[i].name, is->depvar)) got_depvar=true;
             }
 
         if (!got_depvar)
             setit(autofill?tabname:filltab, draw, final_value, is->isnan->names->row[rowindex], 
                     is->depvar, autofill);
         apop_data_free(full_record);
-        apop_data_free(full_record);
         free(final_value);
         free(drew.textx);
+        for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
     }
 }
 

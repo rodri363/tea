@@ -3,8 +3,6 @@
 #include "internal.h"
 #include <setjmp.h>
 #include <stdbool.h>
-void order_things(char * const* record_in, char *const *record_names, int record_size, char **oext_vals);
-void order_things_int(int * ints_in, char *const *record_names, int record_size, int **oint_vals);
 
 void init_edit_list();
 void xprintf(char **q, char *format, ...); //in ../impute/parse_sql.c

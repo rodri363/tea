@@ -81,6 +81,15 @@ void test_check_out_impute();//in checkout.c
 
 int has_sqlite3_index(char const *table, char const *column, char);//text_in/text_in.c
 
+//in discrete/ext_to_em.c, used for putting an arbitrary list of fields into
+//a certain order for the edit matrix.
+void order_things(char * const* record_in, char *const *record_names, int record_size, char **oext_vals);
+void order_things_int(int * ints_in, char *const *record_names, int record_size, int **oint_vals);
+
+//in discrete/consistency.c, version 2 of consistency_check
+apop_data * cc2(char * *oext_values, char const *const *what_you_want, 
+			int const *id, int *fails_edits, int **ofailed_fields, _Bool do_preedits);
+
 //utils.c
 int create_index_base(char const *tab, char const**fields);
 //Just one field to index? Use this:
