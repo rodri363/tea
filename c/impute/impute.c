@@ -545,6 +545,8 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         //apop_data *full_record = Apop_r(is->isnan, rowindex);
         char *associated_query = get_edit_associates(is->depvar, dt, id_col, id_number);
         apop_data *drecord = associated_query ? apop_query_to_text(associated_query) : NULL;
+        Tea_stopif(associated_query && !*drecord->textsize, return, 0,
+                    "Trouble querying for fields associated with %s", is->depvar);
 
         char *oext_values[total_var_ct], *pre_preedit[total_var_ct];
         order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
