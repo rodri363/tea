@@ -824,19 +824,13 @@ char *configbase = "impute";
   TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
  */
 int do_impute(char **tag, char **idatatab, int *autofill){ 
-    /* At the beginning of this function, we check the spec file to verify that the
-     * user has specified all of the necessary keys for impute(...) to function correctly.
-     * If they haven't we alert them to this and exit the function.
-     */
-
     Tea_stopif(get_key_word("impute", "input table") == NULL, return -1, 0, "You need to specify an input table in your impute key.");
     Tea_stopif(get_key_word("impute", "method") == NULL, return -1, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
     
-    //This fn does nothing but read the config file and do appropriate setup.
-    //See impute_a_variable for the real work.
     Tea_stopif(!*tag, return -1, 0, "All the impute segments really should be tagged.");
-    Tea_stopif(!*idatatab, return -1, 0, "I need an input table, "
-                        "via a '%s/input table' key. Or, search the documentation "
+    Tea_stopif(!*idatatab && !get_key_word("impute", "input table"), return -1, 0,
+                        "I need an input table, via a '%s/input table' key. "
+                        "Or, search the documentation "
                         "for the active table (which is currently not set).", configbase);
     Tea_stopif(!apop_table_exists(*idatatab), return -1, 0, "'%s/input table' is %s, but I can't "
                      "find that table in the db.", configbase, *idatatab);
@@ -866,8 +860,8 @@ int do_impute(char **tag, char **idatatab, int *autofill){
 
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
     if (!out_tab && previous_fill_tab) out_tab = previous_fill_tab;
-    Tea_stopif(!out_tab, out_tab = "filled",
-        0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
+    Tea_stopif(!out_tab, out_tab = "filled", 0, "No '%s/output table' or '%s/eariler output table' key "
+            "found in the spec; using 'filled' as a default.", configbase, configbase);
 
     char *id_col= get_key_word(NULL, "id");
     if (!id_col) {
