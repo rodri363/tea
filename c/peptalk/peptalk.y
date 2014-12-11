@@ -484,7 +484,7 @@ void moreblob(char **out, char* so_far, char *more){
         }
         bool isreal = false;
         for (int i=0, isfound=0; i< total_var_ct && !isfound && !isreal; i++) 
-            if((isfound=!strcmp(more, used_vars[i].name)))
+            if((isfound=!strcasecmp(more, used_vars[i].name)))
                 isreal= (used_vars[i].type=='r');
         if (!is_used){ //it's a var, but I haven't added it to the list for this q.
             if (!var_list) var_list = strdup(more);

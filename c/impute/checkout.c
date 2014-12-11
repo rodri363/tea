@@ -23,7 +23,7 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
     }
     sprintf(apop_opts.db_name_column, "%s",  id_column);
     begin_transaction();
-    if (dest){
+    if (dest && strcmp(*origin, dest)){
         apop_table_exists(dest, 'd');
         apop_query("create table %s as select %s * from %s %s %s", 
                         dest, 
