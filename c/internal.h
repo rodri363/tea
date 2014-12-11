@@ -1,5 +1,6 @@
 /** \file */
 #include "tea.h"
+#include <stdbool.h>
 #define apop_strcmp(a, b) (((a)&&(b) && !strcmp((a), (b))) || (!(a) && !(b)))
 
 typedef struct{
@@ -34,7 +35,26 @@ void commit_transaction();
 
 int using_r; //r_init handles this. If zero, then it's a standalone C library.
 
-apop_data * get_variables_to_impute(char *tag); //impute/impute.c
+//impute/impute.c:
+apop_data * get_variables_to_impute(char *tag); 
+
+typedef struct {
+	apop_model *base_model, *fitted_model;
+	char * depvar, **allvars, *vartypes, *selectclause;
+	int position, allvars_ct, error;
+	apop_data *isnan, *notnan;
+    bool is_bounds_checkable, is_hotdeck, textdep, is_em, is_regression, allow_near_misses;
+} impustruct;
+
+//impute/em.c
+void em_to_completion(char const *datatab, char const *underlying,
+        impustruct is, int min_group_size, gsl_rng *r,
+        int draw_count, char *catlist,
+        apop_data const *fingerprint_vars, char const *id_col,
+        char const *weight_col, char const *fill_tab, char const *margintab,
+        char *previous_filltab);
+
+
 int join_tables(); //text_in/text_in.c
 
 void reset_ri_ext_table();  //c/discrete/name_conversions.c
