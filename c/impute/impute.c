@@ -410,20 +410,23 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
     return nanvals;
 }
 
-static char *get_edit_associates(char const*depvar, char const*dt, char const*id_col, int id_number){
+static char *get_edit_associates(char const*depvar, char const*dt, char const*id_col, int id_number, bool *has_edits){
+    *has_edits = false;
     used_var_t *this = used_vars;
     for( ; this && strcmp(this->name, depvar); this++) 
         ;//loop `til we find the right entry
     Tea_stopif(!this, return NULL, 0, "Can't find %s in the list of declared variables", depvar);
 
     if (!this->edit_associates){
-        this->edit_associates = apop_data_alloc();
+        this->edit_associates = apop_text_alloc(NULL, 1, 1);
+        apop_text_add(this->edit_associates, 0, 0, depvar);
         for(edit_t *this_ed=edit_list; this_ed->clause; this_ed++){
             bool use_this_edit=false;
             for(int i=0; i< this_ed->var_ct; i++)
                 if ((use_this_edit=!strcasecmp(depvar, this_ed->vars_used[i].name))) break;
             if (!use_this_edit) continue;
 
+            *has_edits = true;
             apop_data *this_ed_list = apop_data_alloc();
             for(int i=0; i< this_ed->var_ct; i++){
                 this_ed_list = apop_text_alloc(this_ed_list, *this_ed_list->textsize+1, 1);
@@ -432,7 +435,7 @@ static char *get_edit_associates(char const*depvar, char const*dt, char const*id
             this->edit_associates= apop_data_stack(this->edit_associates, this_ed_list);
             apop_data_free(this_ed_list);
         }
-        apop_data_pmf_compress(this->edit_associates);
+        if (*this->edit_associates->textsize) apop_data_pmf_compress(this->edit_associates);
     }
 
     if (!*this->edit_associates->textsize) return NULL;
@@ -475,8 +478,8 @@ then sending it to consistency_check for an up-down vote.
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
 */
 static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
-        char type, int id_number, 
-        int model_id, char **oext_values, int col_of_interest){
+        char type, int id_number, int model_id, char **oext_values,
+        int col_of_interest, bool has_edits){
     a_draw_struct out = { };
 	static char const *const whattodo="passfail";
     double x;
@@ -500,7 +503,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 /*        apop_query("insert into impute_log values(%i, %i, %g, '%s', 'cc')",
                                 id_number,  model_id, out.pre_round, out.textx);
 */
-        if (!oext_values) return out; //no associated edits.
+        if (!has_edits) return out;
         
         //copy the new impute to full_record, for re-testing
         asprintf(oext_values+col_of_interest, "%s", out.textx);
@@ -543,16 +546,18 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         int id_number = atoi(is->isnan->names->row[rowindex]);
         a_draw_struct drew;
         //apop_data *full_record = Apop_r(is->isnan, rowindex);
-        char *associated_query = get_edit_associates(is->depvar, dt, id_col, id_number);
+        bool has_edits;
+        char *associated_query = get_edit_associates(is->depvar, dt, id_col, id_number, &has_edits);
         apop_data *drecord = associated_query ? apop_query_to_text(associated_query) : NULL;
         Tea_stopif(associated_query && !*drecord->textsize, return, 0,
                     "Trouble querying for fields associated with %s", is->depvar);
 
         char *oext_values[total_var_ct], *pre_preedit[total_var_ct];
-        order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
+        if (drecord) //else, no relevant queries, and oext_values are irrelevant?
+            order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
         for (int i=0; i< total_var_ct; i++) pre_preedit[i] = strdup(oext_values[i]);
 
-        do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest);
+        do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits);
         while (drew.is_fail && tryctr++ < 1000);
         Tea_stopif(drew.is_fail, 
                 apop_query("insert into tea_fails values(%i)", id_number)
