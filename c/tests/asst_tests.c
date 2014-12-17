@@ -160,7 +160,7 @@ void group_recode_test(){
 
 ////////////////////////////////
 
-void just_like_the_R_test(){
+void just_like_the_R_test(int autofill){
     char *specname = "spec";
     write_a_file(specname, "database:t.db\n"
                 "input { input file: indata \n"
@@ -195,11 +195,11 @@ void just_like_the_R_test(){
     //assert(apop_query_to_float("select count(*) from data where age is null") == 2);
     //assert(apop_query_to_float("select count(*) from data where sex is null") == 2);
     char *d="data";
-    impute(&d, (int[]){0});
+    impute(&d, &autofill);
 
-    char *checkout = "checkout";
+    char *checkout = autofill ? "data" : "checkout";
     int zero =0;
-    check_out_impute(&d, &checkout, &zero, NULL, NULL);
+    if (!autofill) check_out_impute(&d, &checkout, &zero, NULL, NULL);
 
     //this is not just like the R test:
     checkData(apop_query_to_text("select * from %s", checkout));
@@ -324,7 +324,8 @@ void tea_c_tests(){
    recode_test();
 
    printf("Entering just_like_the_R_test()\n");
-   just_like_the_R_test();
+   just_like_the_R_test(0);
+   just_like_the_R_test(1);
 
    printf("Entering snowman_test()\n");
    snowman_test();

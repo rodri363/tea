@@ -762,6 +762,7 @@ char *configbase = "impute";
   TeaKEY(impute/seed, <<<The RNG seed>>>)
   TeaKEY(impute/draw count, <<<How many multiple imputations should we do? Default: 1.>>>)
   TeaKEY(impute/output table, <<<Where the fill-ins will be written. You'll still need {\tt checkOutImpute} to produce a completed table. If you give me a value for {\tt impute/eariler output table}, that will be the default output table; if not, the default is named {\tt filled}.>>>)
+  TeaKey(impute/autofill, <<<Write the imputations directly to the input table, rather than to an output table. Of course, this makes sense for only one imputation, so the draw count will be set to one. Including this key and setting it to any value except "no" will turn on this option.>>>)
   TeaKEY(impute/earlier output table, <<<If this imputation depends on a previous one, then give the fill-in table from the previous output here.>>>)
   TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
  */
@@ -800,7 +801,7 @@ int do_impute(char **tag, char **idatatab, int *autofill){
     float min_group_size = get_key_float_tagged(configbase, "min group size", *tag);
     if (isnan(min_group_size)) min_group_size = 1;
 
-    float draw_count = get_key_float_tagged(configbase, "draw count", *tag);
+    float draw_count = *autofill ? 1 : get_key_float_tagged(configbase, "draw count", *tag);
     if (isnan(draw_count) || !draw_count) draw_count = 1;
 
     char *weight_col = get_key_word_tagged(configbase, "weights", *tag);
