@@ -52,7 +52,7 @@ void em_to_completion(char const *datatab, char const *underlying,
         int draw_count, char *catlist,
         apop_data const *fingerprint_vars, char const *id_col,
         char const *weight_col, char const *fill_tab, char const *margintab,
-        char *previous_filltab);
+        char *previous_filltab, int autofill);
 
 
 int join_tables(); //text_in/text_in.c

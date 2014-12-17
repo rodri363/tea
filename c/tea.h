@@ -113,7 +113,7 @@ char* get_key_word(char const *part1, char const *part2);
 char* get_key_word_tagged(char const *part1, char const *part2, char const *tag);
 void set_key_text(char const *group, char const *key, char const *value);
 
-void impute(char **active_tab);
+void impute(char **active_tab, int *autofill);
 void text_in();
 
 void do_preedits(char **datatab);

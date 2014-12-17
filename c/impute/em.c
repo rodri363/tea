@@ -192,7 +192,7 @@ void em_to_completion(char const *datatab, char const *underlying,
         int draw_count, char *catlist,
         apop_data const *fingerprint_vars, char const *id_col,
         char const *weight_col, char const *fill_tab, char const *margintab,
-        char *previous_filltab){
+        char *previous_filltab, int autofill){
 
     apop_data *d = get_data_for_em(datatab, catlist, id_col, weight_col, previous_filltab, is);
     Tea_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
@@ -212,7 +212,17 @@ void em_to_completion(char const *datatab, char const *underlying,
     apop_matrix_realloc(fillins->matrix, ctr, fillins->matrix->size2);
     apop_text_alloc(fillins, ctr, 2);
     begin_transaction();
-    if (fillins->matrix) apop_data_print(fillins, .output_name=fill_tab, .output_type='d', .output_append='a');
+    if (fillins->matrix) {
+        if (!autofill) apop_data_print(fillins, .output_name=fill_tab, .output_type='d', .output_append='a');
+        else {
+            for (int i=0; i< fillins->matrix->size1; i++)
+                for (int j=0; j< fillins->matrix->size2; j++)
+                    apop_query("update %s set %s = %g where  %s='%s');",
+                           datatab, fillins->names->col[j], apop_data_get(fillins, i, j),
+                           id_col, fillins->names->row[i]);
+
+        }
+    }
     commit_transaction();
     apop_data_free(fillins);
     //apop_data_print(raked, .output_name="ooo", .output_append='a');

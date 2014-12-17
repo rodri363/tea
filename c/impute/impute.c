@@ -483,8 +483,8 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 }
 
 //a shell for do onedraw() while (!done).
-static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
-                        int model_id, int draw, apop_data *nanvals, char *filltab){
+static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id, int model_id,
+                         const char *datatab, const char *id_col, int draw, apop_data *nanvals, char *filltab, int autofill){
     char type = get_coltype(is->depvar);
     int col_of_interest=apop_name_find(is->isnan->names, is->depvar, type !='c' && is->isnan->names->colct ? 'c' : 't');
     Tea_stopif(col_of_interest < -1, return, 0, "I couldn't find %s in the list of column names.", is->depvar);
@@ -518,10 +518,16 @@ static void make_a_draw(impustruct *is, gsl_rng *r, int fail_id,
                                 ? ext_from_ri(is->depvar, drew.pre_round+1)
                                 : strdup(drew.textx); //I should save the numeric val.
 
-	Tea_stopif(isnan(atof(final_value)), return, 0, "I drew a blank from the imputed column when I shouldn't have for record %i.", id_number);
+	Tea_stopif(isnan(atof(final_value)), return, 0, "I drew a blank from the imputed column "
+                                                    "when I shouldn't have for record %i.", id_number);
 
-        apop_query("insert into %s values(%i, '%s', '%s', '%s');",
+        if (!autofill)
+            apop_query("insert into %s values(%i, '%s', '%s', '%s');",
                        filltab,  draw, final_value, is->isnan->names->row[rowindex], is->depvar);
+        else
+            apop_query("update %s set %s = '%s' where  %s='%s');",
+                       datatab, is->depvar, final_value, id_col, is->isnan->names->row[rowindex]);
+        
         free(final_value);
         free(drew.textx);
     }
@@ -547,7 +553,7 @@ double still_is_nan(apop_data *in){return in->names->row[0][strlen(*in->names->r
 static void impute_a_variable(const char *datatab, const char *underlying, impustruct *is, 
         const int min_group_size, gsl_rng *r, const int draw_count, apop_data *category_matrix, 
         const apop_data *fingerprint_vars, const char *id_col, char *filltab,
-        char *previous_filltab){
+        char *previous_filltab, int autofill){
     static int fail_id=0, model_id=-1;
     apop_data *nanvals = get_all_nanvals(*is, id_col, datatab);
     if (!nanvals) return;
@@ -590,8 +596,8 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                 model_est(is, &model_id); //notnan may be pmf_compressed here.
                 prep_for_draw(is->notnan, is);
                 for (int innerdraw=0; innerdraw< innermax; innerdraw++)
-                    make_a_draw(is, r, ++fail_id, model_id, 
-                                    GSL_MAX(outerdraw, innerdraw), nanvals, filltab);
+                    make_a_draw(is, r, ++fail_id, model_id, dt, id_col,
+                                    GSL_MAX(outerdraw, innerdraw), nanvals, filltab, autofill);
                 apop_model_free(is->fitted_model); //if (is_hotdeck) apop_data_free(is->fitted_model->data);
                 bail:
                 apop_data_free(is->notnan);
@@ -759,13 +765,12 @@ char *configbase = "impute";
   TeaKEY(impute/earlier output table, <<<If this imputation depends on a previous one, then give the fill-in table from the previous output here.>>>)
   TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
  */
-int do_impute(char **tag, char **idatatab){ 
+int do_impute(char **tag, char **idatatab, int *autofill){ 
     /* At the beginning of this function, we check the spec file to verify that the
      * user has specified all of the necessary keys for impute(...) to function correctly.
      * If they haven't we alert them to this and exit the function.
      */
 
-    Tea_stopif(get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
     Tea_stopif(get_key_word("impute", "input table") == NULL, return -1, 0, "You need to specify an input table in your impute key.");
     Tea_stopif(get_key_word("impute", "method") == NULL, return -1, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
     
@@ -779,6 +784,10 @@ int do_impute(char **tag, char **idatatab){
                      "find that table in the db.", configbase, *idatatab);
 
     char *underlying = get_key_word_tagged(configbase, "underlying table", *tag);
+
+    char *af = get_key_word_tagged(configbase, "autofill", *tag);
+    *autofill = *autofill || (af && !strcmp(af, "no"));
+    Tea_stopif(!*autofill && get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
 
 
 
@@ -817,7 +826,7 @@ int do_impute(char **tag, char **idatatab){
     static gsl_rng *r;
     if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r);
     //I depend on this column order in a few other places, like check_out_impute_base.
-    if (!apop_table_exists(out_tab))
+    if (!*autofill && !apop_table_exists(out_tab))
         apop_query("create table %s ('draw', 'value', '%s', 'field');"
                 "create index idx_%s_%s   on %s (%s);"
                 "create index idx_%s_field  on %s (field);"
@@ -851,12 +860,12 @@ if(catlist) printf("%s\n", catlist->text[i][0]);
             char *margintab = get_key_word_tagged(configbase, "margin table", *tag);
             em_to_completion(*idatatab, underlying, model, min_group_size, 
                         r, draw_count, wherecat, fingerprint_vars, id_col, 
-                        weight_col, out_tab, margintab, previous_fill_tab);
+                        weight_col, out_tab, margintab, previous_fill_tab, *autofill);
         }
     }
     else impute_a_variable(*idatatab, underlying, &model, min_group_size, 
                 r, draw_count, category_matrix, fingerprint_vars, id_col, out_tab,
-                previous_fill_tab);
+                previous_fill_tab, *autofill);
     apop_data_free(fingerprint_vars);
     apop_data_free(category_matrix);
     sprintf(apop_opts.db_name_column, "%s", tmp_db_name_col);
@@ -867,7 +876,7 @@ if(catlist) printf("%s\n", catlist->text[i][0]);
 
 /* TeaKEY(impute, <<<The key where the user defines all of the subkeys related to the doMImpute() part of the imputation process. For details on these subkeys, see their descriptions elsewhere in the appendix.>>>)
  */
-void impute(char **idatatab){ 
+void impute(char **idatatab, int *autofill){ 
     /* At the beginning of this function, we check the spec file to verify that the
      * user has specified all of the necessary keys for impute(...) to function correctly.
      * If they haven't we alert them to this and exit the function.
@@ -885,7 +894,7 @@ void impute(char **idatatab){
     apop_query("create table tea_fails('id')");
 
     for (int i=0; i< *tags->textsize; i++)
-        do_impute(tags->text[i], idatatab);
+        do_impute(tags->text[i], idatatab, autofill);
     apop_data_free(tags);
 }
 

@@ -83,7 +83,7 @@ void snowman_test(){
     read_spec(&specname, &db_dummy);
     text_in();
     char *d="d";
-    impute(&d);
+    impute(&d, (int[]){0});
 
     test_consistency();
     apop_db_close();
@@ -195,7 +195,7 @@ void just_like_the_R_test(){
     //assert(apop_query_to_float("select count(*) from data where age is null") == 2);
     //assert(apop_query_to_float("select count(*) from data where sex is null") == 2);
     char *d="data";
-    impute(&d);
+    impute(&d, (int[]){0});
 
     char *checkout = "checkout";
     int zero =0;
@@ -278,7 +278,7 @@ void test_ols(gsl_rng *r){
 
     read_spec(&specname, &db_dummy);
     char *d="olsdata";
-    impute(&d);
+    impute(&d, (int[]){0});
 
     
  /*   apop_model *stacked = apop_model_cross(apop_multivariate_normal,

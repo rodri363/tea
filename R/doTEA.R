@@ -81,10 +81,11 @@ doMImpute <- function(tag=NULL, input_table=teaenv$active_tab){
 #    }
     dbname <- dbGetInfo(teaenv$con)$dbname
     dbDisconnect(teaenv$con)
+    autofill <- 0
     if (!is.null(tag)){
-        .C("do_impute", as.character(tag), as.character(active_tab)) 
+        .C("do_impute", as.character(tag), as.character(active_tab), as.integer(autofill)) 
     } else {
-        .C("impute", as.character(active_tab)) 
+        .C("impute", as.character(active_tab), as.integer(autofill)) 
     }
     teaenv$con <- dbConnect(dbDriver("SQLite"),dbname)
 	teaenv$active_tab <- active_tab #active_tab may have changed

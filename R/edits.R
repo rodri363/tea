@@ -90,6 +90,7 @@ EditTable <- function(tabname, where=NULL){
     idcolname <- teaGetKey("id")
     idcol <- teaTable(tabname, cols=idcolname, where=where)
     fail <- TRUE
+    autofill <- 1
     while (fail) {
         fail <- FALSE
         glitches <- as.data.frame(.Call("RCheckData",t))
@@ -103,7 +104,7 @@ EditTable <- function(tabname, where=NULL){
         }
 
         if (fail){
-            .C("impute", as.character(tabname))
+            .C("impute", as.character(tabname), as.integer(autofill))
         }
         #These are rowids where we couldn't draw a consistent record
         hardFails <- teaTable("tea_fails")
