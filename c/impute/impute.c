@@ -478,7 +478,7 @@ The parent function, make_a_draw, then either writes the imputation to the db or
 */
 static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
         char type, int id_number, int model_id, char **oext_values,
-        int col_of_interest, bool has_edits){
+        int col_of_interest, bool has_edits, int autofill){
     a_draw_struct out = { };
 	static char const *const whattodo="passfail";
     double x;
@@ -516,15 +516,15 @@ static void setit(char const *tabname, int draw, char const *final_value, char c
                 char const *field_name, int autofill){
         if (!autofill)
             apop_query("insert into %s values(%i, '%s', '%s', '%s');",
-                       tabname,  draw, final_value, is->isnan->names->row[rowindex], is->depvar);
+                       tabname,  draw, final_value, id, field_name);
         else
             apop_query("update %s set %s = '%s' where  %s='%s');",
-                       tabname, is->depvar, final_value, id_col, is->isnan->names->row[rowindex]);
+                       tabname, field_name, final_value, id, id);
 }
 
 //a shell for do onedraw() while (!done).
 static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
-                        int model_id, int draw, apop_data *nanvals, char *filltab){
+                        int model_id, int draw, apop_data *nanvals, char *filltab, int autofill){
     char type = get_coltype(is->depvar);
     int col_of_interest;
     for (col_of_interest=0; col_of_interest<total_var_ct; col_of_interest++)
@@ -556,7 +556,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
             order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
         for (int i=0; i< total_var_ct; i++) pre_preedit[i] = strdup(oext_values[i]);
 
-        do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits);
+        do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits, autofill);
         while (drew.is_fail && tryctr++ < 1000);
         Tea_stopif(drew.is_fail, 
                 apop_query("insert into tea_fails values(%i)", id_number)
@@ -576,15 +576,14 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         bool got_depvar=false;
         for (int i=0; i< total_var_ct; i++)
             if (strcmp(oext_values[i], pre_preedit[i])){
-                setit(autofill?tabname:filltab, draw, final_value, is->isnan->names->row[rowindex], 
-                        full_record->names->text[i], autofill);
+                setit(autofill?datatab:filltab, draw, final_value, is->isnan->names->row[rowindex], 
+                        used_vars[i].name, autofill);
                 if (!strcmp(used_vars[i].name, is->depvar)) got_depvar=true;
             }
 
         if (!got_depvar)
-            setit(autofill?tabname:filltab, draw, final_value, is->isnan->names->row[rowindex], 
+            setit(autofill?datatab:filltab, draw, final_value, is->isnan->names->row[rowindex], 
                     is->depvar, autofill);
-        apop_data_free(full_record);
         free(final_value);
         free(drew.textx);
         for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
