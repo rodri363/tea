@@ -82,7 +82,6 @@ blankOne <- function(r, tabname, idcolname, id){
     m <- max(r) # greater than zero, because of the if statement in the caller below.
 #browser()
     blankme <- sample(names(r)[r[]==m], 1)
-    print(paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
     dbGetQuery(teaenv$con, paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
 }
 
@@ -102,7 +101,8 @@ EditTable <- function(tabname, where=NULL){
 #browser()
     fail <- TRUE
     autofill <- 1
-    while (fail) {
+    ctr=0
+    while (fail && ctr < 100) {
         fail <- FALSE
         glitches <- as.data.frame(.Call("RCheckData",t))
 
@@ -119,7 +119,7 @@ EditTable <- function(tabname, where=NULL){
         }
         #These are rowids where we couldn't draw a consistent record
         hardFails <- teaTable("tea_fails")
+        ctr <- ctr+1
     }
+    if (ctr == 100) warning("Some rows couldn't be edited into consistency.")
 }
-
-
