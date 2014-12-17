@@ -62,7 +62,6 @@ void index_cats(char const *tab, apop_data const *category_matrix){
     apop_data_free(cats);
 }
 
-	
 static int lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
     double temp_out[m->parameters->vector->size+1];
     m->draw = apop_ols->draw;
@@ -316,11 +315,11 @@ static void model_est(impustruct *is, int *model_id){
         assert(!isnan(apop_sum(is->fitted_model->parameters->vector)));*/
 }
 
-static void prep_for_draw(apop_data *notnan, impustruct *is){
+static void prep_for_draw(impustruct *is){
     apop_lm_settings *lms = apop_settings_get_group(is->fitted_model, apop_lm);
     if (is->textdep) apop_data_to_factors(is->notnan);
     if (lms){
-        apop_data *p = apop_data_copy(notnan);
+        apop_data *p = apop_data_copy(is->notnan);
         p->vector=NULL;
         lms->input_distribution = apop_estimate(p, apop_pmf);
         is->fitted_model->dsize=1;
@@ -653,7 +652,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                 is->is_hotdeck = (is->base_model->estimate == apop_multinomial->estimate 
                                         ||is->base_model->estimate ==apop_pmf->estimate);
                 model_est(is, &model_id); //notnan may be pmf_compressed here.
-                prep_for_draw(is->notnan, is);
+                prep_for_draw(is);
                 for (int innerdraw=0; innerdraw< innermax; innerdraw++)
                     make_a_draw(is, r, id_col, dt, model_id,
                                     GSL_MAX(outerdraw, innerdraw), nanvals, filltab, autofill);
