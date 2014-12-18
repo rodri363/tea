@@ -133,7 +133,7 @@ tests/asst_tests.c
 
 --------------Some important data structures:
 
-    keys: 
+keys: 
     a database table with a reduced version of the spec file. As per the tutorial,
     subsections of the spec get reduced into single lines here in the keys table.
     The procedure is detailed below.
@@ -268,16 +268,26 @@ to the donors, and draw from the estimated model to fill in the missing point.
 
 There is an impustruct struct that holds most of the information about each imputation
 segment in the spec. I pass this from function to function instead of lots of little
-items:
+items; see internals.h for the definition of the impustruct.
 
-typedef struct {
-    apop_model base_model, *fitted_model;
-    char * depvar, **allvars, *vartypes, *selectclause;
-    int position, allvars_ct, error;
-    apop_data *isnan, *notnan;
-    bool is_bounds_checkable, is_hotdeck, textdep, is_rake, is_regression;
-} impustruct;
+The basic flow in this section:
 
+--impute: for each tagged imputation segment of the spec, call do_impute
+--do_impute: check the spec. 
+    If EM algorithm, go to em_to_completion in em.c
+    else, call impute_a_variable
+--impute_a_variable: for each cluster of missings (via get_nans_and_notnans, see below), call make_a_draw
+--make_a_draw: for each element in the cluster, 
+    get the list of variables needed to do an edit.
+    call ondraw
+    record successful draws
+--onedraw: 
+    make a draw
+    fill in a scratch record in memory
+    call the consistency checker on the draw.
+
+
+Now that you have the outline, here is discussion in greater detail.
 
 Borrowing from the network literature (among others), I use "ego" to indicate the
 observation that we are currently trying to fill in. Here is the detailed procedure
@@ -286,9 +296,9 @@ turned out to be easier to just rewrite everything from scratch.
 
 --Imputation is customarily done by subgroups: we fill in for Californians
     with other Californians, or fill in for rich kids with other rich kids.
-    So first, identify the subcategory of the data for the missing data point
+    So first, identify the subcategory of the data for the missing data point.
 
---identify missing points, and candidates for estimation. This is get_nans_and_notnans().
+--identify missing points, and candidates for estimation, within groups. This is get_nans_and_notnans().
 	--Both are done at once because 80% of the work is the same, like the first
 		step of identifying ego's category.
 
@@ -305,7 +315,7 @@ turned out to be easier to just rewrite everything from scratch.
 		this variable is marked in that table; add thus-flagged id numbers to
 		the to-fill-in table.
 
-	--The output from get_nans_and_notnals is the ego table and donor table for
+	--The output from get_nans_and_notnans is the ego table and donor table for
 	the category.
 
 --Now, fill in missing values
@@ -318,7 +328,7 @@ turned out to be easier to just rewrite everything from scratch.
 
 	--There are many models that you can use. Notable:
 		--The Multinomial distribution == randomized hot deck. We don't care
-			about straight hot deck, which is an effort to simulate punched cards 
+			about non-random hot deck, which is an effort to simulate punched cards 
 			as closely as possible.
 		--One can implement a sequential regression setup by simply setting the
 			first model to be univariate, the second a 2-D regression, then a 3-D
@@ -326,35 +336,32 @@ turned out to be easier to just rewrite everything from scratch.
 		--Other models we've implemented basically fall into distributions (Normal,
 			 Multivariate Normal, Lognormal, Poisson, Kernel Density Estimation)
 			and generalized linear methods (Logit & probit).
-
-
-	--The interchangeable-model system will always be imperfect, so there are a few 
-		tweaks to be made. After the fitted_m=apop_estimate (donors, your_model) step, 
-		these are done if appropriate.
-		--The distribution given by the OLS model is incomplete: it depends 
-			on the underlying distribution of the input variables [and this is not an
-			Apophenia thing---it's the nature of OLS]. We specify a uniform prior. 
-			Similarly for logit and probit.
-
-	--Write-ups for sequential regression methods typically suggest looping back
-		and re-doing the regression as often as necessary. NaN observations at the
-		first round become donors in subsequent rounds.
-		--This is not yet implemented---it takes some bookkeeping. 
+        --The EM algorithm imputes several variables at once, and is in its own files,
+            em.c and em_weights.c.
 
 --Draw
 	--As above, this step is one line for a straight draw.
 	--Check that the drawn value is within the bounds declared for a field. If we send a
         negative age to consistency_check, it'll break, so round as needed here.
+    --We want to check only those edits that somehow involve the variable of interest
+        --if we're imputing x but y has a failing value, then there's no
+            way we can generate a value of x that produces a clean record
+        --The second-best method used here is to generate a record using
+            only those values that appear somwhere in an edit involving x
+        --doing it right would involve rewriting consistency_check to check only
+            checks involving a variable/variables of interest
 	--Run consistency_check, and throw out if the draw doesn't pass
 	--We want to multiply impute, which typically means just repeating the draw step as often as needed.
         --in some cases it will mean re-estimating the model, especially when this
             imputation step builds on a previous imputation.
 	--the output is a multi-impute table, with a row/col coordinate for what's
 		being filled in, plus a column per imputation.
+    --This is often overkill, and we just want to fill in the table sent in; this is the
+        autofill option.
 
 --Anybody left? If somebody didn't have enough data in their category to produce good
     estimates, remove the bottom-most category from the list and re-run.
 
---At the end of this, the data is untouched, but the fill-in table has a number of
-    imputations for each (rowid, field) that was blank. Use check_out_impute (in C)
-    or checkOutImpute (the R wrapper) to produce a filled table.
+--At the end of this, assuming no autofill, the data is untouched, but the fill-in
+    table has a number of imputations for each (rowid, field) that was blank. Use
+    check_out_impute (in C) or checkOutImpute (the R wrapper) to produce a filled table.
