@@ -48,22 +48,9 @@ static char *construct_a_query(char const *datatab, char const *underlying, char
     //else
     for (int i=0; i< category_matrix->textsize[0]; i++){
         char *n = *category_matrix->text[i]; //short name
-        if (strcmp(n, depvar)){ //if n==depvar, you're categorizing by the missing var.
-
-            /* apop_data *category_str = apop_query_to_text("select %s from %s where %s is \
-                      null limit 1", n, datatab, n);
-
-            Tea_stopif(category_str == NULL, return, 0, "I returned a NULL apop_data \
-                    ptr. Something is wrong here."); 
-
-            Tea_stopif(strcmp(**category_str->text, "NaN"), return, 0, "You gave me a null \
-                    category. You should either check your syntax to make sure that \
-                    you're giving me the right value, or consider imputing the \
-                    category you gave me at an earlier point in your spec file."); */
-
+        if (strcmp(n, depvar)) //if n==depvar, you're categorizing by the missing var.
             qxprintf(&q, "%s (%s) = (select %s from %s where %s = %s) and\n",  
                            q,  n,           n,  datatab, id_col, ego_id);
-        }
     }
     return q;
 }
@@ -398,7 +385,7 @@ The parent function, make_a_draw, then either writes the imputation to the db or
 */
 static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
         char type, int id_number, int model_id, char **oext_values,
-        int col_of_interest, bool has_edits, int autofill){
+        int col_of_interest, bool has_edits){
     a_draw_struct out = { };
 	static char const *const whattodo="passfail";
     double x;
@@ -430,7 +417,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 }
 
 static void setit(char const *tabname, int draw, char const *final_value, char const *id_col,
-        char const *id, char const *field_name, int autofill){
+        char const *id, char const *field_name, bool autofill){
         if (!autofill)
             apop_query("insert into %s values(%i, '%s', '%s', '%s');",
                        tabname,  draw, final_value, id, field_name);
@@ -441,7 +428,7 @@ static void setit(char const *tabname, int draw, char const *final_value, char c
 
 //a shell for do onedraw() while (!done).
 static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
-                        int model_id, int draw, apop_data *nanvals, char *filltab, int autofill){
+                        int model_id, int draw, apop_data *nanvals, char *filltab){
     char type = get_coltype(is->depvar);
     int col_of_interest;
     for (col_of_interest=0; col_of_interest<total_var_ct; col_of_interest++)
@@ -472,7 +459,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
             order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
         for (int i=0; i< total_var_ct; i++) pre_preedit[i] = strdup(oext_values[i]);
 
-        do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits, autofill);
+        do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits);
         while (drew.is_fail && tryctr++ < 1000);
         Tea_stopif(drew.is_fail, 
                 apop_query("insert into tea_fails values(%i)", id_number)
@@ -493,8 +480,8 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         //imputing to begin with.
         for (int i=0; i< total_var_ct; i++)
             if (strcmp(oext_values[i], pre_preedit[i]) || !strcmp(used_vars[i].name, is->depvar))
-                setit(autofill?datatab:filltab, draw, final_value, id_col,
-                        is->isnan->names->row[rowindex], used_vars[i].name, autofill);
+                setit(is->autofill?datatab:filltab, draw, final_value, id_col,
+                        is->isnan->names->row[rowindex], used_vars[i].name, is->autofill);
         free(final_value);
         free(drew.textx);
         for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
@@ -521,7 +508,7 @@ double still_is_nan(apop_data *in){return in->names->row[0][strlen(*in->names->r
 static void impute_a_variable(const char *datatab, const char *underlying, impustruct *is, 
         const int min_group_size, gsl_rng *r, const int draw_count, apop_data *category_matrix, 
         const apop_data *fingerprint_vars, const char *id_col, char *filltab,
-        char *previous_filltab, int autofill){
+        char *previous_filltab){
     static int model_id=-1;
     apop_data *nanvals = get_all_nanvals(*is, id_col, datatab);
     if (!nanvals) return;
@@ -565,7 +552,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                 prep_for_draw(is);
                 for (int innerdraw=0; innerdraw< innermax; innerdraw++)
                     make_a_draw(is, r, id_col, dt, model_id,
-                                    GSL_MAX(outerdraw, innerdraw), nanvals, filltab, autofill);
+                                    GSL_MAX(outerdraw, innerdraw), nanvals, filltab);
                 apop_model_free(is->fitted_model); //if (is_hotdeck) apop_data_free(is->fitted_model->data);
                 bail:
                 apop_data_free(is->notnan);
@@ -796,6 +783,7 @@ int do_impute(char **tag, char **idatatab, int *autofill){
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
 
     impustruct model = read_model_info(configbase, *tag, id_col);
+    model.autofill = *autofill;
     Tea_stopif(model.error, return -1, 0, "Trouble reading in model info.");
 
     if (model.is_em) {
@@ -820,12 +808,12 @@ if(catlist) printf("%s\n", catlist->text[i][0]);
             char *margintab = get_key_word_tagged(configbase, "margin table", *tag);
             em_to_completion(*idatatab, underlying, model, min_group_size, 
                         r, draw_count, wherecat, fingerprint_vars, id_col, 
-                        weight_col, out_tab, margintab, previous_fill_tab, *autofill);
+                        weight_col, out_tab, margintab, previous_fill_tab);
         }
     }
     else impute_a_variable(*idatatab, underlying, &model, min_group_size, 
                 r, draw_count, category_matrix, fingerprint_vars, id_col, out_tab,
-                previous_fill_tab, *autofill);
+                previous_fill_tab);
     apop_data_free(fingerprint_vars);
     apop_data_free(category_matrix);
     sprintf(apop_opts.db_name_column, "%s", tmp_db_name_col);
