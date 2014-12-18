@@ -363,8 +363,6 @@ void init_edit_list(){
 	}
     if (edit_list) {
         Tea_stopif(!database,return, 0, "Please declare a database using 'database: your_db'.");
-        apop_table_exists("editinfo", 'd');
-        apop_query("create table editinfo (row, edit, infotype, val1, val2);");
         if (!apop_table_exists("alternatives"))
             apop_query("create table alternatives (run, id, field, value);");
         apop_query("delete from alternatives where run = %i", run_number);

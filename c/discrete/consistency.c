@@ -71,7 +71,7 @@ bool run_preedits(char ** oext_values, char const *preed){
         if (*oext_values[ctr]=='\0') continue;
         asprintf(oext_values+ctr, newvals->text[0][f]);
         out=true;
-    };
+    }
 
     apop_data_free(newvals);
     return out;
@@ -79,7 +79,6 @@ bool run_preedits(char ** oext_values, char const *preed){
 
 //call iff there are SQL edits to be checked.
 static int check_a_record_sql(char ** oext_values, int ** ofailures,
-           //              char *restrict* ud_post_preedit, //if we don't wan't preedits, NULL
                          int wanted_preed  //if the discrete edits found a failure, its row number is here; else -1.
                          ){
     int out = 0;
@@ -134,15 +133,6 @@ static int entering (int const row, int const rec){
 }
 
 static void report_failure(int i, int const *rowfailures){
-   /* for (int m=0; m< edit_grid->textsize[1]; m++)
-        if (strlen(edit_grid->text[i][m]))
-            apop_query("insert into editinfo values(%i, %i, 'f', \"%s\", '')",
-                                         rownumber, i, edit_grid->text[i][m]);
-    for (int m=0; m< total_var_ct; m++)
-        if (rowfailures[m])
-            apop_query("insert into editinfo values(%i, %i, 'r', \"%s\", '%s')",
-                                         rownumber, i, used_vars[m].name,
-                                         ext_from_ri(used_vars[m].name, rowfailures[m]));*/
     if (verbose){
         printf("Failed edits:\n");
         for (int m=0; m< edit_grid->textsize[1]; m++)
@@ -293,7 +283,6 @@ static void do_a_combo(int *record, char **oext_values,
 									fillme->matrix = apop_matrix_realloc(
 												fillme->matrix,
 												fillme->matrix->size1*2, fillme->matrix->size2);
-								//int rec_by_user_ordering = edit_order_to_user_order(this_fieldx, record_name_in, field_count);
                                 apop_data_set(fillme, .col=this_field,
                                         .row=this_row, 
                                         .val=j-(find_b[this_field]-1));
