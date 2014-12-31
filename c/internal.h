@@ -79,3 +79,8 @@ void pastein_tests(); //found in tea/c/pastein_tests.c -- called in asst_tests.c
 void test_check_out_impute();//in checkout.c
 
 int has_sqlite3_index(char const *table, char const *column, char);//text_in/text_in.c
+
+//utils.c
+int create_index_base(char const *tab, char const**fields);
+//Just one field to index? Use this:
+#define create_index(tab, f) create_index_base(tab, (char const*[]){f, NULL})

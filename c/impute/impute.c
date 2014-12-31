@@ -56,12 +56,11 @@ int blank_fingerprints(char const **datatab){
 
 void index_cats(char const *tab, apop_data const *category_matrix){
     if (!category_matrix||!*category_matrix->textsize) return;
-    char *cats = apop_text_paste(category_matrix, .between=", ");
-    char *c2 = apop_text_paste(category_matrix, .between="_");
-    apop_query("create index idx_%s_%s on %s(%s)", tab, c2, tab, cats);
+    apop_data *cats = apop_text_alloc(apop_data_transpose((apop_data*)category_matrix, .inplace='n'), 1, *category_matrix->textsize+1);
+    cats->text[0][*category_matrix->textsize] = NULL;
+    create_index_base(tab, (const char**)*cats->text);
+    apop_data_free(cats);
 }
-
-
 
 	
 static int lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
@@ -828,12 +827,10 @@ int do_impute(char **tag, char **idatatab, int *autofill){
     if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r);
     //I depend on this column order in a few other places, like check_out_impute_base.
     if (!*autofill && !apop_table_exists(out_tab))
-        apop_query("create table %s ('draw', 'value', '%s', 'field');"
-                "create index idx_%s_%s   on %s (%s);"
-                "create index idx_%s_field  on %s (field);"
-                "create index idx_%s_draw on %s (draw);",
-                    out_tab,id_col, id_col, out_tab, out_tab, id_col,
-                    out_tab, out_tab, out_tab, out_tab);
+        apop_query("create table %s ('draw', 'value', '%s', 'field');", out_tab,id_col);
+    create_index(out_tab, id_col);
+    create_index(out_tab, "field");
+    create_index(out_tab, "draw");
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
 
     impustruct model = read_model_info(configbase, *tag, id_col);
