@@ -195,7 +195,8 @@ static void model_est(impustruct *is, int *model_id){
     //maybe check here for constant columns in regression estimations.
     if (notnan->text && !apop_data_get_page(notnan,"<categories"))
         for (int i=0; i< notnan->textsize[1]; i++){
-            if (!is->is_hotdeck && is->textdep && strcmp(notnan->names->col[i], is->depvar) )
+            if (!is->is_hotdeck && is->textdep && 
+                   strcmp(notnan->names->col? notnan->names->col[i] : notnan->names->text[i], is->depvar) )
                 apop_data_to_dummies(notnan, i, .keep_first='y', .append='y');
             //the actual depvar got factor-ized in prep_for_draw.
 //            apop_data_to_dummies(is->isnan, i, .keep_first='y', .append='y'); //presumably has the same structure.
@@ -326,7 +327,7 @@ static char *get_edit_associates(char const*depvar, char const*dt, char const*id
     if (!this->edit_associates){
         this->edit_associates = apop_text_alloc(NULL, 1, 1);
         apop_text_add(this->edit_associates, 0, 0, depvar);
-        for(edit_t *this_ed=edit_list; this_ed->clause; this_ed++){
+        for(edit_t *this_ed=edit_list; this_ed && this_ed->clause; this_ed++){
             bool use_this_edit=false;
             for(int i=0; i< this_ed->var_ct; i++)
                 if ((use_this_edit=!strcasecmp(depvar, this_ed->vars_used[i].name))) break;
@@ -433,7 +434,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
     int col_of_interest;
     for (col_of_interest=0; col_of_interest<total_var_ct; col_of_interest++)
         if (!strcmp(is->depvar, used_vars[col_of_interest].name)) break;
-    Tea_stopif(col_of_interest==total_var_ct, return, 0, "I couldn't find %s in the list of column names.", is->depvar);
+    Tea_stopif(col_of_interest==total_var_ct, return, 0, "I couldn't find %s in the list of declared fields.", is->depvar);
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         char *name = is->isnan->names->row[rowindex];
         if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)==-1){
@@ -721,7 +722,6 @@ char *configbase = "impute";
   TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
  */
 int do_impute(char **tag, char **idatatab, int *autofill){ 
-    Tea_stopif(get_key_word("impute", "input table") == NULL, return -1, 0, "You need to specify an input table in your impute key.");
     Tea_stopif(get_key_word("impute", "method") == NULL, return -1, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
     
     Tea_stopif(!*tag, return -1, 0, "All the impute segments really should be tagged.");
