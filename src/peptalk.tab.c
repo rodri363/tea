@@ -173,14 +173,13 @@ used_var_t *used_vars;
 edit_t *edit_list;
 char *var_list, *current_key, parsed_type;
 int val_count, preed2;
-apop_data *pre_edits;
 int pass, has_edits, file_read;
 char  *nan_marker;
 double nextweight;
 
 
 /* Line 371 of yacc.c  */
-#line 184 "peptalk.tab.c"
+#line 183 "peptalk.tab.c"
 
 # ifndef YY_NULL
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -258,7 +257,7 @@ int yyparse ();
 /* Copy the second part of user declarations.  */
 
 /* Line 390 of yacc.c  */
-#line 262 "peptalk.tab.c"
+#line 261 "peptalk.tab.c"
 
 #ifdef short
 # undef short
@@ -563,12 +562,12 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,   119,   119,   120,   123,   124,   125,   126,   127,   128,
-     131,   141,   141,   144,   145,   148,   149,   150,   151,   152,
-     153,   158,   158,   158,   160,   161,   160,   162,   162,   163,
-     164,   163,   167,   168,   169,   174,   175,   178,   179,   180,
-     183,   184,   185,   186,   187,   188,   191,   192,   193,   196,
-     197,   198,   199,   200,   201,   202
+       0,   118,   118,   119,   122,   123,   124,   125,   126,   127,
+     130,   140,   140,   143,   144,   147,   148,   149,   150,   151,
+     152,   157,   157,   157,   159,   160,   159,   161,   161,   162,
+     163,   162,   166,   167,   168,   173,   174,   177,   178,   179,
+     182,   183,   184,   185,   186,   187,   190,   191,   192,   195,
+     196,   197,   198,   199,   200,   201
 };
 #endif
 
@@ -1520,171 +1519,171 @@ yyreduce:
     {
         case 10:
 /* Line 1792 of yacc.c  */
-#line 131 "peptalk.y"
+#line 130 "peptalk.y"
     {extend_key((yyvsp[(1) - (3)])); if(add_keyval(current_key, (yyvsp[(3) - (3)])) == -1){YYABORT;}
             else { reduce_key((yyvsp[(1) - (3)])); } }
     break;
 
   case 11:
 /* Line 1792 of yacc.c  */
-#line 141 "peptalk.y"
+#line 140 "peptalk.y"
     {extend_key((yyvsp[(1) - (2)]));}
     break;
 
   case 12:
 /* Line 1792 of yacc.c  */
-#line 141 "peptalk.y"
+#line 140 "peptalk.y"
     {reduce_key((yyvsp[(1) - (5)]));}
     break;
 
   case 19:
 /* Line 1792 of yacc.c  */
-#line 152 "peptalk.y"
+#line 151 "peptalk.y"
     {warning("Trouble parsing an item [%s] in the list of fields on line %d", (yyvsp[(1) - (1)]), lineno);}
     break;
 
   case 20:
 /* Line 1792 of yacc.c  */
-#line 153 "peptalk.y"
+#line 152 "peptalk.y"
     { if (apop_strcmp(current_key, "checks")) {add_check((yyvsp[(1) - (1)]));}
                    else if(add_keyval(current_key, (yyvsp[(1) - (1)])) != -1){} else YYABORT;}
     break;
 
   case 21:
 /* Line 1792 of yacc.c  */
-#line 158 "peptalk.y"
+#line 157 "peptalk.y"
     {add_check((yyvsp[(1) - (1)])); preed2=1;}
     break;
 
   case 22:
 /* Line 1792 of yacc.c  */
-#line 158 "peptalk.y"
+#line 157 "peptalk.y"
     {store_right((yyvsp[(4) - (4)]));preed2=0;}
     break;
 
   case 24:
 /* Line 1792 of yacc.c  */
-#line 160 "peptalk.y"
+#line 159 "peptalk.y"
     {add_var((yyvsp[(2) - (4)]),0, parsed_type);}
     break;
 
   case 25:
 /* Line 1792 of yacc.c  */
-#line 161 "peptalk.y"
+#line 160 "peptalk.y"
     {add_to_num_list(nan_marker ? strdup(nan_marker): NULL);}
     break;
 
   case 27:
 /* Line 1792 of yacc.c  */
-#line 162 "peptalk.y"
+#line 161 "peptalk.y"
     {add_var((yyvsp[(2) - (4)]),0, parsed_type);}
     break;
 
   case 29:
 /* Line 1792 of yacc.c  */
-#line 163 "peptalk.y"
+#line 162 "peptalk.y"
     {parsed_type='c'; add_var((yyvsp[(2) - (3)]),0, 'c');}
     break;
 
   case 30:
 /* Line 1792 of yacc.c  */
-#line 164 "peptalk.y"
+#line 163 "peptalk.y"
     {add_to_num_list(nan_marker ? strdup(nan_marker): NULL);}
     break;
 
   case 35:
 /* Line 1792 of yacc.c  */
-#line 174 "peptalk.y"
+#line 173 "peptalk.y"
     {nextweight = atof((yyvsp[(1) - (1)]));}
     break;
 
   case 36:
 /* Line 1792 of yacc.c  */
-#line 175 "peptalk.y"
+#line 174 "peptalk.y"
     {nextweight = 1.0;}
     break;
 
   case 40:
 /* Line 1792 of yacc.c  */
-#line 183 "peptalk.y"
+#line 182 "peptalk.y"
     {add_to_num_list_seq((yyvsp[(1) - (3)]), (yyvsp[(3) - (3)]));}
     break;
 
   case 41:
 /* Line 1792 of yacc.c  */
-#line 184 "peptalk.y"
+#line 183 "peptalk.y"
     {add_to_num_list((yyvsp[(1) - (1)]));}
     break;
 
   case 42:
 /* Line 1792 of yacc.c  */
-#line 185 "peptalk.y"
+#line 184 "peptalk.y"
     {add_to_num_list((yyvsp[(1) - (1)]));}
     break;
 
   case 43:
 /* Line 1792 of yacc.c  */
-#line 186 "peptalk.y"
+#line 185 "peptalk.y"
     {add_to_num_list("*");}
     break;
 
   case 44:
 /* Line 1792 of yacc.c  */
-#line 187 "peptalk.y"
+#line 186 "peptalk.y"
     {used_vars[total_var_ct-1].weight = atof((yyvsp[(2) - (2)]));}
     break;
 
   case 45:
 /* Line 1792 of yacc.c  */
-#line 188 "peptalk.y"
+#line 187 "peptalk.y"
     {Rf_error("Error in list around [%s] line [%d].", (yyvsp[(1) - (1)]),lineno);}
     break;
 
   case 46:
 /* Line 1792 of yacc.c  */
-#line 191 "peptalk.y"
+#line 190 "peptalk.y"
     {moreblob(&(yyval),(yyvsp[(1) - (2)]),(yyvsp[(2) - (2)]));}
     break;
 
   case 47:
 /* Line 1792 of yacc.c  */
-#line 192 "peptalk.y"
+#line 191 "peptalk.y"
     {moreblob(&(yyval),"",(yyvsp[(1) - (1)]));}
     break;
 
   case 51:
 /* Line 1792 of yacc.c  */
-#line 198 "peptalk.y"
+#line 197 "peptalk.y"
     {(yyval)=",";}
     break;
 
   case 52:
 /* Line 1792 of yacc.c  */
-#line 199 "peptalk.y"
+#line 198 "peptalk.y"
     {(yyval)="*";}
     break;
 
   case 53:
 /* Line 1792 of yacc.c  */
-#line 200 "peptalk.y"
+#line 199 "peptalk.y"
     {(yyval)="-";}
     break;
 
   case 54:
 /* Line 1792 of yacc.c  */
-#line 201 "peptalk.y"
+#line 200 "peptalk.y"
     {(yyval)="$";}
     break;
 
   case 55:
 /* Line 1792 of yacc.c  */
-#line 202 "peptalk.y"
+#line 201 "peptalk.y"
     {(yyval)=" ";}
     break;
 
 
 /* Line 1792 of yacc.c  */
-#line 1688 "peptalk.tab.c"
+#line 1687 "peptalk.tab.c"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1916,7 +1915,7 @@ yyreturn:
 
 
 /* Line 2055 of yacc.c  */
-#line 204 "peptalk.y"
+#line 203 "peptalk.y"
 
 
 #include <apop.h>
@@ -2201,7 +2200,7 @@ void moreblob(char **out, char* so_far, char *more){
         }
         bool isreal = false;
         for (int i=0, isfound=0; i< total_var_ct && !isfound && !isreal; i++) 
-            if((isfound=!strcmp(more, used_vars[i].name)))
+            if((isfound=!strcasecmp(more, used_vars[i].name)))
                 isreal= (used_vars[i].type=='r');
         if (!is_used){ //it's a var, but I haven't added it to the list for this q.
             if (!var_list) var_list = strdup(more);
@@ -2260,18 +2259,16 @@ by store_right below.  */
 
 void do_preedits(char **datatab){
     //takes in pointer-to-string for compatibility with R.
-	if (pre_edits)
-		for (int i=0; i < pre_edits->textsize[0]; i++)
-			apop_query("update %s %s", *datatab, pre_edits->text[i][0]);
+    for (int i=0; i < query_ct; i++)
+        if (edit_list[i].pre_edit)
+			apop_query("update %s %s", *datatab, edit_list[i].pre_edit);
 }
 
 /* I store a list of pre-edits in preedits, visible anywhere internal.h is present.
    They're read here, and then executed using do_preedits.  */
 void store_right(char *fix){ 
     if (pass !=1) return;
-    int ts = pre_edits ? pre_edits->textsize[0] : 0;
-    pre_edits = apop_text_alloc(pre_edits, ts+1, 1);
-    apop_text_add(pre_edits,ts,0, " set %s where %s;", fix, last_preed);
+    asprintf(&edit_list[query_ct-1].pre_edit," set %s where %s;", fix, last_preed);
     free(last_preed);
 }
 

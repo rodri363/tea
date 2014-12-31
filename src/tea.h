@@ -100,7 +100,7 @@ Any existing table at that point in the alternatives list gets freed when I writ
   */
 apop_data * consistency_check(char * const *record_name_in, char * const *ud_values, 
 			int const *record_in_size, char const *const *what_you_want, 
-			int const *id, int *fails_edits, int *failed_fields);
+			int const *id, int *fails_edits, int *failed_fields, char * restrict *ud_post_preedit);
 
 apop_data *checkData(apop_data *data);
 
@@ -113,7 +113,7 @@ char* get_key_word(char const *part1, char const *part2);
 char* get_key_word_tagged(char const *part1, char const *part2, char const *tag);
 void set_key_text(char const *group, char const *key, char const *value);
 
-void impute(char **active_tab);
+void impute(char **active_tab, int *autofill);
 void text_in();
 
 void do_preedits(char **datatab);

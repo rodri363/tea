@@ -6,6 +6,7 @@
 #' This is normally done for you by readSpec. Use this if you don't have a spec file 
 #' but want to run some queries on an already-processed database.
 teaConnect <-function(dbname){
+    teaenv$dbname <- dbname
     teaenv$con <- dbConnect(dbDriver("SQLite"), dbname)
     .C("db_open", dbname)
 }
@@ -75,4 +76,51 @@ CheckBounds <- function(Vvar,kname,con){
 
 CheckDF <- function(df){
 	return(as.data.frame(.Call("RCheckData",df)))
+}
+
+blankOne <- function(r, tabname, idcolname, id){
+    m <- max(r) # greater than zero, because of the if statement in the caller below.
+#browser()
+    blankme <- sample(names(r)[r[]==m], 1)
+    print(paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
+    dbGetQuery(teaenv$con, paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
+}
+
+#' Take in the name of a table in the database and an optional 'where' clause;
+#' pull the subset specified, and check each row.
+#' If a row fails, blank the element that fails the most edits (in case of ties,
+#' randomly draw among the most failed), then call the imputation routine on that row.
+EditTable <- function(tabname, where=NULL){
+    if (!is.character(tabname)) {
+        print("Give this function a name from the database.")
+        return(NULL)
+    }
+
+    t <- teaTable(tabname, where=where)
+    idcolname <- teaGetKey("id")
+    idcol <- teaTable(tabname, cols=idcolname, where=where)
+    fail <- TRUE
+    autofill <- 1
+    ctr <- 0 # Note also that the imputation makes 1,000 tries/record.
+    while (fail == TRUE && ctr < 10) {
+        fail <- FALSE
+        glitches <- as.data.frame(.Call("RCheckData",t))
+
+        for (i in 1:nrow(glitches)){
+            r <- glitches[i,]
+            if (sum(r)>0){
+                fail <- TRUE
+                blankOne(r, tabname, idcolname, idcol[[1]][i])
+            }        
+        }
+
+        if (fail){
+            .C("impute", as.character(tabname), as.integer(autofill))
+        }
+        #These are rowids where we couldn't draw a consistent record
+        hardFails <- teaTable("tea_fails")
+        fail <- hardFails
+        ctr <- ctr+1
+    }
+    if (ctr == 10) warning("Some rows couldn't be edited into consistency.")
 }

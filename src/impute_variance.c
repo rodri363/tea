@@ -85,7 +85,7 @@ static apop_data *colmeans(apop_data *in){
     Get_vmsizes(in); //maxsize
     apop_data *sums = apop_data_summarize(in);
     Apop_col_tv(sums, "mean", means);
-    apop_data *out = apop_matrix_to_data(apop_vector_to_matrix(means, 'r'));
+    apop_data *out = apop_data_copy(&(apop_data){.matrix=apop_vector_to_matrix(means, 'r')});
     apop_name_stack(out->names, in->names, 'c', 'c');
     apop_data *cov = apop_data_add_page(out, apop_data_covariance(in), "<Covariance>");
     gsl_matrix_scale(cov->matrix, 1/sqrt(maxsize));

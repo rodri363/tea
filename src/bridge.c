@@ -17,7 +17,7 @@ extern int speer_(void);
 
 void generate_indices(char const *);
 
-int edit_ct, nflds, errorcount, verbose, run_number, explicit_ct;
+int edit_ct, errorcount, verbose, run_number, explicit_ct;
 int *find_b, *find_e;
 FILE *yyin;
 int total_var_ct, *optionct;
@@ -139,15 +139,16 @@ void db_to_em(void){
                     grow_grid(edit_grid, &em_i, total_option_ct);
                     gsl_vector_set(edit_grid->vector, em_i-1, 2); //2==use the SQL-based edit system
                     edit_grid_to_list[em_i-1] = edit_list + current_explicit;
-                    goto Edited; //a use of goto! This is where we've finished an edit and are stepping forward.
+                    goto Edited; //We've finished an edit and are stepping forward.
                 }
             //else, standard discrete-indexed matrix
 
 			if (!d) d = apop_query_to_text("%s", ud_queries->text[current_explicit][0]);
             Tea_stopif(d && d->error, return, 0, "query error setting up edit grid; edits after this one won't happen.");
             grow_grid(edit_grid, &em_i, total_option_ct);
-            Apop_row_v(edit_grid, em_i-1, a_row)
+            gsl_vector *a_row = Apop_rv(edit_grid, em_i-1);
             gsl_vector_set_all(a_row, -1); //first posn of a field==-1 ==> ignore.
+            edit_grid_to_list[em_i-1] = edit_list + current_explicit;
             if (verbose) printf("Next edit.\n");
 
             next_phase = 'd';
@@ -319,11 +320,9 @@ void set_key_text_for_R(char **group, char **key, char **value){
 
 void start_over(){ //Reset everything in case this wasn't the first call
     extern int file_read, impute_is_prepped;
-    extern apop_data *pre_edits;
     free(edit_list); 
     reset_ri_ext_table();
     apop_data_free(edit_grid);
-    apop_data_free(pre_edits);
     edit_list = NULL;
     if (used_vars){
         for (int i=0; used_vars[i].name; i++)
@@ -335,7 +334,6 @@ void start_over(){ //Reset everything in case this wasn't the first call
     fname = "-stdin-";
     lineno = 1;
     pass = 0;
-    nflds = 0;
     edit_ct = 0;
     query_ct = 0;
     has_edits = 0;
@@ -348,8 +346,8 @@ void start_over(){ //Reset everything in case this wasn't the first call
 }
 
 void setup_findxbe(){
-    find_b = malloc(sizeof(int)*nflds);
-    find_e = malloc(sizeof(int)*nflds);
+    find_b = malloc(sizeof(int)*total_var_ct);
+    find_e = malloc(sizeof(int)*total_var_ct);
     find_b[0] = 1;
     find_e[0] = optionct[0];
     for(int i =1; i< total_var_ct; i++){
@@ -359,14 +357,12 @@ void setup_findxbe(){
 }
 
 void init_edit_list(){
-	if (nflds){
+	if (total_var_ct){
         setup_findxbe();
         db_to_em();
 	}
     if (edit_list) {
         Tea_stopif(!database,return, 0, "Please declare a database using 'database: your_db'.");
-        apop_table_exists("editinfo", 'd');
-        apop_query("create table editinfo (row, edit, infotype, val1, val2);");
         if (!apop_table_exists("alternatives"))
             apop_query("create table alternatives (run, id, field, value);");
         apop_query("delete from alternatives where run = %i", run_number);
@@ -414,7 +410,6 @@ void read_spec(char **infile, char **dbname_out){
 	lineno=1;
     yyparse();   //use the parser to assemble edits
     //Apop_assert(!errorcount, "%i errors. Please fix and re-run.\n", errorcount);
-    nflds = total_var_ct;
 	dbname_out[0] = strdup(database);
     join_tables();
     commit_transaction();
@@ -430,7 +425,7 @@ int get_num_typos(){
 void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *is_sub){
 	apop_data *dout = *is_sub 
                         ? get_sub_key(group ? *group : NULL, key ? *key : NULL)
-                        : get_key_text_tagged(group ? *group : NULL, *key, (tag ? *tag:NULL));
+                        : get_key_text_tagged(group ? *group : NULL, key ? *key : NULL, (tag ? *tag:NULL));
 	if (!dout){
 	    *out = 0;
 	    return;
@@ -442,7 +437,7 @@ void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *i
 void get_key_text_for_R(char **group, char **key, char **tag, char **out, int *is_sub){
 	apop_data *dout = (*is_sub)
     	                ? get_sub_key(*group, key ? *key : NULL)
-	                    : get_key_text_tagged(*group, *key, (tag ? *tag:NULL));
+	                    : get_key_text_tagged(*group, key ? *key :NULL, (tag ? *tag:NULL));
 	if (!dout) return;
     for (int i=0; i< dout->textsize[0]; i++)
         out[i] = strdup(dout->text[i][0]);

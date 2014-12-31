@@ -5,6 +5,7 @@ input {
     input file: editcheck.data
     output table: ed
     overwrite: yes
+    delimiters: !
 }
 
 fields{

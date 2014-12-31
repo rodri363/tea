@@ -1,0 +1,13 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+RCheckConsistency	PEPedits.c	/^SEXP RCheckConsistency(SEXP Rrecord_name_in, SEXP Rud_values, SEXP Rrecord_in_size,$/;"	f
+RCheckData	PEPedits.c	/^SEXP RCheckData(SEXP df){$/;"	f
+R_init_tea	PEPedits.c	/^void R_init_tea(DllInfo *info){$/;"	f
+TEA_R_STRSXP_TO_C	PEPedits.c	/^char **(*TEA_R_STRSXP_TO_C)(SEXP s);$/;"	v
+rapop_ad_from_df	PEPedits.c	/^apop_data_from_frame_type *rapop_ad_from_df;\/\/alloced in PEPedits.c:R_init_tea$/;"	v
+rapop_df_from_ad	PEPedits.c	/^data_frame_from_apop_data_type *rapop_df_from_ad;\/\/alloced in PEPedits.c:R_init_tea$/;"	v
+using_r	PEPedits.c	/^int using_r = 0; \/\/r_init handles this. If zero, then it's a standalone C library.$/;"	v

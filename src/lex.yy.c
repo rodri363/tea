@@ -993,7 +993,7 @@ YY_RULE_SETUP
 				include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
 
 				yyin = fopen( yytext, "r" );
-				Tea_stopif(!yyin, return -1, 0, "You asked me to include %s, but I couldn't open that file.", yytext);
+				Tea_stopif(!yyin, return -1, 0, "You asked me to include %s, but I couldn't open that file.", strdup(yytext));
 
 				yy_switch_to_buffer(yy_create_buffer(yyin,YY_BUF_SIZE ) );
 

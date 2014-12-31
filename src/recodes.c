@@ -4,7 +4,7 @@
 void generate_indices(char const *tablename); //in text_in.c
 extern int file_read;
 
-#define Qcheck(...) if (__VA_ARGS__) abort();
+#define Qcheck(...) Tea_stopif (apop_query(__VA_ARGS__), return 0, 0, "Query failed: " __VA_ARGS__)
 
 /* recode_list is the recode spec for one variable. Could be 
    A | age >3
@@ -13,6 +13,7 @@ or it could be
     age/2. + 7
 */
 static char *one_recode_to_string(apop_data const *recode_list, int *is_formula, int *has_else, int doedits){
+    if (!recode_list) return NULL;
     char *clauses=NULL;
     for (int j=0; j < *recode_list->textsize; j++){
         apop_data *one_rc = NULL;
@@ -59,6 +60,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
                 "(key like '%s%%' and key not like '%s%%no checks' and key not like 'group recodes/group id')"
                 " order by tag", *key, *key);
     if (!all_recodes || !*all_recodes->textsize) return;
+
     for(int i=0; i < *all_recodes->textsize; i++) // "recodes/var1" ==> "var1"
         *all_recodes->text[i] = strrchr(*all_recodes->text[i], '/')+1;
     if (verbose) apop_data_show(all_recodes);
@@ -75,7 +77,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         char *varname = all_recodes->text[i][0]; //just an alias
         char comma = ' ';
         apop_data *recode_list = get_key_text(*key, varname);
-        Tea_stopif(recode_list && !recode_list->textsize[0], return, 0,
+        Tea_stopif(!(recode_list && *recode_list->textsize), return, 0,
                         "%s looks like a recode field, but I can't parse "
                         "its recodes. Please check on this.", varname);
         
@@ -88,6 +90,9 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
         if (doedits) add_var(varname, 1, 'n');
         if (verbose) printf("%s recode list size: %zu\n",varname,recode_list->textsize[0]);
         char *clauses = one_recode_to_string(recode_list, &is_formula, &has_else, doedits);
+        Tea_stopif(!clauses, return, 0,
+                        "%s looks like a recode field, but it has a blank or unparseable recode. "
+                        "Please check on this.", varname);
 
         //clauses is now the core of a variable definition. Wrap it and add it to the list.
         if (!is_formula && !has_else) asprintf(&clauses, "%s else null\n", clauses);
@@ -149,11 +154,12 @@ int set_up_triggers(char const * intab){
         for (int j=0; !is_imputable && j< imputables->textsize[0]; j++)
             if (apop_strcmp(*imputables->text[j], col))
                 is_imputable++;
-        if (is_imputable)
-            Qcheck(apop_query("drop trigger if exists trig%s%s; "
+        if (is_imputable){
+            Qcheck("drop trigger if exists trig%s%s; "
                 "create trigger trig%s%s instead of update of %s on view%s  "
                 "begin update %s set %s = new.%s where %s=old.%s; end",
-                 intab, col, intab, col, col, intab, intab, col, col, idcol, idcol));
+                 intab, col, intab, col, col, intab, intab, col, col, idcol, idcol);
+        }
     }
     apop_data_free(o);
     apop_data_free(imputables);
@@ -215,19 +221,17 @@ static int make_recode_view(char **tag, char **first_or_last){
         has_sqlite3_index(intab, group_id, 'y');
         apop_table_exists("tea_group_stats", 'd');
         apop_table_exists("tea_record_recodes", 'd');
-        Qcheck(
-        apop_query("create view tea_group_stats as "
+        Qcheck("create view tea_group_stats as "
                    "select %s %s from %s group by %s; ",
-                     group_id, group_recodestr, intab, group_id)
-        || apop_query("create view tea_record_recodes as select * %s from %s", XN(recodestr), intab)
-//        || apop_query("create view %s as select * from tea_record_recodes r, tea_group_stats g "
-        || apop_query("create table %s as select * from tea_record_recodes r, tea_group_stats g "
-                   "where r.%s=g.%s", out_name, group_id, group_id)
-            )
+                     group_id, group_recodestr, intab, group_id);
+        Qcheck("create view tea_record_recodes as select * %s from %s", XN(recodestr), intab);
+//      Qcheck("create view %s as select * from tea_record_recodes r, tea_group_stats g "
+        Qcheck("create table %s as select * from tea_record_recodes r, tea_group_stats g "
+                   "where r.%s=g.%s", out_name, group_id, group_id);
     }
     else 
-        Qcheck(apop_query("create table %s as select * %s from %s", out_name, XN(recodestr), intab));
-//        Qcheck(apop_query("create view %s as select * %s from %s", out_name, XN(recodestr), intab));
+        Qcheck("create table %s as select * %s from %s", out_name, XN(recodestr), intab);
+//        Qcheck("create view %s as select * %s from %s", out_name, XN(recodestr), intab);
 //    return set_up_triggers(intab);
     return 0;
 }

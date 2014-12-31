@@ -22,7 +22,7 @@ void test_consistency(){
     int size_as_int = d->textsize[1];
     for (int i=0; i< d->textsize[0]; i++){
         consistency_check(d->names->text, d->text[i], &size_as_int,
-                &passfail, &seven, &fails_edits, NULL
+                &passfail, &seven, &fails_edits, NULL, NULL
                 );
         assert(((d->text[i][0][0]=='2' || (d->text[i][0][0]=='1' && d->text[i][1][0]=='2')) 
                             && fails_edits)
@@ -83,7 +83,7 @@ void snowman_test(){
     read_spec(&specname, &db_dummy);
     text_in();
     char *d="d";
-    impute(&d);
+    impute(&d, (int[]){0});
 
     test_consistency();
     apop_db_close();
@@ -160,7 +160,7 @@ void group_recode_test(){
 
 ////////////////////////////////
 
-void just_like_the_R_test(){
+void just_like_the_R_test(int autofill){
     char *specname = "spec";
     write_a_file(specname, "database:t.db\n"
                 "input { input file: indata \n"
@@ -195,11 +195,11 @@ void just_like_the_R_test(){
     //assert(apop_query_to_float("select count(*) from data where age is null") == 2);
     //assert(apop_query_to_float("select count(*) from data where sex is null") == 2);
     char *d="data";
-    impute(&d);
+    impute(&d, &autofill);
 
-    char *checkout = "checkout";
+    char *checkout = autofill ? "data" : "checkout";
     int zero =0;
-    check_out_impute(&d, &checkout, &zero, NULL, NULL);
+    if (!autofill) check_out_impute(&d, &checkout, &zero, NULL, NULL);
 
     //this is not just like the R test:
     checkData(apop_query_to_text("select * from %s", checkout));
@@ -208,8 +208,8 @@ void just_like_the_R_test(){
 }
 
 void test_ols(gsl_rng *r){
-    apop_model *xlist = apop_model_stack(
-                apop_model_stack(
+    apop_model *xlist = apop_model_cross(
+                apop_model_cross(
                 apop_model_set_parameters(apop_uniform, 1, 1), //a constant.
                 apop_model_set_parameters(apop_normal, 2, 1)),
                 apop_model_set_parameters(apop_poisson, 2));
@@ -278,12 +278,12 @@ void test_ols(gsl_rng *r){
 
     read_spec(&specname, &db_dummy);
     char *d="olsdata";
-    impute(&d);
+    impute(&d, (int[]){0});
 
     
- /*   apop_model *stacked = apop_model_stack(apop_multivariate_normal,
+ /*   apop_model *stacked = apop_model_cross(apop_multivariate_normal,
                                            apop_wishart);
-    apop_settings_add(stacked, apop_stack, splitpage, "for wishart");
+    apop_settings_add(stacked, apop_cross, splitpage, "for wishart");
 
     apop_data_add_page(norm_data, wishart_data, "for wishart");
     apop_model *estimated = apop_estimate(norm_data, stacked);
@@ -324,7 +324,8 @@ void tea_c_tests(){
    recode_test();
 
    printf("Entering just_like_the_R_test()\n");
-   just_like_the_R_test();
+   just_like_the_R_test(0);
+   just_like_the_R_test(1);
 
    printf("Entering snowman_test()\n");
    snowman_test();

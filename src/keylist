@@ -33,6 +33,7 @@ char *ok_keys[] = {
 "input/output table",
 "input/overwrite",
 "input/primary key",
+"input/delimiter",
 "input/indices",
 "input/missing marker",
 "database",

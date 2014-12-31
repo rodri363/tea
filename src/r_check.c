@@ -32,7 +32,7 @@ double check_one_row(apop_data *row, void *colnames_in){
    int id = 0, fails_edits;
    char const *pf = "passfail";
 
-   consistency_check(colnames, values, &record_count, &pf, &id, &fails_edits, NULL);
+   consistency_check(colnames, values, &record_count, &pf, &id, &fails_edits, NULL, NULL);
    return fails_edits;
 }
 
@@ -89,7 +89,7 @@ apop_data *row_alts(apop_data *row, void *colnames_in){
    int id = 0, fails_edits, failed_fields;
    char const *pf = "find_alternatives";
 
-   alts = consistency_check(colnames, values, &record_count, &pf, &id, &fails_edits, &failed_fields);
+   alts = consistency_check(colnames, values, &record_count, &pf, &id, &fails_edits, &failed_fields, NULL);
    return alts;
 }
 

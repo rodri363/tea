@@ -217,7 +217,7 @@ checkOutImpute <- function(origin=NULL, dest=NULL, imputation_number=0, subset=N
 teaGetKey <- function(group, key=NULL, tag=NULL, is_sub=FALSE){
 	group <- as.character(group)
 	sub <- FALSE
-	if(is.null(key)) sub <- TRUE
+	if(is.null(key)) sub <- FALSE
 	key <- as.character(key)
 	tag <- as.character(tag)
     if (is_sub) sub <- TRUE
