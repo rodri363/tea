@@ -372,7 +372,7 @@ apop_data * cc2(char * *oext_values, char const *const *what_you_want,
 			int const *id, int *fails_edits, int **ofailed_fields, bool do_preedits){
 
     if (!edit_grid) init_edit_list();
-    if (!edit_grid){ //then there are no edits.
+    if (!edit_grid || !edit_grid->matrix){ //then there are no edits.
 		*fails_edits = 0;
         return NULL;
 	}

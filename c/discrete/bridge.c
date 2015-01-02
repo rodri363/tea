@@ -469,7 +469,7 @@ char get_coltype(char const* invar){
 
 
 //For opening a database connection from R
-void db_open(char **in){apop_db_open(*in);}
+void db_open(char **in){apop_db_close(); apop_db_open(*in);}
 
 void qxprintf(char **q, char *format, ...){
     va_list ap;

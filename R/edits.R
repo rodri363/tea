@@ -7,6 +7,7 @@
 #' but want to run some queries on an already-processed database.
 teaConnect <-function(dbname){
     teaenv$dbname <- dbname
+    if (!is.null(try(teaenv$con))) dbDisconnect(teaenv$con)
     teaenv$con <- dbConnect(dbDriver("SQLite"), dbname)
     .C("db_open", dbname)
 }
@@ -24,11 +25,10 @@ readSpec <- function(spec,nlines=1000){
     # written to the keys table. If not, then don't perform dbConnect below (and just go
     # back to R after displaying warning message).
     
-    teaenv$db_name <- .C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
+    dbname <- .C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
 
-    if(nchar(teaenv$db_name)>0) {
-        teaenv$con <- dbConnect(dbDriver("SQLite"), teaenv$db_name);
-    }
+    if(nchar(dbname)>0) teaConnect(dbname)
+    else Warning("Couldn't read the database name from the spec file.")
     teaenv$verbosity <- 0
 }
 
