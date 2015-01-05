@@ -31,7 +31,7 @@ static void check_for_all_vars(bool *usable_sql, char * const restrict*oext_valu
         for (int i=0; i< edit_grid_to_list[r]->var_ct; i++){
             bool found=false;
             for (int j=0; j< total_var_ct; j++){
-                if (*oext_values[j]=='\0') continue;
+                if (oext_values[j] && *oext_values[j]=='\0') continue;
                 if (!strcasecmp(edit_grid_to_list[r]->vars_used[i].name, used_vars[j].name))
                         {found=true; break;}
             }
@@ -50,13 +50,18 @@ static void sqlify(char * const restrict* oext_values){
     asprintf(&qstring, "create table tea_test(");
     asprintf(&insert, "insert into tea_test values(");
     for (int i=0; i< total_var_ct; i++){
-        if (*oext_values[i]=='\0') continue;
+        if (!oext_values[i]) 
+            xprintf(&insert, "%s%c NULL ", insert, comma);
+        else if (*oext_values[i]=='\0') 
+            continue;
+        else 
+            xprintf(&insert, "%s%c'%s' ", insert, comma, oext_values[i]);
         xprintf(&qstring, "%s%c'%s' ", qstring, comma, used_vars[i].name);
-        xprintf(&insert, "%s%c'%s' ", insert, comma, oext_values[i]);
         comma=',';
     }
     xprintf(&qstring, "%s numeric); %s);", qstring, insert);
     apop_query("%s", qstring);
+printf("%s\n", qstring);
     free(insert);
     free(qstring);
 }
@@ -66,18 +71,36 @@ bool run_preedits(char ** oext_values, char const *preed){
     apop_query("update tea_test %s", preed);
     apop_data *newvals = apop_query_to_text("select * from tea_test");
 
+    /*char *opost_values[total_var_ct];
+    apop_data_transpose(newvals, .inplace='y');
+    order_things(*newvals->text, newvals->names->text, *newvals->textsize, opost_values);
+    */
+
     int ctr=0; //order is the same as oext_values; just have to find the entering fields.
-    for (int f=0; f< newvals->textsize[1]; f++){
-        if (*oext_values[ctr]=='\0') continue;
-        asprintf(oext_values+ctr, newvals->text[0][f]);
+    for (int octr=0; octr< total_var_ct; octr++){
+        if (oext_values[octr] && *oext_values[octr]=='\0') continue;
+
+        //Found the right field. Did it change?
+        char *postval = newvals->text[0][ctr];
+        char *preval = oext_values[octr];
+        bool postval_is_null = !strcmp(postval, apop_opts.nan_string);
+        if ((preval && !strcmp(preval, postval)) 
+            ||(!preval && postval_is_null))
+                continue; //no change.
+
         out=true;
+        if (!postval_is_null)
+            asprintf(oext_values+octr, postval);
+        else
+            oext_values[octr] = NULL;
+        ctr++;
     }
 
     apop_data_free(newvals);
     return out;
 }
 
-//call iff there are SQL edits to be checked.
+//call iff there are SQL edits (or preedits) to be checked.
 static int check_a_record_sql(char ** oext_values, int ** ofailures,
                          int wanted_preed  //if the discrete edits found a failure, its row number is here; else -1.
                          ){
@@ -100,17 +123,17 @@ static int check_a_record_sql(char ** oext_values, int ** ofailures,
             if (last_list_item==edit_grid_to_list[i] && wanted_preed!=i) continue;
             last_list_item=edit_grid_to_list[i];
             if (!usable_sql[i] && wanted_preed<0) continue;
-            int fails = wanted_preed==i ? 1
-                         : apop_query_to_float("select count(*) from tea_test where (%s)",
+            int fails = apop_query_to_float("select count(*) from tea_test where (%s)",
                                                                 *edit_grid->text[i]);
-            if (fails){
+            if (fails || wanted_preed==i){
                 char *preed = edit_grid_to_list[i]->pre_edit;
-                if (wanted_preed>=0 && preed)
+                if (preed)
                     pre_edits_changed_something = run_preedits(oext_values, preed);
-                out+=wanted_preed !=i && fails;
+                out+=fails;
+if(pre_edits_changed_something) out=0;
                 if (ofailures)
                     for (int i=0; i<total_var_ct; i++){
-                        if (*oext_values[i]=='\0') continue; //skip non-entering.
+                        if (oext_values[i] && *oext_values[i]=='\0') continue; //skip non-entering.
                         for (int j=0; j< last_list_item->var_ct; j++)//is this var. used in this edit?
                             if (!strcasecmp(last_list_item->vars_used[j].name, used_vars[i].name))
                                 {(*ofailures[i])++; break;}
@@ -248,7 +271,7 @@ static void do_a_combo(int *record, char **oext_values,
 		 jmp_buf jmpbuf, time_t const timeout){
 
     int option_ct, skipme=0;
-	if (*oext_values[this_field]==-1 || !*failed_edits_in[this_field]
+	if (record[this_field]==-1 || !*failed_edits_in[this_field]
            || used_vars[this_field].type=='r'){//not a failed field or DISCRETE editable; skip.
 		skipme=1;
 		option_ct=1;
@@ -336,7 +359,7 @@ static void fill_a_record(int *record, int record_width, char * const restrict *
         record[rctr]=-1;   //-1 == ignore-this-field marker
     int rctr=0; //i is the index for oext_values or used_vars; rctr for record.
     for (int i=0; i < total_var_ct; i++){
-        if (*oext_values[i]=='\0' ||used_vars[i].type=='r') continue;
+        if ((oext_values[i] && *oext_values[i]=='\0') ||used_vars[i].type=='r') continue;
         int ri_position = ri_from_ext(used_vars[i].name, oext_values[i]);
         if (ri_position == -100) continue;  //This variable wasn't declared ==> can't be in an edit.
         for(int  kk = find_b[rctr]-1; kk< find_e[rctr]; kk++)
@@ -381,7 +404,7 @@ apop_data * cc2(char * *oext_values, char const *const *what_you_want,
     int record[width];
 	fill_a_record(record, width, oext_values, *id);
     bool has_sql_edits = 0;
-    int wanted_preed=-1;
+int wanted_preed=1000000;
     bool pf = !strcmp(what_you_want[0], "passfail");
     *fails_edits = check_a_record_discrete(record, ofailed_fields, (pf ? 0:*id),
                               &has_sql_edits, &wanted_preed);

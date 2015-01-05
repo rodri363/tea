@@ -327,7 +327,7 @@ static char *get_edit_associates(char const*depvar, char const*dt, char const*id
     if (!this->edit_associates){
         this->edit_associates = apop_text_alloc(NULL, 1, 1);
         apop_text_add(this->edit_associates, 0, 0, depvar);
-        for(edit_t *this_ed=edit_list; this_ed && this_ed->clause; this_ed++){
+        for (edit_t *this_ed=edit_list; this_ed && this_ed->clause; this_ed++){
             bool use_this_edit=false;
             for(int i=0; i< this_ed->var_ct; i++)
                 if ((use_this_edit=!strcasecmp(depvar, this_ed->vars_used[i].name))) break;
@@ -343,7 +343,11 @@ static char *get_edit_associates(char const*depvar, char const*dt, char const*id
             apop_data_free(this_ed_list);
         }
         if (*this->edit_associates->textsize) apop_data_pmf_compress(this->edit_associates);
-    }
+    } else //don't have to rebuild the edit_associates list, but do have to check has_edits
+        for (edit_t *this_ed=edit_list; !*has_edits && this_ed && this_ed->clause; this_ed++)
+            for(int i=0; !*has_edits && i< this_ed->var_ct; i++)
+                if (strcasecmp(depvar, this_ed->vars_used[i].name)) 
+                    *has_edits = true;
 
     if (!*this->edit_associates->textsize) return NULL;
     char *tail;
@@ -419,12 +423,14 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
 
 static void setit(char const *tabname, int draw, char const *final_value, char const *id_col,
         char const *id, char const *field_name, bool autofill){
+        char tick = final_value ? '\'': ' ';
+        char const *fv = final_value ? final_value : "NULL";
         if (!autofill)
-            apop_query("insert into %s values(%i, '%s', '%s', '%s');",
-                       tabname,  draw, final_value, id, field_name);
+            apop_query("insert into %s values(%i, %c%s%c, '%s', '%s');",
+                       tabname,  draw, tick, fv, tick, id, field_name);
         else
-            apop_query("update %s set %s = '%s' where  %s='%s';",
-                       tabname, field_name, final_value, id_col, id);
+            apop_query("update %s set %s = %c%s%c where  %s='%s';",
+                       tabname, field_name, tick, fv, tick, id_col, id);
 }
 
 //a shell for do onedraw() while (!done).
@@ -458,7 +464,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         char *oext_values[total_var_ct], *pre_preedit[total_var_ct];
         if (drecord) //else, no relevant queries, and oext_values are irrelevant?
             order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
-        for (int i=0; i< total_var_ct; i++) pre_preedit[i] = strdup(oext_values[i]);
+        for (int i=0; i< total_var_ct; i++) pre_preedit[i] = oext_values[i] ? strdup(oext_values[i]): NULL;
 
         do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits);
         while (drew.is_fail && tryctr++ < 1000);
@@ -479,10 +485,13 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
 
         //write down anything that changed due to a preedit or because it's what we'd been
         //imputing to begin with.
-        for (int i=0; i< total_var_ct; i++)
-            if (strcmp(oext_values[i], pre_preedit[i]) || !strcmp(used_vars[i].name, is->depvar))
+        for (int i=0; i< total_var_ct; i++){
+            if (!oext_values[i] && !pre_preedit[i]) continue;
+            if ((!oext_values[i] && pre_preedit[i]) || (oext_values[i] && !pre_preedit[i]) ||
+                    strcmp(oext_values[i], pre_preedit[i]) || !strcmp(used_vars[i].name, is->depvar))
                 setit(is->autofill?datatab:filltab, draw, final_value, id_col,
                         is->isnan->names->row[rowindex], used_vars[i].name, is->autofill);
+        }
         free(final_value);
         free(drew.textx);
         for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
