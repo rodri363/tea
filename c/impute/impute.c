@@ -364,11 +364,13 @@ static int forsearch(const void *a, const void *b){
     return diff > 0 ? 1 : (diff < 0 ? -1 : 0);
 }
 
-static int mark_an_id(const char *target, char * const *list, int len, char just_check){
+/* return 'n'=not found (bad news)   'm'=found, already marked  'u'=found, not marked. */
+static char mark_an_id(const char *target, char * const *list, int len, char just_check){
     char **found = bsearch(target, list, len, sizeof(char*), forsearch);
-    if(!found) return -1;
-    if (just_check) return 0;
-    asprintf(found, "%s.", *found);
+    if (!found) return 'n';
+    int out= (*found)[strlen(*found)-1]== '.' ? 'm' : 'u' ;
+    if (just_check) return out;
+    if (out=='u') asprintf(found, "%s.", *found); //it's marked now.
     return 0;
 }
 
@@ -443,10 +445,10 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
     Tea_stopif(col_of_interest==total_var_ct, return, 0, "I couldn't find %s in the list of declared fields.", is->depvar);
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         char *name = is->isnan->names->row[rowindex];
-        if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)==-1){
+        if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)=='m'){
             //Then this is already done. Verify in the main list; continue.
             char *pd; asprintf(&pd, "%s.", name);
-            Tea_stopif(mark_an_id(pd, nanvals->names->row, nanvals->names->rowct, 'y')==-1,
+            Tea_stopif(mark_an_id(pd, nanvals->names->row, nanvals->names->rowct, 'y')=='u',
                 free(pd); continue, 0, "A sublist asked me to impute for ID %s, but I couldn't "
                     "find that ID in the main list of NaNs.", name);
             free(pd);
@@ -480,7 +482,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
                                 ? ext_from_ri(is->depvar, drew.pre_round+1)
                                 : strdup(drew.textx); //I should save the numeric val.
 
-	Tea_stopif(isnan(atof(final_value)), return, 0, "I drew a blank from the imputed column "
+        Tea_stopif(isnan(atof(final_value)), return, 0, "I drew a blank from the imputed column "
                                                     "when I shouldn't have for record %i.", id_number);
 
         //write down anything that changed due to a preedit or because it's what we'd been
@@ -546,7 +548,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
 
         bool still_has_missings=true, hit_zero=false;
         do {
-            for (int i=0; i < nanvals->names->rowct; i++){ //see notes above.
+            for (int i=0; i < nanvals->names->rowct; i++){ //see notes in Notes file.
                 Apop_row(nanvals, i, row_i);
                 if (!still_is_nan(row_i)) continue;
                 get_nans_and_notnans(is, nanvals->names->row[i] /*ego_id*/, 
@@ -568,9 +570,11 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                 apop_data_free(is->notnan);
                 apop_data_free(is->isnan);
             }
+            still_has_missings = apop_map_sum(nanvals, .fn_r=still_is_nan);
             /*shrink the category matrix by one, then loop back and try again if need be. This could be more efficient, 
               but take recourse in knowing that the categories that need redoing are the ones with 
               few elements in them.*/
+            if (!still_has_missings) break;
             if (category_matrix && *category_matrix->textsize>1){
                 apop_text_alloc(category_matrix, category_matrix->textsize[0]-1, category_matrix->textsize[1]);
                 index_cats(datatab, category_matrix);
@@ -580,8 +584,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                 notnans_no_constraints= is->notnan;
                 last_no_constraint = strdup(is->selectclause);
             }
-            still_has_missings = apop_map_sum(nanvals, .fn_r=still_is_nan);
-        } while (still_has_missings && !hit_zero);
+        } while (!hit_zero); //primary means of exit is "if (!still_has_missings) break;" above.
         if (previous_filltab) apop_table_exists(dt, 'd');
         commit_transaction();
         if (still_has_missings && hit_zero) printf("Even with no constraints, I still "

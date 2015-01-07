@@ -61,7 +61,6 @@ static void sqlify(char * const restrict* oext_values){
     }
     xprintf(&qstring, "%s numeric); %s);", qstring, insert);
     apop_query("%s", qstring);
-printf("%s\n", qstring);
     free(insert);
     free(qstring);
 }
