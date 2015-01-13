@@ -100,7 +100,7 @@ AC_CHECK_FUNCS([floor memset pow regcomp sqrt strcasecmp])
 PACKAGE_NAME=tea
 
 echo "PKG_LIBS=@LIBS@
-PKG_CFLAGS=-fopenmp
+PKG_CFLAGS=-fopenmp -g
 PKG_LIBS=-fopenmp -lgomp -lapophenia
 " >> src/Makevars.in
 AC_CONFIG_FILES([src/Makevars],)

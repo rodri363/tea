@@ -73,7 +73,7 @@ void generate_indices(char const *tag){
     char const *table_holder = get_key_word_tagged("input", "output table", tag);
     char *table_out;
 
-    asprintf(&table_out, "view%s", table_holder);
+    Asprintf(&table_out, "view%s", table_holder);
      
     apop_data *indices = get_key_text("input", "indices");
     char *id_column = get_key_word(NULL, "id");
@@ -169,7 +169,7 @@ static int text_in_by_tag(char const *tag){
 
         char *basename = gnu_c_basename(strndup(file_in, strlen(file_in)-9));
         char *directory = dirname(file_in);
-        if(!strcmp(directory, ".")) asprintf(&directory, " ");
+        if(!strcmp(directory, ".")) Asprintf(&directory, " ")
 
         if (overwrite) apop_table_exists(table_out, 'd');
 
@@ -197,12 +197,12 @@ static int text_in_by_tag(char const *tag){
     char comma = ' ';
     apop_data *primary_key = get_key_text("input", "primary_key");
     if (primary_key){
-        asprintf(&table_key, "primary key(");
+        Asprintf(&table_key, "primary key(");
         for (int i=0; i< primary_key->textsize[0]; i++){
-            asprintf(&table_key, "%s%c%s", table_key, comma, primary_key->text[i][0]);
+            Asprintf(&table_key, "%s%c%s", table_key, comma, primary_key->text[i][0]);
             comma=',';
         }
-        asprintf(&table_key, "%s)", table_key);
+        Asprintf(&table_key, "%s)", table_key);
     }
 
     //OK, got all the config info. Go.

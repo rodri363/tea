@@ -31,6 +31,9 @@ int *find_b, *find_e, *optionct, verbose, edit_ct, total_var_ct;
 void xprintf(char **q, char *format, ...); //impute/parse_sql.c
 #define XN(in) ((in) ? (in) : "")  //same.
 
+//some versions of gcc complain if you discard the output from asprintf.
+#define Asprintf(...) {int discard = asprintf(__VA_ARGS__); if(discard);}
+
 void begin_transaction();
 void commit_transaction();
 
@@ -41,7 +44,7 @@ apop_data * get_variables_to_impute(char *tag);
 
 typedef struct {
 	apop_model *base_model, *fitted_model;
-	char * depvar, **allvars, *vartypes, *selectclause;
+	char * depvar, **allvars, *vartypes, *selectclause, *subset;
 	int position, allvars_ct, error;
 	apop_data *isnan, *notnan;
     bool is_bounds_checkable, is_hotdeck, textdep, is_em, is_regression, allow_near_misses, autofill;
