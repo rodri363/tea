@@ -95,7 +95,7 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
                         "Please check on this.", varname);
 
         //clauses is now the core of a variable definition. Wrap it and add it to the list.
-        if (!is_formula && !has_else) asprintf(&clauses, "%s else null\n", clauses);
+        if (!is_formula && !has_else) Asprintf(&clauses, "%s else null\n", clauses)
         comma = ',';		
         if (is_formula)
             xprintf(outstring, "%s%c %s as %s\n", XN(*outstring), comma, strip(clauses), varname);
@@ -121,10 +121,10 @@ static void get_in_out_tabs(char const *first_or_last, char **intab, char **out_
     }
     if (apop_strcmp(first_or_last, "last") 
            || apop_strcmp(first_or_last, "both")){
-         asprintf(out_name, "view%s", get_key_word("input", "output table"));
+         Asprintf(out_name, "view%s", get_key_word("input", "output table"))
     } else {
         free(*out_name);
-        asprintf(out_name, "mid%s", *intab);
+        Asprintf(out_name, "mid%s", *intab);
     }
 }
 
@@ -132,7 +132,7 @@ static apop_data* get_vars_to_impute(void){
     apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
     char *v = NULL;
     for (int i=0; i< *tags->textsize; i++)
-        asprintf(&v, "%s%s%s", (v ? v: ""), (v ? "," :" "), get_key_word_tagged("impute", "output vars", *tags->text[i]));
+        Asprintf(&v, "%s%s%s", (v ? v: ""), (v ? "," :" "), get_key_word_tagged("impute", "output vars", *tags->text[i]))
     apop_data_free(tags);
 
     apop_data*imputables;
@@ -171,7 +171,7 @@ int set_up_triggers(char const * intab){
 static bool test_for_recodes(char const *tag){
     char *q = strdup("select distinct key from keys where "
             " (key like 'recodes%' or key like 'group recodes%')");
-    if (*tag) asprintf(&q, "%s and tag like '%%%s%%'", q, tag);
+    if (*tag) Asprintf(&q, "%s and tag like '%%%s%%'", q, tag)
 	apop_data *test_for_recodes = apop_query_to_text("%s", q);
     free(q);
 	if (!test_for_recodes) return false;
@@ -239,7 +239,7 @@ static int make_recode_view(char **tag, char **first_or_last){
 void do_recodes(){
     Tea_stopif(get_key_word("input", "output table") == NULL, return, 0, "You didn't specify an output table in your input key so I don't know where to write your recodes. Please specify an output table in your spec file.");
     char *goalname; 
-    asprintf(&goalname, "view%s", get_key_word("input", "output table"));
+    Asprintf(&goalname, "view%s", get_key_word("input", "output table"))
     char *overwrite = get_key_word("input", "overwrite");
     if (!overwrite || !strcasecmp(overwrite,"n")
                 || !strcasecmp(overwrite,"no")

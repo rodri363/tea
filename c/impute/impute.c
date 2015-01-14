@@ -375,7 +375,7 @@ arguments, it really doesn't stand by itself.
 
 The draw itself is one line---just call apop_draw. The hard part is in checking that the draw is OK.
 This involves bounds-checking, if applicable, 
-then generating a dummy version of the observation that is in an R-friendly format, 
+then generating a dummy version of the observation with ordered, external (user-defiend) values,
 then sending it to consistency_check for an up-down vote.
 
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
@@ -561,7 +561,10 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
             if (!category_matrix || *category_matrix->textsize==0)
                 hit_zero++;
             else {
-                apop_text_alloc(category_matrix, category_matrix->textsize[0]-1, category_matrix->textsize[1]);
+                if (*category_matrix->textsize > 1)
+                    apop_text_alloc(category_matrix, category_matrix->textsize[0]-1, category_matrix->textsize[1]);
+                else
+                    *category_matrix->textsize=0; //Apophenia can't (yet) allocate a zero-sized matrix
                 index_cats(datatab, category_matrix);
             }
         } while (!hit_zero); //primary means of exit is "if (!still_has_missings) break;" above.

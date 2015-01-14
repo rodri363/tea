@@ -131,7 +131,7 @@ through the input step the first time. Otherwise, the default is to overwrite.  
 
 TeaKEY(input/primary key, <<<The name of the column to act as the primary key. Unlike other indices, the primary key has to be set on input.>>>)
 
-TeaKEY(input/delimiter, <<<The character(s) used to delimit fields in the input file. The default is "|,\t", meaning that pipes, commas, or tabs can divide fields. The delimiter is assumed to always be a single ASCII character. As with the default, you have the option of specifying several delimiters, any one of which splits fields.>>>)
+TeaKEY(input/delimiters, <<<The character(s) used to delimit fields in the input file. The default is "|,\t", meaning that pipes, commas, or tabs can divide fields. The delimiter is assumed to always be a single ASCII character. As with the default, you have the option of specifying several delimiters, any one of which splits fields.>>>)
 
 TeaKEY(input/indices, <<<Each row specifies another column of data that needs an index. Generally, if you expect to select a subset of the data via some column, or join to tables using a column, then give that column an index. The {\tt id} column you specified at the head of your spec file is always indexed, so listing it here has no effect. Remark, however, that we've moved the function generate_indices(table_out) to bridge.c:428 to after the recodes.>>>)
 

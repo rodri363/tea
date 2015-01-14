@@ -122,7 +122,7 @@ static int check_a_record_sql(char ** oext_values, int ** ofailures,
             if (last_list_item==edit_grid_to_list[i] && wanted_preed!=i) continue;
             last_list_item=edit_grid_to_list[i];
             if (!usable_sql[i] && wanted_preed<0) continue;
-            int fails = apop_query_to_float("select count(*) from tea_test where (%s)",
+            int fails = usable_sql[i] && apop_query_to_float("select count(*) from tea_test where (%s)",
                                                                 *edit_grid->text[i]);
             if (fails || wanted_preed==i){
                 char *preed = edit_grid_to_list[i]->pre_edit;
@@ -358,7 +358,9 @@ static void fill_a_record(int *record, int record_width, char * const restrict *
         record[rctr]=-1;   //-1 == ignore-this-field marker
     int rctr=0; //i is the index for oext_values or used_vars; rctr for record.
     for (int i=0; i < total_var_ct; i++){
-        if ((oext_values[i] && *oext_values[i]=='\0') ||used_vars[i].type=='r') continue;
+        if (!oext_values[i] || 
+                (oext_values[i] && *oext_values[i]=='\0') ||used_vars[i].type=='r')
+            continue;
         int ri_position = ri_from_ext(used_vars[i].name, oext_values[i]);
         if (ri_position == -100) continue;  //This variable wasn't declared ==> can't be in an edit.
         for(int  kk = find_b[rctr]-1; kk< find_e[rctr]; kk++)
