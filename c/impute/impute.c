@@ -455,7 +455,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
                 apop_query("insert into tea_fails values(%i)", id_number)
                 , 0, "I just made a thousand attempts to find an imputed value "
             "that passes checks, and couldn't. Something's wrong that a "
-            "computer can't fix.\nI'm at i%i.", id_number);
+            "computer can't fix.\nI'm at id %i.", id_number);
 
         char * final_value = (type=='c') 
 				//Get external value from row ID
