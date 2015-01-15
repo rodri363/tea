@@ -1,0 +1,6 @@
+checks {   
+CENRACE2='21' and\
+        not (QRACE1 glob '5[0-9][0-9]' and QRACE2 glob '6[0-9][0-9]')\
+        and\
+        not (QRACE2 glob '5[0-9][0-9]' and QRACE1 glob '6[0-9][0-9]')
+}

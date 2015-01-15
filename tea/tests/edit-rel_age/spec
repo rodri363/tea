@@ -1,0 +1,20 @@
+database: dc.db
+timeout: 60
+input{
+	output table: dc
+	overwrite: no
+}
+
+fields{
+	rel 0-2
+	agep 0-115
+	youngest 0-115
+	eldest 0-115
+	parent 0-115
+}
+
+checks{
+	rel in (0,1) and age - eldest < 15
+	rel in (0,1) and age - youngest > 55
+	rel=2 and PARENT - AGE < 15
+}
