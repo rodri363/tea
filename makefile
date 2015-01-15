@@ -60,11 +60,13 @@ clean:
 	rm -f tests/edit-rel_age/graph/*
 	rm -f demo/bigdemo/*.png
 
+TMPDIR=~/tmp/
 GITPKG=~/tmp/tea_pkg
 push-pkg:
 	if [ ! -e $(GITPKG) ] ; then \
 		mkdir -p $(GITPKG); \
-		cd $(GITPKG); git clone -b pkg git@github.com:rodri363/tea.git; \
+		cd $(TMPDIR); \
+		git clone -b pkg git@github.com:rodri363/tea.git; mv tea $(GITPKG);  \
 	fi
 	cd $(GITPKG)/tea; git pull origin pkg
 	rsync -aP pkg/tea/ $(GITPKG)/tea/
