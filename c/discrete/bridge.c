@@ -233,7 +233,7 @@ void db_to_em(void){
 */
 double get_key_float(char const *part1, char const * part2){
      char *p = NULL;
-     if (part1 && part2) asprintf(&p, "%s/%s", part1, part2);
+     if (part1 && part2) Asprintf(&p, "%s/%s", part1, part2)
     double out = apop_query_to_float("select value from keys where key like '%s' order by count", 
                             p ? p : part1 ? part1 : part2);
     if (p) free(p);

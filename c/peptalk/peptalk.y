@@ -270,9 +270,9 @@ int add_keyval(char *key, char *val){
               int ii = rest-skey;
               char *query; 
 
-              asprintf(&query,"insert into keys values " 
+              Asprintf(&query,"insert into keys values " 
                           "(\"%%%d.%ds/%%s\", \"%%s\", %%i, \"%%s\")",ii,ii);
-  	      apop_query (query, skey,
+              apop_query (query, skey,
                           nkey,
                           XN(tag), ++val_count, vkey) ;
             }
@@ -428,7 +428,7 @@ void add_to_num_list_seq(char *min, char*max){
 void moreblob(char **out, char* so_far, char *more){
     //if (pass==0 && !apop_strcmp(current_key, "checks")) {
     if (!apop_strcmp(current_key, "checks") || preed2) {
-		asprintf(out, "%s%s", XN(so_far), more);
+		Asprintf(out, "%s%s", XN(so_far), more)
         return;
     }
 
@@ -479,7 +479,7 @@ void moreblob(char **out, char* so_far, char *more){
         //Finally, extend the query
         xprintf(&preed, "%s%s", XN(preed), more); //needed for pre-edits; harmless elsewhere
         if (!is_in_list){ //then it's not a variable.
-            asprintf(out, "%s%s", XN(so_far), more);
+            Asprintf(out, "%s%s", XN(so_far), more)
             return;
         }
         bool isreal = false;
@@ -488,7 +488,7 @@ void moreblob(char **out, char* so_far, char *more){
                 isreal= (used_vars[i].type=='r');
         if (!is_used){ //it's a var, but I haven't added it to the list for this q.
             if (!var_list) var_list = strdup(more);
-            else           asprintf(&var_list, "%s, %s", more, var_list);
+            else           Asprintf(&var_list, "%s, %s", more, var_list)
             if (!isreal){
                 if (!datatab) datatab = get_key_word("input","output table");
                 Tea_stopif(!datatab, return, 0, "I need the name of the data table so I can set up the recodes."
@@ -499,7 +499,7 @@ void moreblob(char **out, char* so_far, char *more){
                                 , more, more, more, datatab);
             }
         }
-        asprintf(out, " %s %s.%s ", XN(so_far), more, more);
+        Asprintf(out, " %s %s.%s ", XN(so_far), more, more)
     }
 }
 
@@ -513,7 +513,7 @@ void extend_key(char *key_in){
         tag= strip(open_brace_posn+1);//copy everything after the open-brace (minus surrounding whitespace)
         *open_brace_posn = '\0'; //cut off the inkey at the open brace.
     } else if (!current_key) //top level; make a fake tag
-        asprintf(&tag, "%zu tag", default_tag++);
+        Asprintf(&tag, "%zu tag", default_tag++)
 
     //Push a key segment on the stack
     if (!current_key)
@@ -552,7 +552,7 @@ void do_preedits(char **datatab){
    They're read here, and then executed using do_preedits.  */
 void store_right(char *fix){ 
     if (pass !=1) return;
-    asprintf(&edit_list[query_ct-1].pre_edit," set %s where %s;", fix, last_preed);
+    Asprintf(&edit_list[query_ct-1].pre_edit," set %s where %s;", fix, last_preed)
     free(last_preed);
 }
 

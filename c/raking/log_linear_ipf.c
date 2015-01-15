@@ -75,7 +75,7 @@ void rake_for_r(char **table_name){
 	if (zero_data)
 		for (int i=0; i < zero_data->textsize[0]; i++){
 			char *r = all_zeros;
-			asprintf(&all_zeros, "%s%s%s", all_zeros ? all_zeros : " ", or, zero_data->text[i][0]);
+			Asprintf(&all_zeros, "%s%s%s", all_zeros ? all_zeros : " ", or, zero_data->text[i][0])
 			or = " or ";
 			free(r);
 		}	
@@ -111,8 +111,8 @@ raking{
 		.init_count_col = get_key_word("raking", "init count col")
 		);
 	char *outname;
-	asprintf(&outname, "%s_raked", *table_name);
-	asprintf(table_name, "%s", outname); //report new name to R
+	Asprintf(&outname, "%s_raked", *table_name)
+	Asprintf(table_name, "%s", outname) //report new name to R
 	apop_table_exists(outname, 'd');
 apop_opts.verbose=0;
 apop_vector_show(outdata->weights);

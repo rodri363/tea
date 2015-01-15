@@ -1,11 +1,8 @@
 
 //See Notes (the `walk-through of imputation' section) for a detailed discussion of what goes on here.
 
-#define _GNU_SOURCE //declare asprintf
-#include <stdio.h>
 #include <rapophenia.h>
 #include <stdbool.h>
-#include <stdlib.h>
 #include "internal.h"
 extern char *datatab;
 void qxprintf(char **q, char *format, ...); //bridge.c
@@ -591,35 +588,35 @@ apop_model *tea_get_model_by_name(char *name, impustruct *model){
     if (!is_inited && using_r)
         rapop_model_from_registry = (void*) R_GetCCallable("Rapophenia", "get_am_from_registry");
 
-    apop_model *out= !strcmp(name, "normal")
-          ||!strcmp(name, "gaussian")
+    apop_model *out= !strcasecmp(name, "normal")
+          ||!strcasecmp(name, "gaussian")
 				? apop_normal :
-			!strcmp(name, "multivariate normal")
+			!strcasecmp(name, "multivariate normal")
 				? apop_multivariate_normal :
-			!strcmp(name, "lognormal")
+			!strcasecmp(name, "lognormal")
 				? apop_lognormal :
-			!strcmp(name, "rake") ||!strcasecmp(name, "em")
+			!strcasecmp(name, "rake") ||!strcasecmp(name, "em")
 				?  (model->is_em = true, &null_model) :
-			!strcmp(name, "hotdeck")
-		  ||!strcmp(name, "hot deck")
-	      ||!strcmp(name, "multinomial")
-		  ||!strcmp(name, "pmf")
+			!strcasecmp(name, "hotdeck")
+		  ||!strcasecmp(name, "hot deck")
+	      ||!strcasecmp(name, "multinomial")
+		  ||!strcasecmp(name, "pmf")
 				? (model->is_hotdeck=true, apop_pmf) :
-			!strcmp(name, "poisson")
+			!strcasecmp(name, "poisson")
 				? (model->is_regression=true, apop_poisson) :
-			!strcmp(name, "ols")
+			!strcasecmp(name, "ols")
 				? (model->is_regression=true, apop_ols) :
-			!strcmp(name, "logit")
+			!strcasecmp(name, "logit")
 				? (model->is_regression=true, apop_logit) :
-			!strcmp(name, "probit")
+			!strcasecmp(name, "probit")
 				? (model->is_regression=true, apop_probit) :
-			!strcmp(name, "rel")
+			!strcasecmp(name, "rel")
 				? relmodel :
-			!strcmp(name, "kernel")
-	      ||!strcmp(name, "kernel density")
+			!strcasecmp(name, "kernel")
+	      ||!strcasecmp(name, "kernel density")
 				? apop_kernel_density 
 				: &null_model;
-        if (using_r && !strcmp(out->name, "Null model")) //probably an R model.
+        if (using_r && !model->is_em && !strcasecmp(out->name, "Null model")) //probably an R model.
             out= rapop_model_from_registry(name);
         Tea_stopif(!strcmp(out->name, "Null model"), return &(apop_model){}, 0, "model selection fail.");
         Apop_model_add_group(out, apop_parts_wanted, .predicted='y'); //no cov

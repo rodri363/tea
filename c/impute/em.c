@@ -176,16 +176,18 @@ apop_data *make_rake_draws(apop_data const *d, apop_data *raked, impustruct is, 
     return fillins;
 }
 
+/*
 void diagnostic_print(apop_data *d, apop_data *raked){
     apop_data *dcp = apop_data_sort(apop_data_pmf_compress(apop_data_copy(d)));
-    asprintf(&dcp->names->title, "<<<<<<<<<<<<<<<<<<<<<<<<<<<");
-    asprintf(&raked->names->title, ">>>>>>>>>>>>>>>>>>>>>>>>>>>");
+    Asprintf(&dcp->names->title, "<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    Asprintf(&raked->names->title, ">>>>>>>>>>>>>>>>>>>>>>>>>>>")
     apop_data_pmf_compress(raked);
     apop_data_sort(raked);
     apop_data_print(dcp, .output_name="ooo", .output_append='a');
     apop_data_print(raked, .output_name="ooo", .output_append='a');
     apop_data_free(dcp);
 }
+*/
 
 void em_to_completion(char const *datatab, char const *underlying,
         impustruct is, int min_group_size, gsl_rng *r,

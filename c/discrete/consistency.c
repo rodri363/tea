@@ -47,8 +47,8 @@ static void sqlify(char * const restrict* oext_values){
     /*qstring will hold a query to generate a sample table, like "create table tea_test(a,
     b); insert into tea_test values('left', 'right');"*/
     char *qstring, *insert, comma=' ';
-    asprintf(&qstring, "create table tea_test(");
-    asprintf(&insert, "insert into tea_test values(");
+    Asprintf(&qstring, "create table tea_test(");
+    Asprintf(&insert, "insert into tea_test values(");
     for (int i=0; i< total_var_ct; i++){
         if (!oext_values[i]) 
             xprintf(&insert, "%s%c NULL ", insert, comma);
@@ -89,7 +89,7 @@ bool run_preedits(char ** oext_values, char const *preed){
 
         out=true;
         if (!postval_is_null)
-            asprintf(oext_values+octr, postval);
+            Asprintf(oext_values+octr, postval)
         else
             oext_values[octr] = NULL;
         ctr++;
@@ -463,8 +463,8 @@ apop_data *checkData(apop_data *data){
 		for(int jdx=0; jdx<nvars; jdx++){
 		   if(data->matrix && jdx < data->matrix->size2){
 						double v = apop_data_get(data,idx,jdx);
-						if (isnan(v)) asprintf(&vals[jdx], "%s", apop_opts.nan_string);
-						else          asprintf(&vals[jdx], "%g", v);
+						if (isnan(v)) Asprintf(&vals[jdx], "%s", apop_opts.nan_string)
+						else          Asprintf(&vals[jdx], "%g", v)
 					}
 
 			else vals[jdx] = data->text[idx][jdx - data->names->colct];

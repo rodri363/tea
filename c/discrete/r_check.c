@@ -2,7 +2,7 @@
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
-#include "tea.h"
+#include "internal.h"
 #include <rapophenia.h>
 
 data_frame_from_apop_data_type *rapop_df_from_ad;//alloced in PEPedits.c:R_init_tea
@@ -19,9 +19,9 @@ double check_one_row(apop_data *row, void *colnames_in){
        if (datacol > -2){
 	   		double val = apop_data_get(row, .row=0, datacol);
 			if (gsl_isnan(val))
-			   asprintf(&values[i], "%s", apop_opts.nan_string);
+			   Asprintf(&values[i], "%s", apop_opts.nan_string)
 		    else
-			   asprintf(&values[i], "%g", val);
+			   Asprintf(&values[i], "%g", val)
 		} else {
            datacol = apop_name_find(row->names, colnames[i], 't');
            Tea_stopif(datacol <= -2, return GSL_NAN, 0, "I can't find %s in the names list.", colnames[i]);
@@ -76,9 +76,9 @@ apop_data *row_alts(apop_data *row, void *colnames_in){
        if (datacol > -2){
 	   		double val = apop_data_get(row, .row=0, datacol);
 			if (gsl_isnan(val))
-			   asprintf(&values[i], "%s", apop_opts.nan_string);
+			   Asprintf(&values[i], "%s", apop_opts.nan_string)
 		    else
-			   asprintf(&values[i], "%g", val);
+			   Asprintf(&values[i], "%g", val)
 		} else {
            datacol = apop_name_find(row->names, colnames[i], 't');
            Tea_stopif(datacol <= -2, return NULL, 0, "I can't find %s in the names list.", colnames[i]);
