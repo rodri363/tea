@@ -65,12 +65,8 @@ extern int verbose;
 void get_verbosity(int *out);
 void set_verbosity(int *in);
 
-/** There are three intents to this function, which you could read as three steps in a full
-analysis:
-
-\li Simply inquiring whether an input record passes edits.
-\li Getting a list of fields that cause the edit to fail.
-\li Getting a full list of alternatives that pass the edit.
+/** This function will either return a pass/fail vote as to whether an input record
+passes edits, or provide a score counting how often each field caused an edit to fail.
 
 Inputs:
 
@@ -81,23 +77,17 @@ the \c record_name_in list.
 \param record_in_size A pointer-to-int giving the number of records in the previous two
 elements.
 \param what_you_want A pointer-to-string (which is what R requires) that is one of
-<tt>"passfail"</tt>, <tt>"failed_fields"</tt>, or <tt>"find_alternatives"</tt>.
-\param id pointer-to-int giving a unique ID where I can file the output alternatives. The
-row number is probably a fine choice.
+<tt>"passfail"</tt> or <tt>"failed_fields"</tt>.
 
-Because there are three ways of running this function, there are three types of output:
+Outputs:
 
 \li In all cases, the \c fails_edits variable will be set to zero or one on output (where
 1 means that the record does fail the edits).
-\li For the second and third cases, I will fill \c record_fails, an array of equal length
-as the input array of record names, with zeros or ones indicating whether the
-corresponding field failed. If \c fails_edits is nonzero, then one of these elements will
+\li For the <tt>"failed_fields"</tt> case, I will fill \c record_fails, an array of equal length
+as the input array of record names, with a count indicating how many edits the
+corresponding field failed (and zero if it is OK). If \c fails_edits is nonzero, then one of these elements will
 be nonzero.
-\li The full list of valid alternatives is not returned, because this is intended
-to be called from R, and you can't return nontrivial data structures to R. Instead,
-I save the result as <tt>alternatives[id]</tt>, where \c id is the unique id you input.
-Any existing table at that point in the alternatives list gets freed when I write the new table.
-  */
+*/
 apop_data * consistency_check(char * const *record_name_in, char * const *ud_values, 
 			int const *record_in_size, char const *const *what_you_want, 
 			int const *id, int *fails_edits, int *failed_fields, char * restrict *ud_post_preedit);

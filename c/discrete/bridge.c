@@ -364,12 +364,6 @@ void init_edit_list(){
         setup_findxbe();
         db_to_em();
 	}
-    if (edit_list) {
-        Tea_stopif(!database,return, 0, "Please declare a database using 'database: your_db'.");
-        if (!apop_table_exists("alternatives"))
-            apop_query("create table alternatives (run, id, field, value);");
-        apop_query("delete from alternatives where run = %i", run_number);
-    }
 }
 
 

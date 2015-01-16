@@ -70,11 +70,6 @@ bool run_preedits(char ** oext_values, char const *preed){
     apop_query("update tea_test %s", preed);
     apop_data *newvals = apop_query_to_text("select * from tea_test");
 
-    /*char *opost_values[total_var_ct];
-    apop_data_transpose(newvals, .inplace='y');
-    order_things(*newvals->text, newvals->names->text, *newvals->textsize, opost_values);
-    */
-
     int ctr=0; //order is the same as oext_values; just have to find the entering fields.
     for (int octr=0; octr< total_var_ct; octr++){
         if (oext_values[octr] && *oext_values[octr]=='\0') continue;
@@ -246,110 +241,12 @@ static int check_a_record_discrete(int const * restrict row,  int ** failures,
     return out;
 }
 
-/* Fill the table of all possible alternatives. This involves checking all combinations of
-   an indeterminate number of variables, and that's the sort of thing most easily done via recursion. 
+/* There had been a clever recursive routine to generate a list of all possible
+   alternatives. In every application we have, we've found that it's easier to just
+   re-draw until we have a passing entry than to exhaustively generate the list of
+   possiblities.  It last appeared in commit c11ad596. */
 
-   When you get to the last field in the list, you will have a record that is ready to
-   test via check_a_record_discrete and check_a_record_sql. If that function returns zero,
-   then write to \c fillme. To make life easier, <tt>fillme</tt>'s vector holds a
-   single number: the length of the array so far.
 
-   Now that you know what happens at the end, the recursion that leads up to it will, for each field, blank out the field, then for (i= each possible record value), set the record to i, and call the function to operate on the next field down.  This loop-and-recurse setup will guarantee that the last field in the list will run a test on all possible values.
-
-   Notice that fields that aren't marked as failing are just skipped over.
-*/
-/*   TeaKEY(timeout, <<<Once it has been established that a record has failed a consistency
-   check, the search for alternatives begins. Say that variables one, two, and three each have 100
-    options; then there are 1,000,000 options to check against possibly thousands
-    of checks. If a timeout is present in the spec (outside of all groups), then the
-    alternative search halts and returns what it has after the given number of seconds
-    have passed.>>>)
-   */
-static void do_a_combo(int *record, char **oext_values,
-         int **failed_edits_in, int this_field, apop_data *fillme,
-		 jmp_buf jmpbuf, time_t const timeout){
-
-    int option_ct, skipme=0;
-	if (record[this_field]==-1 || !*failed_edits_in[this_field]
-           || used_vars[this_field].type=='r'){//not a failed field or DISCRETE editable; skip.
-		skipme=1;
-		option_ct=1;
-	}
-	else option_ct = find_e[this_field] - find_b[this_field] +1;
-    if (!skipme)
-        memset(record+find_b[this_field]-1, 0, sizeof(int)* option_ct);
-	//else leave this field exactly as it was originally
-    for (int i=0; i < option_ct; i++){
-        if (!skipme){
-            record[find_b[this_field]-1+i] = 1;
-            if (i > 0) //clear the last value
-                record[find_b[this_field]-1+i-1] = 0;
-        }
-        if (this_field +1 < total_var_ct)
-            do_a_combo(record, oext_values, failed_edits_in, this_field+1,
-							  fillme, jmpbuf, timeout);
-        else{
-			if (timeout && time(NULL) > timeout) longjmp(jmpbuf, 1);
-            bool has_sql_edits = 0;
-            int want_preedits = 0;
-            if (!check_a_record_discrete(record, NULL, 0,  &has_sql_edits, &want_preedits)
-                && (!has_sql_edits || !check_a_record_sql(oext_values, NULL, -1))
-                ){//OK record; write it.
-                int this_row = apop_data_get(fillme, 0, -1);
-                (*gsl_vector_ptr(fillme->vector, 0))++;
-                for (int k=0; k< total_var_ct; k++){
-                    if (*failed_edits_in[this_field]){
-                        for (int j=find_b[this_field]-1; j< find_e[this_field]; j++)
-                            if (record[j]){
-								if (fillme->matrix->size1 <=this_row)
-									fillme->matrix = apop_matrix_realloc(
-												fillme->matrix,
-												fillme->matrix->size1*2, fillme->matrix->size2);
-                                apop_data_set(fillme, .col=this_field,
-                                        .row=this_row, 
-                                        .val=j-(find_b[this_field]-1));
-								break;
-							}
-                    }
-                }
-            }
-        }
-    }
-}
-
-/* This function just gets the maximal dimensions of the alternatives table, allocates,
-    and fills via the recursive \c do_a_combo function above. So this is really just the
-    prep function for the recursion, where the real work happens.
-*/
-static apop_data * get_alternatives(int *record, char ** oext_values,
-							int ** failing_records){
-    int total_fails = 0;
-    int rows = 1;
-    for (int this_field = 0; this_field< total_var_ct; this_field++){
-        total_fails += *failing_records[this_field] ? 1 : 0;
-        if (*failing_records[this_field])
-            rows *= find_e[this_field] - find_b[this_field]+1;
-    }
-	Tea_stopif(!total_fails,  apop_data*out=apop_data_alloc(); out->error='c'; return out,
-                0, "Failed internal consistency check: I marked this "
-				"record as failed but couldn't find which fields were causing failure.");
-    apop_data *out = apop_data_alloc(1, rows, total_fails);
-    out->vector->data[0] = 0;
-    for (int i=0; i< total_var_ct; i++)
-        if (*failing_records[i])
-            apop_name_add(out->names, used_vars[i].name, 'c');
-
-	//prepare the timeout; call the recursion
-	jmp_buf jmpbuf;
-	double user_timeout = get_key_float("timeout", NULL);
-	time_t timeout = isnan(user_timeout) ? 0 : user_timeout+time(NULL);
-	if (!setjmp(jmpbuf))
-		do_a_combo(record, oext_values, failing_records, 0, out, jmpbuf, timeout);
-	else
-		fprintf(stderr,"Timed out on consistency query. Partial alternatives returned, but set may not be complete.\n");
-    out->matrix = apop_matrix_realloc(out->matrix, out->vector->data[0], out->matrix->size2);
-    return out;
-}
 
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
@@ -417,8 +314,6 @@ int wanted_preed=1000000;
 
     if (!strcmp(what_you_want[0], "failed_fields"))
         return NULL;
-    if (!strcmp(what_you_want[0], "find_alternatives") && *fails_edits)
-		return get_alternatives(record, oext_values, ofailed_fields);
 	return NULL;
 }
 
