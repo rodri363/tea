@@ -29,11 +29,9 @@ double check_one_row(apop_data *row, void *colnames_in){
        }
    }
 
-   int id = 0, fails_edits;
+   int id = 0;
    char const *pf = "passfail";
-
-   consistency_check(colnames, values, &record_count, &pf, &id, &fails_edits, NULL, NULL);
-   return fails_edits;
+   return consistency_check(colnames, values, &record_count, &pf, &id, NULL, NULL);
 }
 
 

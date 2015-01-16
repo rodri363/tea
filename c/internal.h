@@ -90,8 +90,8 @@ void order_things(char * const* record_in, char *const *record_names, int record
 void order_things_int(int * ints_in, char *const *record_names, int record_size, int **oint_vals);
 
 //in discrete/consistency.c, version 2 of consistency_check
-apop_data * cc2(char * *oext_values, char const *const *what_you_want, 
-			int const *id, int *fails_edits, int **ofailed_fields, _Bool do_preedits);
+int cc2(char * *oext_values, char const *const *what_you_want, 
+			int const *id, int **ofailed_fields, _Bool do_preedits);
 
 //utils.c
 int create_index_base(char const *tab, char const**fields);

@@ -364,7 +364,7 @@ static char mark_an_id(const char *target, char * const *list, int len, char jus
 typedef struct {
     char *textx;
     double pre_round;
-    int is_fail;
+    int fail_count;
 } a_draw_struct;
 
 /*This function is the inner loop cut out from impute(). As you can see from the list of
@@ -405,7 +405,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         //copy the new impute to full_record, for re-testing
         //just get a success/failure, but a smarter system would request the list of failed fields.
         Asprintf(oext_values+col_of_interest, "%s", out.textx);
-        cc2(oext_values, &whattodo, &id_number, &out.is_fail, NULL, /*do_preedits=*/true);
+        out.fail_count = cc2(oext_values, &whattodo, &id_number, NULL, /*do_preedits=*/true);
     }
     return out;
 }
@@ -450,8 +450,8 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         for (int i=0; i< total_var_ct; i++) pre_preedit[i] = oext_values[i] ? strdup(oext_values[i]): NULL;
 
         do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits);
-        while (drew.is_fail && tryctr++ < 1000);
-        Tea_stopif(drew.is_fail, 
+        while (drew.fail_count && tryctr++ < 1000);
+        Tea_stopif(drew.fail_count, 
                 apop_query("insert into tea_fails values(%i)", id_number)
                 , 0, "I just made a thousand attempts to find an imputed value "
             "that passes checks, and couldn't. Something's wrong that a "

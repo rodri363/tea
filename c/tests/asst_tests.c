@@ -16,17 +16,16 @@ void write_a_file(char *name, char *onestring){
 char *db_dummy;
 
 void test_consistency(){
-    int seven=7, fails_edits;
+    int seven=7;
     char const *passfail="passfail";
     apop_data *d = apop_query_to_text("select * from d");
     int size_as_int = d->textsize[1];
     for (int i=0; i< d->textsize[0]; i++){
-        consistency_check(d->names->text, d->text[i], &size_as_int,
-                &passfail, &seven, &fails_edits, NULL, NULL
-                );
+        int fail_ct = consistency_check(d->names->text, d->text[i], &size_as_int,
+                                        &passfail, &seven, NULL, NULL);
         assert(((d->text[i][0][0]=='2' || (d->text[i][0][0]=='1' && d->text[i][1][0]=='2')) 
-                            && fails_edits)
-                 || !fails_edits);
+                            && fail_ct)
+                 || !fail_ct);
     }
 }
 
@@ -234,7 +233,7 @@ void test_ols(gsl_rng *r){
         if (gsl_rng_uniform(r) < .04)
             for (int j=-1; j < 3; j++)
                 if (gsl_rng_uniform(r) < 0.5) apop_data_set(observations, i, j, NAN);
-        asprintf(&str, "%i", i);
+        Asprintf(&str, "%i", i);
         apop_name_add(observations->names, str, 'r');
     }
 

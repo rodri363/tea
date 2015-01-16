@@ -65,7 +65,9 @@ static void sqlify(char * const restrict* oext_values){
     free(qstring);
 }
 
-bool run_preedits(char ** oext_values, char const *preed){
+/* If the input preedit changed something, then both oext_values here and tea_test in the
+   db will be different. Output answers the question `did the preedit change anything?' */
+static bool run_preedits(char ** oext_values, char const *preed){
     bool out=false;
     apop_query("update tea_test %s", preed);
     apop_data *newvals = apop_query_to_text("select * from tea_test");
@@ -247,7 +249,6 @@ static int check_a_record_discrete(int const * restrict row,  int ** failures,
    possiblities.  It last appeared in commit c11ad596. */
 
 
-
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
 static void fill_a_record(int *record, int record_width, char * const restrict *oext_values, int id){
@@ -289,32 +290,27 @@ static void do_fields_and_fails_agree(int **ofailed_fields, int fails_edits, int
     assert((total_fails !=0 && fails_edits) || (total_fails==0 && !fails_edits));
 }
 
-apop_data * cc2(char * *oext_values, char const *const *what_you_want, 
-			int const *id, int *fails_edits, int **ofailed_fields, bool do_preedits){
+int cc2(char * *oext_values, char const *const *what_you_want, 
+			int const *id, int **ofailed_fields, bool do_preedits){
 
     if (!edit_grid) init_edit_list();
-    if (!edit_grid || !edit_grid->matrix){ //then there are no edits.
-		*fails_edits = 0;
-        return NULL;
-	}
+    if (!edit_grid || !edit_grid->matrix) return 0; //then there are no edits.
     int width = edit_grid->matrix->size2;
-	Tea_stopif(!width, return NULL, 1, "zero edit grid; returning NULL.");
+	Tea_stopif(!width, return 0, 1, "zero edit grid; returning zero failures.");
     int record[width];
 	fill_a_record(record, width, oext_values, *id);
     bool has_sql_edits = 0;
 int wanted_preed=1000000;
     bool pf = !strcmp(what_you_want[0], "passfail");
-    *fails_edits = check_a_record_discrete(record, ofailed_fields, (pf ? 0:*id),
+    int fail_count = check_a_record_discrete(record, ofailed_fields, (pf ? 0:*id),
                               &has_sql_edits, &wanted_preed);
     if (!do_preedits) wanted_preed=-1;//don't apply preedit, even if a failure was found.
-    *fails_edits += (has_sql_edits||wanted_preed>=0) 
+    fail_count += (has_sql_edits||wanted_preed>=0) 
                        && check_a_record_sql(oext_values, ofailed_fields, wanted_preed);
-    if (pf) return NULL;
-    do_fields_and_fails_agree(ofailed_fields, *fails_edits, total_var_ct);
 
-    if (!strcmp(what_you_want[0], "failed_fields"))
-        return NULL;
-	return NULL;
+    if (!pf) do_fields_and_fails_agree(ofailed_fields, fail_count, total_var_ct);
+
+    return fail_count;
 }
 
 
@@ -325,16 +321,15 @@ above, takes in a list that exactly matches the order of the edit matrix. It sim
 this file a lot, and perhaps we can some day deprecate this function in favor of
 that one.
 */
-apop_data * consistency_check(char * const *record_names, char * const *ud_values, 
+int consistency_check(char * const *record_names, char * const *ud_values, 
 			int const *record_size, char const *const *what_you_want, 
-			int const *id, int *fails_edits, int *failed_fields,
-            char * restrict *ud_post_preedit){
-	Tea_stopif(*record_size <= 0, return NULL, 1, "zero record size; returning NULL.");
+			int const *id, int *failed_fields, char * restrict *ud_post_preedit){
+	Tea_stopif(*record_size <= 0, return 0, 1, "zero record size; returning zero failures.");
     char *oext_values[total_var_ct];
     int *ofailed_fields[total_var_ct];
     order_things(ud_values, record_names, *record_size, oext_values);
     if (failed_fields) order_things_int(failed_fields, record_names, *record_size, ofailed_fields);
-    return cc2(oext_values, what_you_want, id, fails_edits, (failed_fields? ofailed_fields : NULL), !!ud_post_preedit);
+    return cc2(oext_values, what_you_want, id, (failed_fields? ofailed_fields : NULL), !!ud_post_preedit);
 }
 
 apop_data *checkData(apop_data *data){
@@ -347,7 +342,7 @@ apop_data *checkData(apop_data *data){
 	//now that we have the variables, we can call consistency_check for each row
 	int id=1;
 	int nrow = data->matrix ? data->matrix->size1: *data->textsize;
-	int fails_edits, failed_fields[nvars];
+	int failed_fields[nvars];
 	char *vals[nvars];
 	char const *what = "failed_fields";
 	apop_data *failCount = apop_data_calloc(nrow,nvars);
@@ -365,7 +360,7 @@ apop_data *checkData(apop_data *data){
 			else vals[jdx] = data->text[idx][jdx - data->names->colct];
 		}
         memset(failed_fields, 0, nvars*sizeof(int));
-		consistency_check(fields,vals,&nvars,&what, &id,&fails_edits,failed_fields, NULL);
+		consistency_check(fields,vals,&nvars,&what, &id,failed_fields, NULL);
 		//insert failure counts
 		for(int jdx=0; jdx < nvars; jdx++){
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);

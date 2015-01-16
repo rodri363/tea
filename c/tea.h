@@ -81,16 +81,15 @@ elements.
 
 Outputs:
 
-\li In all cases, the \c fails_edits variable will be set to zero or one on output (where
-1 means that the record does fail the edits).
+\li In all cases, return the count of failed edits on output.
 \li For the <tt>"failed_fields"</tt> case, I will fill \c record_fails, an array of equal length
 as the input array of record names, with a count indicating how many edits the
 corresponding field failed (and zero if it is OK). If \c fails_edits is nonzero, then one of these elements will
 be nonzero.
 */
-apop_data * consistency_check(char * const *record_name_in, char * const *ud_values, 
+int consistency_check(char * const *record_name_in, char * const *ud_values, 
 			int const *record_in_size, char const *const *what_you_want, 
-			int const *id, int *fails_edits, int *failed_fields, char * restrict *ud_post_preedit);
+			int const *id, int *failed_fields, char * restrict *ud_post_preedit);
 
 apop_data *checkData(apop_data *data);
 
