@@ -97,8 +97,9 @@ static bool run_preedits(char ** oext_values, char const *preed){
 }
 
 //call iff there are SQL edits (or preedits) to be checked.
-static int check_a_record_sql(char ** oext_values, int ** ofailures,
-                         int wanted_preed  //if the discrete edits found a failure, its row number is here; else -1.
+static int check_a_record_sql(char ** oext_values, int **ofailures,
+                         int wanted_preed,  //if the discrete edits found a failure, its row number is here; else -1.
+                         bool *gotta_start_over
                          ){
     int out = 0;
     bool usable_sql[edit_grid->vector->size];
@@ -126,7 +127,10 @@ static int check_a_record_sql(char ** oext_values, int ** ofailures,
                 if (preed)
                     pre_edits_changed_something = run_preedits(oext_values, preed);
                 out+=fails;
-if(pre_edits_changed_something) out=0;
+if(pre_edits_changed_something) {
+    *gotta_start_over=true;
+    return 1;
+}
                 if (ofailures)
                     for (int i=0; i<total_var_ct; i++){
                         if (oext_values[i] && *oext_values[i]=='\0') continue; //skip non-entering.
@@ -181,7 +185,7 @@ passes the edit; move on to the next.
   There is one slot per field (i.e., it is unrelated to any subset of records
   requested by the user).
   */
-static int check_a_record_discrete(int const * restrict row,  int ** failures, 
+static int check_a_record_discrete(int const * restrict row,  int **failures,
                    int rownumber, bool *has_sql_edits, int *run_this_preedit){
     int rowfailures[total_var_ct];
     int out = 0;
@@ -291,22 +295,28 @@ static void do_fields_and_fails_agree(int **ofailed_fields, int fails_edits, int
 }
 
 int cc2(char * *oext_values, char const *const *what_you_want, 
-			int const *id, int **ofailed_fields, bool do_preedits){
+			int const *id, int **ofailed_fields, bool do_preedits, int recursion_count){
 
     if (!edit_grid) init_edit_list();
     if (!edit_grid || !edit_grid->matrix) return 0; //then there are no edits.
+
     int width = edit_grid->matrix->size2;
 	Tea_stopif(!width, return 0, 1, "zero edit grid; returning zero failures.");
     int record[width];
 	fill_a_record(record, width, oext_values, *id);
-    bool has_sql_edits = 0;
+    bool has_sql_edits = false, gotta_start_over=false;
 int wanted_preed=1000000;
     bool pf = !strcmp(what_you_want[0], "passfail");
     int fail_count = check_a_record_discrete(record, ofailed_fields, (pf ? 0:*id),
                               &has_sql_edits, &wanted_preed);
     if (!do_preedits) wanted_preed=-1;//don't apply preedit, even if a failure was found.
     fail_count += (has_sql_edits||wanted_preed>=0) 
-                       && check_a_record_sql(oext_values, ofailed_fields, wanted_preed);
+                       && check_a_record_sql(oext_values, ofailed_fields, wanted_preed, &gotta_start_over);
+    if (gotta_start_over) {
+        Tea_stopif(recursion_count>100, return 1, 0,
+                "Over 100 pre-edits made. I am probably stuck in a loop.")
+        return cc2(oext_values, what_you_want, id, ofailed_fields, do_preedits, recursion_count++);
+    }
 
     if (!pf) do_fields_and_fails_agree(ofailed_fields, fail_count, total_var_ct);
 
@@ -329,7 +339,7 @@ int consistency_check(char * const *record_names, char * const *ud_values,
     int *ofailed_fields[total_var_ct];
     order_things(ud_values, record_names, *record_size, oext_values);
     if (failed_fields) order_things_int(failed_fields, record_names, *record_size, ofailed_fields);
-    return cc2(oext_values, what_you_want, id, (failed_fields? ofailed_fields : NULL), !!ud_post_preedit);
+    return cc2(oext_values, what_you_want, id, (failed_fields? ofailed_fields : NULL), !!ud_post_preedit, 0);
 }
 
 apop_data *checkData(apop_data *data){
@@ -360,7 +370,7 @@ apop_data *checkData(apop_data *data){
 			else vals[jdx] = data->text[idx][jdx - data->names->colct];
 		}
         memset(failed_fields, 0, nvars*sizeof(int));
-		consistency_check(fields,vals,&nvars,&what, &id,failed_fields, NULL);
+		consistency_check(fields,vals,&nvars,&what, &id, failed_fields, NULL);
 		//insert failure counts
 		for(int jdx=0; jdx < nvars; jdx++){
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);

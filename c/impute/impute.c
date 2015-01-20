@@ -405,7 +405,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         //copy the new impute to full_record, for re-testing
         //just get a success/failure, but a smarter system would request the list of failed fields.
         Asprintf(oext_values+col_of_interest, "%s", out.textx);
-        out.fail_count = cc2(oext_values, &whattodo, &id_number, NULL, /*do_preedits=*/true);
+        out.fail_count = cc2(oext_values, &whattodo, &id_number, NULL, /*do_preedits=*/true, 0);
     }
     return out;
 }

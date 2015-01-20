@@ -19,10 +19,9 @@ void order_things(char * const * record_in, char *const *record_names, int recor
     for (int i=0; i< record_size; i++)
         for (int j=0; j< total_var_ct; j++)
             if (!strcmp(used_vars[j].name, record_names[i])  ){// && used_vars[j].type != 'r'){
-                if (!strcmp(record_in[i], apop_opts.nan_string))
-                    oext_vals[j] = NULL;
-                else
-                    oext_vals[j] = record_in[i];
+                oext_vals[j] = (!strcmp(record_in[i], apop_opts.nan_string))
+                                    ? NULL
+                                    : record_in[i];
                 break;
             }
 }

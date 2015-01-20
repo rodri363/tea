@@ -91,7 +91,7 @@ void order_things_int(int * ints_in, char *const *record_names, int record_size,
 
 //in discrete/consistency.c, version 2 of consistency_check
 int cc2(char * *oext_values, char const *const *what_you_want, 
-			int const *id, int **ofailed_fields, _Bool do_preedits);
+			int const *id, int **ofailed_fields, _Bool do_preedits, int);
 
 //utils.c
 int create_index_base(char const *tab, char const**fields);
