@@ -4486,7 +4486,7 @@ done
 PACKAGE_NAME=tea
 
 echo "PKG_LIBS=@LIBS@
-PKG_CFLAGS=-fopenmp
+PKG_CFLAGS=-fopenmp -g
 PKG_LIBS=-fopenmp -lgomp -lapophenia
 " >> src/Makevars.in
 ac_config_files="$ac_config_files src/Makevars"

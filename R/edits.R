@@ -7,6 +7,7 @@
 #' but want to run some queries on an already-processed database.
 teaConnect <-function(dbname){
     teaenv$dbname <- dbname
+    if (!is.null(try(teaenv$con))) dbDisconnect(teaenv$con)
     teaenv$con <- dbConnect(dbDriver("SQLite"), dbname)
     .C("db_open", dbname)
 }
@@ -24,35 +25,14 @@ readSpec <- function(spec,nlines=1000){
     # written to the keys table. If not, then don't perform dbConnect below (and just go
     # back to R after displaying warning message).
     
-    teaenv$db_name <- .C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
+    dbname <- .C("read_spec", spec, paste(rep("",nlines), collapse=" "))[[2]]
 
-    if(nchar(teaenv$db_name)>0) {
-        teaenv$con <- dbConnect(dbDriver("SQLite"), teaenv$db_name);
-    }
+    if(nchar(dbname)>0) teaConnect(dbname)
+    else Warning("Couldn't read the database name from the spec file.")
     teaenv$verbosity <- 0
 }
 
 
-
-#' Interface with C-side record consistency checking
-#' @param vals variable names
-#' @param vars variable values
-#' @param what_you_want level of detail of results
-#' @param con a connection to a database
-#' @param run_id unique identifier for this run
-#' @param verbose verbose output?
-#' 
-#' @return a data frame containing allowable variable combinations
-GetAlternatives <- function(dfrow){
-	if(nrow(dfrow)>1) stop("can only send in one row at time for now to get alts")
-	dfidx <- as.data.frame(.Call("r_row_alts",dfrow)[-1])
-	dfidx <- as.data.frame(lapply(dfidx,"+",1)) #add one to get sqlite indices
-	vvar <- names(dfidx)
-	query <- paste("select * from",paste(vvar,collapse=","),
-		"where",paste(paste(vvar,"rowid",sep="."),paste("$",vvar,sep=""),
-					sep="=",collapse=" and "))
-	return(dbGetPreparedQuery(teaenv$con,query,dfidx))
-}
 
 #' Check a real/integer vector for values outside of declared consistency values
 #' @param Vvar vector you want to check

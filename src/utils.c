@@ -8,7 +8,7 @@
 //return -1 if index creation failed
 int create_index_base(char const *tab, char const**fields){
     char *idxname=NULL;
-    asprintf(&idxname, "idx_%s", tab);
+    Asprintf(&idxname, "idx_%s", tab);
     for(char const**f=fields; *f; f++)
        xprintf(&idxname, "%s_%s", idxname, *f); 
 

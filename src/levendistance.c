@@ -78,22 +78,22 @@ int check_levenshtein_distances(int max_lev_distance){
 void test_levenshtein_distance(){
     char *string_one, *string_two;
 
-    asprintf(&string_one, "impute/recodes");
-    asprintf(&string_two, "impute/recdes");
+    Asprintf(&string_one, "impute/recodes");
+    Asprintf(&string_two, "impute/recdes");
 
     assert(levenshtein_distance(string_one, string_two) == 1);
 
-    asprintf(&string_one, "input/input table");
-    asprintf(&string_two, "niput/input table");
+    Asprintf(&string_one, "input/input table");
+    Asprintf(&string_two, "niput/input table");
 
     assert(levenshtein_distance(string_one, string_two) == 2);
 
-    asprintf(&string_one, "database");
-    asprintf(&string_two, "database");
+    Asprintf(&string_one, "database");
+    Asprintf(&string_two, "database");
     assert(levenshtein_distance(string_one, string_two) == 0); 
 
-    asprintf(&string_one, "mthod");
-    asprintf(&string_two, "method");
+    Asprintf(&string_one, "mthod");
+    Asprintf(&string_two, "method");
     assert(levenshtein_distance(string_one, string_two) == 1);
 
     free(string_one);

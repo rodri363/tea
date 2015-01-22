@@ -16,15 +16,14 @@ int negone = -1;
 void order_things(char * const * record_in, char *const *record_names, int record_size, char **oext_vals){
     for (int j=0; j< total_var_ct; j++)
         oext_vals[j] = blank;
-    for (int i=0; i< record_size; i++){
-        if (!strcmp(record_in[i], apop_opts.nan_string))
-            continue;
+    for (int i=0; i< record_size; i++)
         for (int j=0; j< total_var_ct; j++)
             if (!strcmp(used_vars[j].name, record_names[i])  ){// && used_vars[j].type != 'r'){
-                oext_vals[j] = record_in[i];
+                oext_vals[j] = (!strcmp(record_in[i], apop_opts.nan_string))
+                                    ? NULL
+                                    : record_in[i];
                 break;
             }
-    }
 }
 
 void order_things_int(int * ints_in, char *const *record_names, int record_size, int **oint_vals){

@@ -15,19 +15,19 @@
 void pastein_tests(){
 
 char *spec1;
-asprintf(&spec1, "1.spec");
+Asprintf(&spec1, "1.spec");
 
 char *spec2;
-asprintf(&spec2, "2.spec");
+Asprintf(&spec2, "2.spec");
 
 char *spec3;
-asprintf(&spec3, "3.spec");
+Asprintf(&spec3, "3.spec");
         
 char *spec4;
-asprintf(&spec4, "4.spec");
+Asprintf(&spec4, "4.spec");
 
 char *spec5;
-asprintf(&spec5, "5.spec");
+Asprintf(&spec5, "5.spec");
         
     /* Standard test here: creating a macro with a few sub keys and calling it on its own
      * in the impute key. If something goes wrong here it's because there's something
@@ -225,10 +225,10 @@ char *db_dummy;
      char *imp_min_grp, *imp_drw_cnt, *imp_seed, *imp_categories;
 
      read_spec(&spec1, &db_dummy);
-     asprintf(&imp_min_grp, "impute/min group size");
-     asprintf(&imp_drw_cnt, "impute/draw count");
-     asprintf(&imp_seed, "impute/seed");
-     asprintf(&imp_categories, "impute/categories");
+     Asprintf(&imp_min_grp, "impute/min group size");
+     Asprintf(&imp_drw_cnt, "impute/draw count");
+     Asprintf(&imp_seed, "impute/seed");
+     Asprintf(&imp_categories, "impute/categories");
 
      apop_data *spec1_keys1 = apop_query_to_text("select * from keys where key like "
              "'impute/m%%'");
@@ -263,8 +263,8 @@ char *db_dummy;
      char *inpt_inpt_table;
      char *inpt_otpt_table;
 
-     asprintf(&inpt_inpt_table, "input/input table");
-     asprintf(&inpt_otpt_table, "input/output table");
+     Asprintf(&inpt_inpt_table, "input/input table");
+     Asprintf(&inpt_otpt_table, "input/output table");
 
      apop_data *spec2_keys1 = apop_query_to_text("select * from keys where key like "
              "'impute/m%%'");

@@ -131,8 +131,11 @@ void db_to_em(void){
             }
             //We're only doing integer and text edits. If there's a real variable anywhere
             //along the row, then we'll use the sql-based edit system to make it work. 
+            //Also, the DISCRETE system is ill-suited for handling "if var is null"
+            //conditions; the reader is welcome to modify it to suit; meanwhile use SQL.
+            bool has_nulls_needs_sql = strcasestr(edit_list[current_explicit].clause, "null");
             for (int i=0; i< edit_list[current_explicit].var_ct; i++)
-                if (edit_list[current_explicit].vars_used[i].type =='r'){
+                if (has_nulls_needs_sql || edit_list[current_explicit].vars_used[i].type =='r'){
                     apop_text_alloc(edit_grid, edit_grid->textsize[0]+1, GSL_MAX(1, edit_grid->textsize[1]));
                     apop_text_add(edit_grid, edit_grid->textsize[0]-1, 0, edit_list[current_explicit].clause);
                     next_phase='s';
@@ -230,7 +233,7 @@ void db_to_em(void){
 */
 double get_key_float(char const *part1, char const * part2){
      char *p = NULL;
-     if (part1 && part2) asprintf(&p, "%s/%s", part1, part2);
+     if (part1 && part2) Asprintf(&p, "%s/%s", part1, part2)
     double out = apop_query_to_float("select value from keys where key like '%s' order by count", 
                             p ? p : part1 ? part1 : part2);
     if (p) free(p);
@@ -361,12 +364,6 @@ void init_edit_list(){
         setup_findxbe();
         db_to_em();
 	}
-    if (edit_list) {
-        Tea_stopif(!database,return, 0, "Please declare a database using 'database: your_db'.");
-        if (!apop_table_exists("alternatives"))
-            apop_query("create table alternatives (run, id, field, value);");
-        apop_query("delete from alternatives where run = %i", run_number);
-    }
 }
 
 
@@ -469,7 +466,7 @@ char get_coltype(char const* invar){
 
 
 //For opening a database connection from R
-void db_open(char **in){apop_db_open(*in);}
+void db_open(char **in){apop_db_close(); apop_db_open(*in);}
 
 void qxprintf(char **q, char *format, ...){
     va_list ap;

@@ -79,7 +79,7 @@ doMImpute <- function(tag=NULL, input_table=teaenv$active_tab){
 #        mod <- get(rmodel)$model
 #        #est <- estimateRapopModel(list(), mod)
 #    }
-    dbname <- dbGetInfo(teaenv$con)$dbname
+#    dbname <- dbGetInfo(teaenv$con)$dbname
     dbDisconnect(teaenv$con)
     autofill <- 0
     if (!is.null(tag)){
@@ -87,7 +87,7 @@ doMImpute <- function(tag=NULL, input_table=teaenv$active_tab){
     } else {
         .C("impute", as.character(active_tab), as.integer(autofill)) 
     }
-    teaenv$con <- dbConnect(dbDriver("SQLite"),dbname)
+    teaenv$con <- dbConnect(dbDriver("SQLite"),teaenv$dbname)
 	teaenv$active_tab <- active_tab #active_tab may have changed
 }
 

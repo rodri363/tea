@@ -14,19 +14,19 @@
 void levenshtein_tests(){
 
 char *spec1;
-asprintf(&spec1, "1.spec");
+Asprintf(&spec1, "1.spec");
 
 char *spec2;
-asprintf(&spec2, "2.spec");
+Asprintf(&spec2, "2.spec");
 
 char *spec3;
-asprintf(&spec3, "3.spec");
+Asprintf(&spec3, "3.spec");
         
 char *spec4;
-asprintf(&spec4, "4.spec");
+Asprintf(&spec4, "4.spec");
         
 char *spec5;
-asprintf(&spec5, "5.spec");
+Asprintf(&spec5, "5.spec");
 
      write_a_file(spec1,
      "\n"

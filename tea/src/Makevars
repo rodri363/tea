@@ -1,4 +1,0 @@
-PKG_LIBS=-lapophenia -lsqlite3 -lgsl -lgslcblas -lm 
-PKG_CFLAGS=-fopenmp -g
-PKG_LIBS=-fopenmp -lgomp -lapophenia
-

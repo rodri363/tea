@@ -31,6 +31,9 @@ int *find_b, *find_e, *optionct, verbose, edit_ct, total_var_ct;
 void xprintf(char **q, char *format, ...); //impute/parse_sql.c
 #define XN(in) ((in) ? (in) : "")  //same.
 
+//some versions of gcc complain if you discard the output from asprintf.
+#define Asprintf(...) {int discard = asprintf(__VA_ARGS__); if(discard);}
+
 void begin_transaction();
 void commit_transaction();
 
@@ -41,7 +44,7 @@ apop_data * get_variables_to_impute(char *tag);
 
 typedef struct {
 	apop_model *base_model, *fitted_model;
-	char * depvar, **allvars, *vartypes, *selectclause;
+	char * depvar, **allvars, *vartypes, *selectclause, *subset;
 	int position, allvars_ct, error;
 	apop_data *isnan, *notnan;
     bool is_bounds_checkable, is_hotdeck, textdep, is_em, is_regression, allow_near_misses, autofill;
@@ -79,16 +82,14 @@ void pastein_tests(); //found in tea/c/pastein_tests.c -- called in asst_tests.c
 
 void test_check_out_impute();//in checkout.c
 
-int has_sqlite3_index(char const *table, char const *column, char);//text_in/text_in.c
-
 //in discrete/ext_to_em.c, used for putting an arbitrary list of fields into
 //a certain order for the edit matrix.
 void order_things(char * const* record_in, char *const *record_names, int record_size, char **oext_vals);
 void order_things_int(int * ints_in, char *const *record_names, int record_size, int **oint_vals);
 
 //in discrete/consistency.c, version 2 of consistency_check
-apop_data * cc2(char * *oext_values, char const *const *what_you_want, 
-			int const *id, int *fails_edits, int **ofailed_fields, _Bool do_preedits);
+int cc2(char * *oext_values, char const *const *what_you_want, 
+			int const *id, int **ofailed_fields, _Bool do_preedits, int);
 
 //utils.c
 int create_index_base(char const *tab, char const**fields);

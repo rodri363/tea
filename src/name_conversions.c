@@ -30,11 +30,11 @@ static void ri_ext_init(){
         if (!apop_table_exists(used_vars[v].name) ||
             used_vars[v].type=='r')
                  continue;
-        asprintf(&q, "select * from %s order by rowid", used_vars[v].name);
+        Asprintf(&q, "select * from %s order by rowid", used_vars[v].name)
         ri_ext[ri_ext_len] = used_vars[v].type=='i' 
                                ? apop_query_to_data("%s", q)
                                : apop_query_to_text("%s", q);
-        asprintf(&ri_ext[ri_ext_len]->names->title, "%s", used_vars[v].name);
+        Asprintf(&ri_ext[ri_ext_len]->names->title, "%s", used_vars[v].name)
         free(q);
         ri_ext_len++;
     }
@@ -80,7 +80,7 @@ char * ext_from_ri(char const *varname, int const ri_val){
             "You're asking for value %i of variable %s, but it only "
             "has %zu values.", ri_val, varname, this->matrix->size1);
         char *out;
-        asprintf(&out, "%g", apop_data_get(this, ri_val-1));
+        Asprintf(&out, "%g", apop_data_get(this, ri_val-1))
         return out;
     } else {
         Tea_stopif(ri_val > *this->textsize, return strdup("NULL"), 0,

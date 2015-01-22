@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <assert.h>
 #include "internal.h"
-void test_has_sqlite3_index();//text_in/text_in.c
 
 //Just for the fun of it.
 #define foreach(s, ...) for (char **s = (char*[]){__VA_ARGS__, NULL}; *s; s=&s[1])
@@ -16,17 +15,16 @@ void write_a_file(char *name, char *onestring){
 char *db_dummy;
 
 void test_consistency(){
-    int seven=7, fails_edits;
+    int seven=7;
     char const *passfail="passfail";
     apop_data *d = apop_query_to_text("select * from d");
     int size_as_int = d->textsize[1];
     for (int i=0; i< d->textsize[0]; i++){
-        consistency_check(d->names->text, d->text[i], &size_as_int,
-                &passfail, &seven, &fails_edits, NULL, NULL
-                );
+        int fail_ct = consistency_check(d->names->text, d->text[i], &size_as_int,
+                                        &passfail, &seven, NULL, NULL);
         assert(((d->text[i][0][0]=='2' || (d->text[i][0][0]=='1' && d->text[i][1][0]=='2')) 
-                            && fails_edits)
-                 || !fails_edits);
+                            && fail_ct)
+                 || !fail_ct);
     }
 }
 
@@ -234,7 +232,7 @@ void test_ols(gsl_rng *r){
         if (gsl_rng_uniform(r) < .04)
             for (int j=-1; j < 3; j++)
                 if (gsl_rng_uniform(r) < 0.5) apop_data_set(observations, i, j, NAN);
-        asprintf(&str, "%i", i);
+        Asprintf(&str, "%i", i);
         apop_name_add(observations->names, str, 'r');
     }
 
@@ -295,6 +293,17 @@ void test_ols(gsl_rng *r){
 
 }
 
+void test_create_index(){
+    apop_query("create table ab(a, b)");
+    apop_query("create index abi on ab(a)");
+    assert(create_index("ab", "a")==0);
+    assert(!create_index("ab", "b")==0);
+    assert(!create_index("ab", "c")==-1);
+    assert(create_index("ac", "b")== 1);
+    apop_query("drop table ab");
+}
+
+
     //generate random data
     //punch holes
     //run
@@ -336,7 +345,7 @@ void tea_c_tests(){
    printf("Entering levenshtein_tests()\n");
    levenshtein_tests();
 
-    test_has_sqlite3_index();
+   test_create_index();
 }
 
 #ifdef TESTING

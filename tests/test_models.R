@@ -1,5 +1,5 @@
 library(tea)
-library(ggplot2)
+#library(ggplot2)
 
 kN <- 1000
 kdebug <- FALSE
@@ -99,15 +99,16 @@ print(apply(Mtab,2,summary))
 print(c(t(Vbeta),Vs[1]))
 print(apply(Ctab,2,summary))
 
-#plot all the lines
-DFline <- as.data.frame(Ctab[,1:2])
-names(DFline) <- c("m","b")
-p <- ggplot()
-p <- p + geom_point(data=DF,aes(x=vc,y=va),position="jitter")
-p <- p + geom_abline(data=DFline,aes(intercept=m,slope=b),alpha=1/5)
-p <- p + geom_abline(intercept=Vbeta[1],slope=Vbeta[2],color="red",size=1.25)
-#png("lines.png",width=1240,height=1080)
-png("lines.png",width=10,height=7,units="in",res=300)
-print(p)
-dev.off()
+#SOme nice plots to try, but Tea's tests shouldn't depend on ggplot.
+# #plot all the lines
+# DFline <- as.data.frame(Ctab[,1:2])
+# names(DFline) <- c("m","b")
+# p <- ggplot()
+# p <- p + geom_point(data=DF,aes(x=vc,y=va),position="jitter")
+# p <- p + geom_abline(data=DFline,aes(intercept=m,slope=b),alpha=1/5)
+# p <- p + geom_abline(intercept=Vbeta[1],slope=Vbeta[2],color="red",size=1.25)
+# #png("lines.png",width=1240,height=1080)
+# png("lines.png",width=10,height=7,units="in",res=300)
+# print(p)
+# dev.off()
 

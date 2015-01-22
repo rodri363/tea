@@ -1,16 +1,12 @@
 
 //See Notes (the `walk-through of imputation' section) for a detailed discussion of what goes on here.
 
-#define _GNU_SOURCE //declare asprintf
-#include <stdio.h>
 #include <rapophenia.h>
 #include <stdbool.h>
-#include <stdlib.h>
 #include "internal.h"
 extern char *datatab;
 void qxprintf(char **q, char *format, ...); //bridge.c
 char *process_string(char *inquery, char **typestring); //parse_sql.c
-#define XN(in) ((in) ? (in) : "")
 
 apop_model *relmodel; //impute/rel.c
 
@@ -35,7 +31,8 @@ static int lil_ols_draw(double *out, gsl_rng *r, apop_model *m){
 }
 
 static char *construct_a_query(char const *datatab, char const *underlying, char const *varlist, 
-                                apop_data const *category_matrix, char const *id_col, char const* ego_id, char *depvar){
+                                apop_data const *category_matrix, char const *id_col, char const* ego_id,
+                                char *depvar, char const *subset){
 /* Find out which constraints fit the given record, then join them into a query.
    The query ends in "and", because get_constrained_page will add one last condition.  */
 
@@ -43,14 +40,26 @@ static char *construct_a_query(char const *datatab, char const *underlying, char
 //If this function runs too slow, maybe check out revision a1a454d and try them out.
 
     char *q;
-    asprintf(&q, "select %s from %s where ", varlist, datatab);
+    Asprintf(&q, "select %s from %s where %s and ", varlist, datatab, subset);
     if (!category_matrix) return q;
     //else
     for (int i=0; i< category_matrix->textsize[0]; i++){
         char *n = *category_matrix->text[i]; //short name
-        if (strcmp(n, depvar)) //if n==depvar, you're categorizing by the missing var.
-            qxprintf(&q, "%s (%s) = (select %s from %s where %s = %s) and\n",  
-                           q,  n,           n,  datatab, id_col, ego_id);
+        if (!strcmp(n, depvar)) continue; //we know the missing var is missing.
+        apop_data *val = apop_query_to_text("select %s from %s where %s = %s",  
+                                                    n,  datatab, id_col, ego_id);
+        //char *endptr;
+        //strtol(**val->text, &endptr, 10);
+        //char sp_or_q = (*endptr == '\0') ? ' ': '"';
+        char sp_or_q = '"'; //sqlite does just as well treating everything as a string.
+        if (strcmp(**val->text, apop_opts.nan_string))
+            qxprintf(&q, "%s (%s) = %c%s%c and\n", q, n, sp_or_q, **val->text, sp_or_q);
+        else {
+            free(q);
+            apop_data_free(val);
+            return "stop";
+        }
+        apop_data_free(val);
     }
     return q;
 }
@@ -64,7 +73,7 @@ static char *construct_a_query_II(char const *id_col, const impustruct *is, apop
         if (!strcasecmp(fingerprint_vars->text[i][0], is->depvar))
             is_fprint++;
     if (is_fprint)
-        asprintf(&q2, "select %s from vflags where %s > 0", is->selectclause, is->depvar);
+        Asprintf(&q2, "select %s from vflags where %s > 0", is->selectclause, is->depvar);
     return q2;
 }
 
@@ -101,9 +110,6 @@ apop_data * get_data_from_R(apop_model *m){
     return rapop_ad_from_df(data_as_sexp);
 }
 
-apop_data *nans_no_constraints, *notnans_no_constraints;
-char *last_no_constraint;
-
 static void verify(impustruct is){
     /*Tea_stopif(is.isnan && !is.notnan, return, 0, "Even with no constraints, I couldn't find any "
                 "non-NaN records to use for fitting a model and drawing values for %s.", is.depvar);*/
@@ -128,37 +134,22 @@ static void verify(impustruct is){
 	notnans are a data set for model estimation, so rowids are irrelevant. 
 
    The information for both is there should you want to use it.
-
-	Given a list of other flaws---consistency failures, disclosure---we've gotta decide 
-	how we're gonna fit to those models. 
-
-	Currently, one method involves hot-deck --> not really any ML anything
-	OLS finds best fit using the rest of sample, not the item that needs
-	subbing, and so it may pull further from the data than is useful; also, our
-	version (probably most versions) goes one var. at a time --> leans toward one
-	var over the others.
 */
 static void get_nans_and_notnans(impustruct *is, char const* index, char const *datatab, 
         char const *underlying, int min_group_size, apop_data const *category_matrix, 
         apop_data const *fingerprint_vars, char const *id_col){
     is->isnan = NULL;
     char *q, *q2;
-    if (!category_matrix || *category_matrix->textsize == 0){
-        if (nans_no_constraints){//maybe recycle what we have.
-            if(apop_strcmp(last_no_constraint, is->selectclause)){
-                is->isnan = nans_no_constraints;
-                is->notnan = notnans_no_constraints;
-                return;
-            } else { //this isn't the right thing; start over
-                apop_data_free(nans_no_constraints);
-                apop_data_free(notnans_no_constraints);
-                is->isnan = is->notnan = NULL;
-                last_no_constraint = strdup(is->selectclause);
-            }
-        }//else, carry on:
-        asprintf(&q, "select %s from %s where 1 and ", is->selectclause, datatab);
-    } else
-        q = construct_a_query(datatab, underlying, is->selectclause, category_matrix, id_col, index, is->depvar);
+    /* There used to be verbiage here about saving the results of the query with no
+       subcategories and checking whether what we had saved is still what we need.
+       In the interest of reducing moving parts, it was removed after commit 750ef17f.*/
+        q = construct_a_query(datatab, underlying, is->selectclause, category_matrix, id_col,
+                                index, is->depvar,  is->subset?is->subset:"1");
+    if (!strcmp(q, "stop")){
+        apop_data_free(is->isnan);
+        apop_data_free(is->notnan);
+        return;
+    }
     q2 = construct_a_query_II(id_col, is, fingerprint_vars);
 
     if (!strcmp(is->vartypes, "all numeric"))
@@ -227,7 +218,7 @@ static void model_est(impustruct *is, int *model_id){
                 param_name = is->fitted_model->parameters->names->row[i];
             else {
                 free(param_name);
-                asprintf(&param_name, "param %i", i);
+                Asprintf(&param_name, "param %i", i);
             }
             apop_query("insert into model_log values(%i, '%s', %g);",
                     *model_id, param_name,
@@ -270,19 +261,14 @@ Return: 1=input wasn't in the list, was modified to nearest value
 /* TeaKEY(checks, <<<This key is where the user specifies the parameters for the variables she declared in types. The parameters given here are checked during each round of imputation.>>>)
  */
 int check_bounds(double *val, char const *var, char type){
-//Hey, B: Check the SQL that is about only this variable. This will need to be modified for multi-variable models.
-//After checking the SQL, check the declarations.
-
     char *val_as_text;
-    asprintf(&val_as_text, "%g", *val);
+    Asprintf(&val_as_text, "%g", *val);
     int rowid = ri_from_ext(var, val_as_text);
     free(val_as_text); 
     if (rowid >=0) return 0;
     //else, try to round it.
-    if (type=='r' || type=='c') return 0;
-/*    if (type =='c')
-		return !!apop_query_to_float("select count(*) from %s where %s = '%s'",
-var, var, val);*/
+    if (type=='r' || type=='c')
+        return 0;
     else {//integer type
         double closest = find_nearest_val(var, *val);
         if (fabs(closest-*val) > 0){//may overdetect for some floats
@@ -306,8 +292,9 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
     //db_name_column may be rowid, which would srsly screw us up.
     //first pass: get the full list of NaNs; no not-NaNs yet.
     apop_data *nanvals = apop_query_to_data("select distinct %s, %s from %s where %s is null "
-                                            "order by %s+0.0",
-									 id_col, is.depvar, datatab, is.depvar, id_col);
+                                            "and %s order by %s+0.0",
+									 id_col, is.depvar, datatab, is.depvar, 
+                                     is.subset?is.subset:"1", id_col);
     if (!nanvals) return NULL; //query worked, nothing found.
     Tea_stopif(nanvals->error, return NULL, 0, "Error querying for missing values.");
     if (verbose){
@@ -327,7 +314,7 @@ static char *get_edit_associates(char const*depvar, char const*dt, char const*id
     if (!this->edit_associates){
         this->edit_associates = apop_text_alloc(NULL, 1, 1);
         apop_text_add(this->edit_associates, 0, 0, depvar);
-        for(edit_t *this_ed=edit_list; this_ed && this_ed->clause; this_ed++){
+        for (edit_t *this_ed=edit_list; this_ed && this_ed->clause; this_ed++){
             bool use_this_edit=false;
             for(int i=0; i< this_ed->var_ct; i++)
                 if ((use_this_edit=!strcasecmp(depvar, this_ed->vars_used[i].name))) break;
@@ -343,11 +330,15 @@ static char *get_edit_associates(char const*depvar, char const*dt, char const*id
             apop_data_free(this_ed_list);
         }
         if (*this->edit_associates->textsize) apop_data_pmf_compress(this->edit_associates);
-    }
+    } else //don't have to rebuild the edit_associates list, but do have to check has_edits
+        for (edit_t *this_ed=edit_list; !*has_edits && this_ed && this_ed->clause; this_ed++)
+            for(int i=0; !*has_edits && i< this_ed->var_ct; i++)
+                if (strcasecmp(depvar, this_ed->vars_used[i].name)) 
+                    *has_edits = true;
 
     if (!*this->edit_associates->textsize) return NULL;
     char *tail;
-    asprintf(&tail, " from %s where %s=%i", dt, id_col, id_number);
+    Asprintf(&tail, " from %s where %s=%i", dt, id_col, id_number);
     char *out = apop_text_paste(this->edit_associates, .between=", ",  .before="select ", .after=tail);
     free(tail);
     return out;
@@ -360,18 +351,20 @@ static int forsearch(const void *a, const void *b){
     return diff > 0 ? 1 : (diff < 0 ? -1 : 0);
 }
 
-static int mark_an_id(const char *target, char * const *list, int len, char just_check){
+/* return 'n'=not found (bad news)   'm'=found, already marked  'u'=found, not marked. */
+static char mark_an_id(const char *target, char * const *list, int len, char just_check){
     char **found = bsearch(target, list, len, sizeof(char*), forsearch);
-    if(!found) return -1;
-    if (just_check) return 0;
-    asprintf(found, "%s.", *found);
+    if (!found) return 'n';
+    int out= (*found)[strlen(*found)-1]== '.' ? 'm' : 'u' ;
+    if (just_check) return out;
+    if (out=='u') Asprintf(found, "%s.", *found); //it's marked now.
     return 0;
 }
 
 typedef struct {
     char *textx;
     double pre_round;
-    int is_fail;
+    int fail_count;
 } a_draw_struct;
 
 /*This function is the inner loop cut out from impute(). As you can see from the list of
@@ -379,7 +372,7 @@ arguments, it really doesn't stand by itself.
 
 The draw itself is one line---just call apop_draw. The hard part is in checking that the draw is OK.
 This involves bounds-checking, if applicable, 
-then generating a dummy version of the observation that is in an R-friendly format, 
+then generating a dummy version of the observation with ordered, external (user-defiend) values,
 then sending it to consistency_check for an up-down vote.
 
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
@@ -399,32 +392,34 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
     }
     out.pre_round=x;
     if (type == '\0'){ // '\0' means not in the index of variables to check.
-        asprintf(&out.textx, "%g", x);
+        Asprintf(&out.textx, "%g", x);
     } else {
         if (!is->is_hotdeck && is->is_bounds_checkable) //inputs all valid ==> outputs all valid
             check_bounds(&x, is->depvar, type); // just use the rounded value.
         apop_data *f;
         if (is->textdep && (f = apop_data_get_factor_names(is->fitted_model->data, .type='t')))
              out.textx = strdup(*f->text[(int)x]);
-        else asprintf(&out.textx, "%g", x);
+        else Asprintf(&out.textx, "%g", x);
         if (!has_edits) return out;
         
         //copy the new impute to full_record, for re-testing
         //just get a success/failure, but a smarter system would request the list of failed fields.
-        asprintf(oext_values+col_of_interest, "%s", out.textx);
-        cc2(oext_values, &whattodo, &id_number, &out.is_fail, NULL, /*do_preedits=*/true);
+        Asprintf(oext_values+col_of_interest, "%s", out.textx);
+        out.fail_count = cc2(oext_values, &whattodo, &id_number, NULL, /*do_preedits=*/true, 0);
     }
     return out;
 }
 
 static void setit(char const *tabname, int draw, char const *final_value, char const *id_col,
         char const *id, char const *field_name, bool autofill){
+        char tick = final_value ? '\'': ' ';
+        char const *fv = final_value ? final_value : "NULL";
         if (!autofill)
-            apop_query("insert into %s values(%i, '%s', '%s', '%s');",
-                       tabname,  draw, final_value, id, field_name);
+            apop_query("insert into %s values(%i, %c%s%c, '%s', '%s');",
+                       tabname,  draw, tick, fv, tick, id, field_name);
         else
-            apop_query("update %s set %s = '%s' where  %s='%s';",
-                       tabname, field_name, final_value, id_col, id);
+            apop_query("update %s set %s = %c%s%c where  %s='%s';",
+                       tabname, field_name, tick, fv, tick, id_col, id);
 }
 
 //a shell for do onedraw() while (!done).
@@ -434,18 +429,12 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
     int col_of_interest;
     for (col_of_interest=0; col_of_interest<total_var_ct; col_of_interest++)
         if (!strcmp(is->depvar, used_vars[col_of_interest].name)) break;
-    Tea_stopif(col_of_interest==total_var_ct, return, 0, "I couldn't find %s in the list of declared fields.", is->depvar);
+    Tea_stopif(col_of_interest==total_var_ct, return, 0, "I couldn't find %s in the list "
+                                                       "of declared fields.", is->depvar);
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         char *name = is->isnan->names->row[rowindex];
-        if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)==-1){
-            //Then this is already done. Verify in the main list; continue.
-            char *pd; asprintf(&pd, "%s.", name);
-            Tea_stopif(mark_an_id(pd, nanvals->names->row, nanvals->names->rowct, 'y')==-1,
-                free(pd); continue, 0, "A sublist asked me to impute for ID %s, but I couldn't "
-                    "find that ID in the main list of NaNs.", name);
-            free(pd);
+        if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)=='m')
             continue;
-        }
         int tryctr=0;
         int id_number = atoi(is->isnan->names->row[rowindex]);
         a_draw_struct drew;
@@ -458,31 +447,34 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         char *oext_values[total_var_ct], *pre_preedit[total_var_ct];
         if (drecord) //else, no relevant queries, and oext_values are irrelevant?
             order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
-        for (int i=0; i< total_var_ct; i++) pre_preedit[i] = strdup(oext_values[i]);
+        for (int i=0; i< total_var_ct; i++) pre_preedit[i] = oext_values[i] ? strdup(oext_values[i]): NULL;
 
         do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits);
-        while (drew.is_fail && tryctr++ < 1000);
-        Tea_stopif(drew.is_fail, 
+        while (drew.fail_count && tryctr++ < 1000);
+        Tea_stopif(drew.fail_count, 
                 apop_query("insert into tea_fails values(%i)", id_number)
-                , 0, "I just made a thousand attempts to find an "
-            "imputed value that passes checks, and couldn't. "
-            "Something's wrong that a computer can't fix.\n "
-            "I'm at id %i.", id_number);
+                , 0, "I just made a thousand attempts to find an imputed value "
+            "that passes checks, and couldn't. Something's wrong that a "
+            "computer can't fix.\nI'm at id %i.", id_number);
 
         char * final_value = (type=='c') 
 				//Get external value from row ID
-                                ? ext_from_ri(is->depvar, drew.pre_round+1)
-                                : strdup(drew.textx); //I should save the numeric val.
+                              ? ext_from_ri(is->depvar, drew.pre_round+1)
+                              : strdup(drew.textx); //I should save the numeric val.
 
-	Tea_stopif(isnan(atof(final_value)), return, 0, "I drew a blank from the imputed column "
-                                                    "when I shouldn't have for record %i.", id_number);
+        Tea_stopif(isnan(atof(final_value)), return, 0,
+                         "I drew a blank from the imputed column "
+                         "when I shouldn't have for record %i.", id_number);
 
         //write down anything that changed due to a preedit or because it's what we'd been
         //imputing to begin with.
-        for (int i=0; i< total_var_ct; i++)
-            if (strcmp(oext_values[i], pre_preedit[i]) || !strcmp(used_vars[i].name, is->depvar))
+        for (int i=0; i< total_var_ct; i++){
+            if (!oext_values[i] && !pre_preedit[i]) continue;
+            if ((!oext_values[i] && pre_preedit[i]) || (oext_values[i] && !pre_preedit[i]) ||
+                    strcmp(oext_values[i], pre_preedit[i]) || !strcmp(used_vars[i].name, is->depvar))
                 setit(is->autofill?datatab:filltab, draw, final_value, id_col,
                         is->isnan->names->row[rowindex], used_vars[i].name, is->autofill);
+        }
         free(final_value);
         free(drew.textx);
         for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
@@ -523,13 +515,15 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
 
     apop_name *clean_names = NULL;
     if (outermax > 1) clean_names = apop_name_copy(nanvals->names);
-    has_sqlite3_index(datatab, is->depvar, 'y');
-    has_sqlite3_index(datatab, id_col, 'y');
+    create_index(datatab, is->depvar);
+    create_index(datatab, id_col);
 
     for (int outerdraw=0; outerdraw < outermax; outerdraw++){
         if (previous_filltab){
-            asprintf(&dt, "%s_copy", datatab);
+            Asprintf(&dt, "%s_copy", datatab);
             check_out_impute(&dataxxx, &dt, &outerdraw, NULL, &previous_filltab);
+            create_index(dt, is->depvar);
+            create_index(dt, id_col);
         } else dt=strdup(datatab);
         begin_transaction();
 
@@ -537,12 +531,11 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
 
         bool still_has_missings=true, hit_zero=false;
         do {
-            for (int i=0; i < nanvals->names->rowct; i++){ //see notes above.
+            for (int i=0; i < nanvals->names->rowct; i++){ //see notes in Notes file.
                 Apop_row(nanvals, i, row_i);
                 if (!still_is_nan(row_i)) continue;
                 get_nans_and_notnans(is, nanvals->names->row[i] /*ego_id*/, 
                         dt, underlying, min_group_size, category_matrix, fingerprint_vars, id_col);
-
                 if (!is->isnan) goto bail; //because that first guy should've been missing.
                 if (!is->notnan || GSL_MAX((is->notnan)->textsize[0]
                             , (is->notnan)->matrix ? (is->notnan)->matrix->size1: 0) < min_group_size)
@@ -559,20 +552,21 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                 apop_data_free(is->notnan);
                 apop_data_free(is->isnan);
             }
-            /*shrink the category matrix by one, then loop back and try again if need be. This could be more efficient, 
-              but take recourse in knowing that the categories that need redoing are the ones with 
-              few elements in them.*/
-            if (category_matrix && *category_matrix->textsize>1){
-                apop_text_alloc(category_matrix, category_matrix->textsize[0]-1, category_matrix->textsize[1]);
-                index_cats(datatab, category_matrix);
-            } else {
-                hit_zero++;
-                nans_no_constraints= is->isnan;
-                notnans_no_constraints= is->notnan;
-                last_no_constraint = strdup(is->selectclause);
-            }
             still_has_missings = apop_map_sum(nanvals, .fn_r=still_is_nan);
-        } while (still_has_missings && !hit_zero);
+            /*Shrink the category matrix by one, then loop back and try again if need be.
+              This could be more efficient, but take recourse in knowing that the
+              categories that need redoing are the ones with few elements in them.*/
+            if (!still_has_missings) break;
+            if (!category_matrix || *category_matrix->textsize==0)
+                hit_zero++;
+            else {
+                if (*category_matrix->textsize > 1)
+                    apop_text_alloc(category_matrix, category_matrix->textsize[0]-1, category_matrix->textsize[1]);
+                else
+                    *category_matrix->textsize=0; //Apophenia can't (yet) allocate a zero-sized matrix
+                index_cats(dt, category_matrix);
+            }
+        } while (!hit_zero); //primary means of exit is "if (!still_has_missings) break;" above.
         if (previous_filltab) apop_table_exists(dt, 'd');
         commit_transaction();
         if (still_has_missings && hit_zero) printf("Even with no constraints, I still "
@@ -596,35 +590,35 @@ apop_model *tea_get_model_by_name(char *name, impustruct *model){
     if (!is_inited && using_r)
         rapop_model_from_registry = (void*) R_GetCCallable("Rapophenia", "get_am_from_registry");
 
-    apop_model *out= !strcmp(name, "normal")
-          ||!strcmp(name, "gaussian")
+    apop_model *out= !strcasecmp(name, "normal")
+          ||!strcasecmp(name, "gaussian")
 				? apop_normal :
-			!strcmp(name, "multivariate normal")
+			!strcasecmp(name, "multivariate normal")
 				? apop_multivariate_normal :
-			!strcmp(name, "lognormal")
+			!strcasecmp(name, "lognormal")
 				? apop_lognormal :
-			!strcmp(name, "rake") ||!strcasecmp(name, "em")
+			!strcasecmp(name, "rake") ||!strcasecmp(name, "em")
 				?  (model->is_em = true, &null_model) :
-			!strcmp(name, "hotdeck")
-		  ||!strcmp(name, "hot deck")
-	      ||!strcmp(name, "multinomial")
-		  ||!strcmp(name, "pmf")
+			!strcasecmp(name, "hotdeck")
+		  ||!strcasecmp(name, "hot deck")
+	      ||!strcasecmp(name, "multinomial")
+		  ||!strcasecmp(name, "pmf")
 				? (model->is_hotdeck=true, apop_pmf) :
-			!strcmp(name, "poisson")
+			!strcasecmp(name, "poisson")
 				? (model->is_regression=true, apop_poisson) :
-			!strcmp(name, "ols")
+			!strcasecmp(name, "ols")
 				? (model->is_regression=true, apop_ols) :
-			!strcmp(name, "logit")
+			!strcasecmp(name, "logit")
 				? (model->is_regression=true, apop_logit) :
-			!strcmp(name, "probit")
+			!strcasecmp(name, "probit")
 				? (model->is_regression=true, apop_probit) :
-			!strcmp(name, "rel")
+			!strcasecmp(name, "rel")
 				? relmodel :
-			!strcmp(name, "kernel")
-	      ||!strcmp(name, "kernel density")
+			!strcasecmp(name, "kernel")
+	      ||!strcasecmp(name, "kernel density")
 				? apop_kernel_density 
 				: &null_model;
-        if (using_r && !strcmp(out->name, "Null model")) //probably an R model.
+        if (using_r && !model->is_em && !strcasecmp(out->name, "Null model")) //probably an R model.
             out= rapop_model_from_registry(name);
         Tea_stopif(!strcmp(out->name, "Null model"), return &(apop_model){}, 0, "model selection fail.");
         Apop_model_add_group(out, apop_parts_wanted, .predicted='y'); //no cov
@@ -646,6 +640,7 @@ TeaKEY(impute/vars, <<<A comma-separated list of the variables to be put into th
 For OLS-type models where there is a distinction between inputs and outputs, don't use this; use the "impute/input vars" and "impute/output vars" keys. Note that this is always the plural "vars", even if you are imputing only one field.>>>)
 TeaKEY(impute/input vars, <<<A comma-separated list of the independent, right-hand side variables for imputation methods such as OLS that require them. These variables are taken as given and will not be imputed in this step, so you probably need to have a previous imputation step to ensure that they are complete.>>>)
 TeaKEY(impute/output vars, <<<The variables that will be imputed. For OLS-type models, the left-hand, dependent variable (notice that we still use the plural "vars"). For models that have no distinction between inputs and outputs, this behaves identically to the "impute/vars" key (so only use one or the other).>>>)
+TeaKEY(impute/subset, <<<If you would like to do imputation only on some subset of the data, specify a condition here. This will become an SQL where clause, such as "age>15 and status='married'".>>>)
  */
 impustruct read_model_info(char const *configbase, char const *tag, char const *id_col){
 	apop_data *varlist=NULL, *indepvarlist=NULL, *outputvarlist=NULL;
@@ -676,10 +671,12 @@ Hot deck: needs no transformations at all.
 Raking: needs all the variables, in numeric format
 */
 
+    model.subset = get_key_word_tagged(configbase, "subset", tag);
+
     char coltype = get_coltype(model.depvar); // \0==not found.
     if (coltype=='r' || coltype=='i') 
-          asprintf(&model.vartypes, "%sm", model.vartypes);
-    else  asprintf(&model.vartypes, "%st", model.vartypes), model.textdep=true;
+        {Asprintf(&model.vartypes, "%sm", model.vartypes);}
+    else  {Asprintf(&model.vartypes, "%st", model.vartypes); model.textdep=true;}
 
     if (model.is_em){
         int i=0;
@@ -696,14 +693,14 @@ Raking: needs all the variables, in numeric format
 
     //if a text dependent var & a regression, set aside a column to be filled in with factors.
     if (model.is_regression)
-         asprintf(&model.selectclause, "%s, %s%s", id_col, model.textdep ? "1, ": " ", model.depvar);	
-    else asprintf(&model.selectclause, "%s, %s", id_col, model.depvar);	
+         Asprintf(&model.selectclause, "%s, %s%s", id_col, model.textdep ? "1, ": " ", model.depvar)
+    else Asprintf(&model.selectclause, "%s, %s", id_col, model.depvar);	
     char *indep_vars = get_key_word_tagged(configbase, "input vars", tag); //as a comma-separated list, for SQL.
     if (indep_vars){
-        asprintf(&model.selectclause, "%s%c %s", 
+        Asprintf(&model.selectclause, "%s%c %s", 
                 XN(model.selectclause),model.selectclause ? ',' : ' ',
                                     process_string(indep_vars, &(model.vartypes)));
-        asprintf(&model.vartypes, "all numeric"); //lost patience implementing text data for OLS.
+        Asprintf(&model.vartypes, "all numeric"); //lost patience implementing text data for OLS.
     }
 	apop_data_free(varlist); apop_data_free(outputvarlist); apop_data_free(indepvarlist);
     return model;
