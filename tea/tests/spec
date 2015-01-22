@@ -1,0 +1,17 @@
+database:t.db
+input { input file: indata 
+output table: data} 
+fields {  
+age: int 1-100  
+sex: cat m, f } 
+#sex: 0, 1 } 
+#checks { age > 50 and sex ="f" 
+#age <50 and sex="m"} 
+checks { age > 50 and sex ='f' 
+age <50 and sex='f' } 
+impute [a]{ input table: data 
+output vars: age
+method: normal }
+impute [b]{ input table: data 
+output vars: sex
+method: hot deck }

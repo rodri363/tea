@@ -33,7 +33,6 @@ char *ok_keys[] = {
 "group recodes",
 "group recodes/group id",
 "checks",
-"timeout",
 "raking/input table",
 "raking/all vars",
 "raking/max iterations",

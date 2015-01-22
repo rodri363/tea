@@ -218,7 +218,7 @@ static int make_recode_view(char **tag, char **first_or_last){
     if (group_recodestr){
         char *group_id= get_key_word("group recodes", "group id");
         Tea_stopif(!group_id, return -1, 0, "There's a group recodes section, but no \"group id\" tag.");
-        has_sqlite3_index(intab, group_id, 'y');
+        create_index(intab, group_id);
         apop_table_exists("tea_group_stats", 'd');
         apop_table_exists("tea_record_recodes", 'd');
         Qcheck("create view tea_group_stats as "

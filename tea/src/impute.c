@@ -364,7 +364,7 @@ static char mark_an_id(const char *target, char * const *list, int len, char jus
 typedef struct {
     char *textx;
     double pre_round;
-    int is_fail;
+    int fail_count;
 } a_draw_struct;
 
 /*This function is the inner loop cut out from impute(). As you can see from the list of
@@ -405,7 +405,7 @@ static a_draw_struct onedraw(gsl_rng *r, impustruct *is,
         //copy the new impute to full_record, for re-testing
         //just get a success/failure, but a smarter system would request the list of failed fields.
         Asprintf(oext_values+col_of_interest, "%s", out.textx);
-        cc2(oext_values, &whattodo, &id_number, &out.is_fail, NULL, /*do_preedits=*/true);
+        out.fail_count = cc2(oext_values, &whattodo, &id_number, NULL, /*do_preedits=*/true, 0);
     }
     return out;
 }
@@ -450,12 +450,12 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         for (int i=0; i< total_var_ct; i++) pre_preedit[i] = oext_values[i] ? strdup(oext_values[i]): NULL;
 
         do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits);
-        while (drew.is_fail && tryctr++ < 1000);
-        Tea_stopif(drew.is_fail, 
+        while (drew.fail_count && tryctr++ < 1000);
+        Tea_stopif(drew.fail_count, 
                 apop_query("insert into tea_fails values(%i)", id_number)
                 , 0, "I just made a thousand attempts to find an imputed value "
             "that passes checks, and couldn't. Something's wrong that a "
-            "computer can't fix.\nI'm at i%i.", id_number);
+            "computer can't fix.\nI'm at id %i.", id_number);
 
         char * final_value = (type=='c') 
 				//Get external value from row ID
@@ -515,13 +515,15 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
 
     apop_name *clean_names = NULL;
     if (outermax > 1) clean_names = apop_name_copy(nanvals->names);
-    has_sqlite3_index(datatab, is->depvar, 'y');
-    has_sqlite3_index(datatab, id_col, 'y');
+    create_index(datatab, is->depvar);
+    create_index(datatab, id_col);
 
     for (int outerdraw=0; outerdraw < outermax; outerdraw++){
         if (previous_filltab){
             Asprintf(&dt, "%s_copy", datatab);
             check_out_impute(&dataxxx, &dt, &outerdraw, NULL, &previous_filltab);
+            create_index(dt, is->depvar);
+            create_index(dt, id_col);
         } else dt=strdup(datatab);
         begin_transaction();
 
@@ -562,7 +564,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                     apop_text_alloc(category_matrix, category_matrix->textsize[0]-1, category_matrix->textsize[1]);
                 else
                     *category_matrix->textsize=0; //Apophenia can't (yet) allocate a zero-sized matrix
-                index_cats(datatab, category_matrix);
+                index_cats(dt, category_matrix);
             }
         } while (!hit_zero); //primary means of exit is "if (!still_has_missings) break;" above.
         if (previous_filltab) apop_table_exists(dt, 'd');

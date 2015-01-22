@@ -65,15 +65,12 @@ static void sqlify(char * const restrict* oext_values){
     free(qstring);
 }
 
-bool run_preedits(char ** oext_values, char const *preed){
+/* If the input preedit changed something, then both oext_values here and tea_test in the
+   db will be different. Output answers the question `did the preedit change anything?' */
+static bool run_preedits(char ** oext_values, char const *preed){
     bool out=false;
     apop_query("update tea_test %s", preed);
     apop_data *newvals = apop_query_to_text("select * from tea_test");
-
-    /*char *opost_values[total_var_ct];
-    apop_data_transpose(newvals, .inplace='y');
-    order_things(*newvals->text, newvals->names->text, *newvals->textsize, opost_values);
-    */
 
     int ctr=0; //order is the same as oext_values; just have to find the entering fields.
     for (int octr=0; octr< total_var_ct; octr++){
@@ -100,14 +97,15 @@ bool run_preedits(char ** oext_values, char const *preed){
 }
 
 //call iff there are SQL edits (or preedits) to be checked.
-static int check_a_record_sql(char ** oext_values, int ** ofailures,
-                         int wanted_preed  //if the discrete edits found a failure, its row number is here; else -1.
+static int check_a_record_sql(char ** oext_values, int **ofailures,
+                         int wanted_preed,  //if the discrete edits found a failure, its row number is here; else -1.
+                         bool *gotta_start_over
                          ){
     int out = 0;
     bool usable_sql[edit_grid->vector->size];
     check_for_all_vars(usable_sql, oext_values);
     begin_transaction();
-    sqlify(oext_values);
+    if (!apop_table_exists("tea_test")) sqlify(oext_values); //else, we're redoing after a preedit.
     if (!ofailures && wanted_preed<0){   //just want pass-fail ==> run a single yes/no query
         char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
               .before= "select count(*) from tea_test where (", .prune=prune_edits,
@@ -129,7 +127,10 @@ static int check_a_record_sql(char ** oext_values, int ** ofailures,
                 if (preed)
                     pre_edits_changed_something = run_preedits(oext_values, preed);
                 out+=fails;
-if(pre_edits_changed_something) out=0;
+if(pre_edits_changed_something) {
+    *gotta_start_over=true;
+    return 1;
+}
                 if (ofailures)
                     for (int i=0; i<total_var_ct; i++){
                         if (oext_values[i] && *oext_values[i]=='\0') continue; //skip non-entering.
@@ -184,7 +185,7 @@ passes the edit; move on to the next.
   There is one slot per field (i.e., it is unrelated to any subset of records
   requested by the user).
   */
-static int check_a_record_discrete(int const * restrict row,  int ** failures, 
+static int check_a_record_discrete(int const * restrict row,  int **failures,
                    int rownumber, bool *has_sql_edits, int *run_this_preedit){
     int rowfailures[total_var_ct];
     int out = 0;
@@ -246,110 +247,11 @@ static int check_a_record_discrete(int const * restrict row,  int ** failures,
     return out;
 }
 
-/* Fill the table of all possible alternatives. This involves checking all combinations of
-   an indeterminate number of variables, and that's the sort of thing most easily done via recursion. 
+/* There had been a clever recursive routine to generate a list of all possible
+   alternatives. In every application we have, we've found that it's easier to just
+   re-draw until we have a passing entry than to exhaustively generate the list of
+   possiblities.  It last appeared in commit c11ad596. */
 
-   When you get to the last field in the list, you will have a record that is ready to
-   test via check_a_record_discrete and check_a_record_sql. If that function returns zero,
-   then write to \c fillme. To make life easier, <tt>fillme</tt>'s vector holds a
-   single number: the length of the array so far.
-
-   Now that you know what happens at the end, the recursion that leads up to it will, for each field, blank out the field, then for (i= each possible record value), set the record to i, and call the function to operate on the next field down.  This loop-and-recurse setup will guarantee that the last field in the list will run a test on all possible values.
-
-   Notice that fields that aren't marked as failing are just skipped over.
-*/
-/*   TeaKEY(timeout, <<<Once it has been established that a record has failed a consistency
-   check, the search for alternatives begins. Say that variables one, two, and three each have 100
-    options; then there are 1,000,000 options to check against possibly thousands
-    of checks. If a timeout is present in the spec (outside of all groups), then the
-    alternative search halts and returns what it has after the given number of seconds
-    have passed.>>>)
-   */
-static void do_a_combo(int *record, char **oext_values,
-         int **failed_edits_in, int this_field, apop_data *fillme,
-		 jmp_buf jmpbuf, time_t const timeout){
-
-    int option_ct, skipme=0;
-	if (record[this_field]==-1 || !*failed_edits_in[this_field]
-           || used_vars[this_field].type=='r'){//not a failed field or DISCRETE editable; skip.
-		skipme=1;
-		option_ct=1;
-	}
-	else option_ct = find_e[this_field] - find_b[this_field] +1;
-    if (!skipme)
-        memset(record+find_b[this_field]-1, 0, sizeof(int)* option_ct);
-	//else leave this field exactly as it was originally
-    for (int i=0; i < option_ct; i++){
-        if (!skipme){
-            record[find_b[this_field]-1+i] = 1;
-            if (i > 0) //clear the last value
-                record[find_b[this_field]-1+i-1] = 0;
-        }
-        if (this_field +1 < total_var_ct)
-            do_a_combo(record, oext_values, failed_edits_in, this_field+1,
-							  fillme, jmpbuf, timeout);
-        else{
-			if (timeout && time(NULL) > timeout) longjmp(jmpbuf, 1);
-            bool has_sql_edits = 0;
-            int want_preedits = 0;
-            if (!check_a_record_discrete(record, NULL, 0,  &has_sql_edits, &want_preedits)
-                && (!has_sql_edits || !check_a_record_sql(oext_values, NULL, -1))
-                ){//OK record; write it.
-                int this_row = apop_data_get(fillme, 0, -1);
-                (*gsl_vector_ptr(fillme->vector, 0))++;
-                for (int k=0; k< total_var_ct; k++){
-                    if (*failed_edits_in[this_field]){
-                        for (int j=find_b[this_field]-1; j< find_e[this_field]; j++)
-                            if (record[j]){
-								if (fillme->matrix->size1 <=this_row)
-									fillme->matrix = apop_matrix_realloc(
-												fillme->matrix,
-												fillme->matrix->size1*2, fillme->matrix->size2);
-                                apop_data_set(fillme, .col=this_field,
-                                        .row=this_row, 
-                                        .val=j-(find_b[this_field]-1));
-								break;
-							}
-                    }
-                }
-            }
-        }
-    }
-}
-
-/* This function just gets the maximal dimensions of the alternatives table, allocates,
-    and fills via the recursive \c do_a_combo function above. So this is really just the
-    prep function for the recursion, where the real work happens.
-*/
-static apop_data * get_alternatives(int *record, char ** oext_values,
-							int ** failing_records){
-    int total_fails = 0;
-    int rows = 1;
-    for (int this_field = 0; this_field< total_var_ct; this_field++){
-        total_fails += *failing_records[this_field] ? 1 : 0;
-        if (*failing_records[this_field])
-            rows *= find_e[this_field] - find_b[this_field]+1;
-    }
-	Tea_stopif(!total_fails,  apop_data*out=apop_data_alloc(); out->error='c'; return out,
-                0, "Failed internal consistency check: I marked this "
-				"record as failed but couldn't find which fields were causing failure.");
-    apop_data *out = apop_data_alloc(1, rows, total_fails);
-    out->vector->data[0] = 0;
-    for (int i=0; i< total_var_ct; i++)
-        if (*failing_records[i])
-            apop_name_add(out->names, used_vars[i].name, 'c');
-
-	//prepare the timeout; call the recursion
-	jmp_buf jmpbuf;
-	double user_timeout = get_key_float("timeout", NULL);
-	time_t timeout = isnan(user_timeout) ? 0 : user_timeout+time(NULL);
-	if (!setjmp(jmpbuf))
-		do_a_combo(record, oext_values, failing_records, 0, out, jmpbuf, timeout);
-	else
-		fprintf(stderr,"Timed out on consistency query. Partial alternatives returned, but set may not be complete.\n");
-    out->matrix = apop_matrix_realloc(out->matrix, out->vector->data[0], out->matrix->size2);
-    return out;
-}
 
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
@@ -392,34 +294,33 @@ static void do_fields_and_fails_agree(int **ofailed_fields, int fails_edits, int
     assert((total_fails !=0 && fails_edits) || (total_fails==0 && !fails_edits));
 }
 
-apop_data * cc2(char * *oext_values, char const *const *what_you_want, 
-			int const *id, int *fails_edits, int **ofailed_fields, bool do_preedits){
+int cc2(char * *oext_values, char const *const *what_you_want, 
+			int const *id, int **ofailed_fields, bool do_preedits, int recursion_count){
 
     if (!edit_grid) init_edit_list();
-    if (!edit_grid || !edit_grid->matrix){ //then there are no edits.
-		*fails_edits = 0;
-        return NULL;
-	}
+    if (!edit_grid || !edit_grid->matrix) return 0; //then there are no edits.
+
     int width = edit_grid->matrix->size2;
-	Tea_stopif(!width, return NULL, 1, "zero edit grid; returning NULL.");
+	Tea_stopif(!width, return 0, 1, "zero edit grid; returning zero failures.");
     int record[width];
 	fill_a_record(record, width, oext_values, *id);
-    bool has_sql_edits = 0;
+    bool has_sql_edits = false, gotta_start_over=false;
 int wanted_preed=1000000;
     bool pf = !strcmp(what_you_want[0], "passfail");
-    *fails_edits = check_a_record_discrete(record, ofailed_fields, (pf ? 0:*id),
+    int fail_count = check_a_record_discrete(record, ofailed_fields, (pf ? 0:*id),
                               &has_sql_edits, &wanted_preed);
     if (!do_preedits) wanted_preed=-1;//don't apply preedit, even if a failure was found.
-    *fails_edits += (has_sql_edits||wanted_preed>=0) 
-                       && check_a_record_sql(oext_values, ofailed_fields, wanted_preed);
-    if (pf) return NULL;
-    do_fields_and_fails_agree(ofailed_fields, *fails_edits, total_var_ct);
+    fail_count += (has_sql_edits||wanted_preed>=0) 
+                       && check_a_record_sql(oext_values, ofailed_fields, wanted_preed, &gotta_start_over);
+    if (gotta_start_over) {
+        Tea_stopif(recursion_count>100, return 1, 0,
+                "Over 100 pre-edits made. I am probably stuck in a loop.")
+        return cc2(oext_values, what_you_want, id, ofailed_fields, do_preedits, recursion_count++);
+    }
 
-    if (!strcmp(what_you_want[0], "failed_fields"))
-        return NULL;
-    if (!strcmp(what_you_want[0], "find_alternatives") && *fails_edits)
-		return get_alternatives(record, oext_values, ofailed_fields);
-	return NULL;
+    if (!pf) do_fields_and_fails_agree(ofailed_fields, fail_count, total_var_ct);
+
+    return fail_count;
 }
 
 
@@ -430,16 +331,15 @@ above, takes in a list that exactly matches the order of the edit matrix. It sim
 this file a lot, and perhaps we can some day deprecate this function in favor of
 that one.
 */
-apop_data * consistency_check(char * const *record_names, char * const *ud_values, 
+int consistency_check(char * const *record_names, char * const *ud_values, 
 			int const *record_size, char const *const *what_you_want, 
-			int const *id, int *fails_edits, int *failed_fields,
-            char * restrict *ud_post_preedit){
-	Tea_stopif(*record_size <= 0, return NULL, 1, "zero record size; returning NULL.");
+			int const *id, int *failed_fields, char * restrict *ud_post_preedit){
+	Tea_stopif(*record_size <= 0, return 0, 1, "zero record size; returning zero failures.");
     char *oext_values[total_var_ct];
     int *ofailed_fields[total_var_ct];
     order_things(ud_values, record_names, *record_size, oext_values);
     if (failed_fields) order_things_int(failed_fields, record_names, *record_size, ofailed_fields);
-    return cc2(oext_values, what_you_want, id, fails_edits, (failed_fields? ofailed_fields : NULL), !!ud_post_preedit);
+    return cc2(oext_values, what_you_want, id, (failed_fields? ofailed_fields : NULL), !!ud_post_preedit, 0);
 }
 
 apop_data *checkData(apop_data *data){
@@ -452,7 +352,7 @@ apop_data *checkData(apop_data *data){
 	//now that we have the variables, we can call consistency_check for each row
 	int id=1;
 	int nrow = data->matrix ? data->matrix->size1: *data->textsize;
-	int fails_edits, failed_fields[nvars];
+	int failed_fields[nvars];
 	char *vals[nvars];
 	char const *what = "failed_fields";
 	apop_data *failCount = apop_data_calloc(nrow,nvars);
@@ -470,7 +370,7 @@ apop_data *checkData(apop_data *data){
 			else vals[jdx] = data->text[idx][jdx - data->names->colct];
 		}
         memset(failed_fields, 0, nvars*sizeof(int));
-		consistency_check(fields,vals,&nvars,&what, &id,&fails_edits,failed_fields, NULL);
+		consistency_check(fields,vals,&nvars,&what, &id, failed_fields, NULL);
 		//insert failure counts
 		for(int jdx=0; jdx < nvars; jdx++){
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);

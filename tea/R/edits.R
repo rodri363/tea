@@ -34,26 +34,6 @@ readSpec <- function(spec,nlines=1000){
 
 
 
-#' Interface with C-side record consistency checking
-#' @param vals variable names
-#' @param vars variable values
-#' @param what_you_want level of detail of results
-#' @param con a connection to a database
-#' @param run_id unique identifier for this run
-#' @param verbose verbose output?
-#' 
-#' @return a data frame containing allowable variable combinations
-GetAlternatives <- function(dfrow){
-	if(nrow(dfrow)>1) stop("can only send in one row at time for now to get alts")
-	dfidx <- as.data.frame(.Call("r_row_alts",dfrow)[-1])
-	dfidx <- as.data.frame(lapply(dfidx,"+",1)) #add one to get sqlite indices
-	vvar <- names(dfidx)
-	query <- paste("select * from",paste(vvar,collapse=","),
-		"where",paste(paste(vvar,"rowid",sep="."),paste("$",vvar,sep=""),
-					sep="=",collapse=" and "))
-	return(dbGetPreparedQuery(teaenv$con,query,dfidx))
-}
-
 #' Check a real/integer vector for values outside of declared consistency values
 #' @param Vvar vector you want to check
 #' @param kname name of the variable in the consistency system
