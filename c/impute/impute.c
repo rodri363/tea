@@ -515,15 +515,15 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
 
     apop_name *clean_names = NULL;
     if (outermax > 1) clean_names = apop_name_copy(nanvals->names);
-    has_sqlite3_index(datatab, is->depvar, 'y');
-    has_sqlite3_index(datatab, id_col, 'y');
+    create_index(datatab, is->depvar);
+    create_index(datatab, id_col);
 
     for (int outerdraw=0; outerdraw < outermax; outerdraw++){
         if (previous_filltab){
             Asprintf(&dt, "%s_copy", datatab);
             check_out_impute(&dataxxx, &dt, &outerdraw, NULL, &previous_filltab);
-            has_sqlite3_index(dt, is->depvar, 'y');
-            has_sqlite3_index(dt, id_col, 'y');
+            create_index(dt, is->depvar);
+            create_index(dt, id_col);
         } else dt=strdup(datatab);
         begin_transaction();
 

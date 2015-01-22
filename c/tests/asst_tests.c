@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <assert.h>
 #include "internal.h"
-void test_has_sqlite3_index();//text_in/text_in.c
 
 //Just for the fun of it.
 #define foreach(s, ...) for (char **s = (char*[]){__VA_ARGS__, NULL}; *s; s=&s[1])
@@ -294,6 +293,17 @@ void test_ols(gsl_rng *r){
 
 }
 
+void test_create_index(){
+    apop_query("create table ab(a, b)");
+    apop_query("create index abi on ab(a)");
+    assert(create_index("ab", "a")==0);
+    assert(!create_index("ab", "b")==0);
+    assert(!create_index("ab", "c")==-1);
+    assert(create_index("ac", "b")== 1);
+    apop_query("drop table ab");
+}
+
+
     //generate random data
     //punch holes
     //run
@@ -335,7 +345,7 @@ void tea_c_tests(){
    printf("Entering levenshtein_tests()\n");
    levenshtein_tests();
 
-    test_has_sqlite3_index();
+   test_create_index();
 }
 
 #ifdef TESTING

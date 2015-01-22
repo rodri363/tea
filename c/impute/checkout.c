@@ -32,7 +32,7 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
                         (subset && *subset) ? *subset : " "
                         );
     } else dest = *origin;
-    has_sqlite3_index(dest, use_rowids ? "id_col" : id_column, 'y');
+    create_index(dest, use_rowids ? "id_col" : id_column);
     Tea_stopif(!apop_table_exists(filltab), return , 0, "No table named '%s'; did you already doMImpute()?", filltab);
     apop_data *fills = apop_query_to_text("select %s, field, value from %s where draw+0.0=%i"
                                               , id_column, filltab, *imputation_number);

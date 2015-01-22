@@ -82,8 +82,6 @@ void pastein_tests(); //found in tea/c/pastein_tests.c -- called in asst_tests.c
 
 void test_check_out_impute();//in checkout.c
 
-int has_sqlite3_index(char const *table, char const *column, char);//text_in/text_in.c
-
 //in discrete/ext_to_em.c, used for putting an arbitrary list of fields into
 //a certain order for the edit matrix.
 void order_things(char * const* record_in, char *const *record_names, int record_size, char **oext_vals);

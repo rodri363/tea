@@ -3,57 +3,6 @@
 int file_read = 0;
 char * gnu_c_basename(char *);
 
-/** Use SQLite3's pragmas to determine whether a column in a table is indexed. 
-
-  \param table The table name.
-  \param column The column name.
-  \param make_idx If nonzero, and the index doesn't exist, create it now, with the form IDX_yrtable_yrcol. Barring errors, return 1, because an index now exists.
-
-  \return 1==yes, is indexed. \\
-          0==no, not indexed.\\
-          -2==no such table.\\
-          -1==query error.
-*/
-int has_sqlite3_index(char const *table, char const *column, char make_idx){
-    if (!apop_table_exists(table)) return -2;
-    apop_data *indices = apop_query_to_mixed_data("mtm", "pragma index_list(%s)", table);
-    int has_it = 0;
-    if (!indices) goto out;
-    Tea_stopif(indices->error, apop_data_free(indices); return -1, 0, "error running "
-            " 'pragma index_list(%s)'. Check table name? Running SQLite?", table);
-    for (int i=0; i<*indices->textsize; i++){
-        apop_data *coldata = apop_query_to_mixed_data("mmt", "pragma index_info(%s)", *indices->text[i]);
-        if (!coldata || !*coldata->textsize) continue;
-        Tea_stopif(coldata->error, apop_data_free(coldata); return -1, 0, "error running "
-                " 'pragma index_info(%s)'. Check table/index name?", *indices->text[i]);
-        if (!strcasecmp(*coldata->text[0], column)) { 
-            has_it=1; 
-            apop_data_free(coldata);
-            goto out;
-        }
-        apop_data_free(coldata);
-    }
-out:
-    if(has_it==0 && make_idx){
-       apop_query("create index IDX_%s_%s on %s(%s)"
-                            , table, column
-                            , table, column);
-        has_it = has_sqlite3_index(table, column, 0);
-    }
-    apop_data_free(indices);
-    return has_it;
-}
-
-void test_has_sqlite3_index(){
-    apop_query("create table ab(a, b)");
-    apop_query("create index abi on ab(a)");
-    assert(has_sqlite3_index("ab", "a", 0));
-    assert(!has_sqlite3_index("ab", "b", 0));
-    assert(!has_sqlite3_index("ab", "c", 0));
-    assert(has_sqlite3_index("ac", "b", 1)==-2);
-    apop_query("drop table ab");
-}
-
 apop_data *make_type_table(){
     //apop_data *types = get_key_text("input", "types");
     apop_data *types = apop_text_alloc(NULL, 1, 2);
@@ -77,12 +26,12 @@ void generate_indices(char const *tag){
      
     apop_data *indices = get_key_text("input", "indices");
     char *id_column = get_key_word(NULL, "id");
-   if (id_column) has_sqlite3_index(table_out, id_column, 'y');
+   if (id_column) create_index(table_out, id_column);
    else id_column = "rowid"; //SQLite-specific.
    if (indices)
        for (int i = 0; i< *indices->textsize; i++){
            if (apop_strcmp(*indices->text[i], id_column)) continue;
-           has_sqlite3_index(table_out, *indices->text[i], 'y');
+           create_index(table_out, *indices->text[i]);
        }
 }
 
@@ -104,8 +53,8 @@ int join_tables(){
     Tea_stopif(!idcol, return -1, 0, "You asked me to join %s and %s, but I have no 'id' column name "
                         "on which to join (put it outside of all groups in the spec, "
                         "and until we get to implementing otherwise, it has to be the same for both tables).", addtab, jointo);
-    has_sqlite3_index(jointo, idcol, 'y');
-    has_sqlite3_index(addtab, idcol, 'y');
+    create_index(jointo, idcol);
+    create_index(addtab, idcol);
     return apop_query("create table %s as select * from "
                "%s join %s "
                "on %s.%s = %s.%s;",
