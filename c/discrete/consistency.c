@@ -105,7 +105,7 @@ static int check_a_record_sql(char ** oext_values, int **ofailures,
     bool usable_sql[edit_grid->vector->size];
     check_for_all_vars(usable_sql, oext_values);
     begin_transaction();
-    sqlify(oext_values);
+    if (!apop_table_exists("tea_test")) sqlify(oext_values); //else, we're redoing after a preedit.
     if (!ofailures && wanted_preed<0){   //just want pass-fail ==> run a single yes/no query
         char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
               .before= "select count(*) from tea_test where (", .prune=prune_edits,

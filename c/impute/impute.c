@@ -522,6 +522,8 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
         if (previous_filltab){
             Asprintf(&dt, "%s_copy", datatab);
             check_out_impute(&dataxxx, &dt, &outerdraw, NULL, &previous_filltab);
+            has_sqlite3_index(dt, is->depvar, 'y');
+            has_sqlite3_index(dt, id_col, 'y');
         } else dt=strdup(datatab);
         begin_transaction();
 
@@ -562,7 +564,7 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                     apop_text_alloc(category_matrix, category_matrix->textsize[0]-1, category_matrix->textsize[1]);
                 else
                     *category_matrix->textsize=0; //Apophenia can't (yet) allocate a zero-sized matrix
-                index_cats(datatab, category_matrix);
+                index_cats(dt, category_matrix);
             }
         } while (!hit_zero); //primary means of exit is "if (!still_has_missings) break;" above.
         if (previous_filltab) apop_table_exists(dt, 'd');
