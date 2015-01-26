@@ -306,6 +306,7 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
 
 static char *get_edit_associates(char const*depvar, char const*dt, char const*id_col, int id_number, bool *has_edits){
     *has_edits = false;
+    if (!edit_list) return NULL;
     used_var_t *this = used_vars;
     for( ; this && strcmp(this->name, depvar); this++) 
         ;//loop `til we find the right entry
@@ -441,12 +442,14 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         bool has_edits;
         char *associated_query = get_edit_associates(is->depvar, dt, id_col, id_number, &has_edits);
         apop_data *drecord = associated_query ? apop_query_to_text(associated_query) : NULL;
-        Tea_stopif(associated_query && !*drecord->textsize, return, 0,
+        Tea_stopif(has_edits && associated_query && !*drecord->textsize, return, 0,
                     "Trouble querying for fields associated with %s", is->depvar);
 
         char *oext_values[total_var_ct], *pre_preedit[total_var_ct];
-        if (drecord) //else, no relevant queries, and oext_values are irrelevant?
+        memset(oext_values, 0, total_var_ct * sizeof(char*));
+        if (has_edits && drecord){ //else, no relevant queries, and oext_values are irrelevant?
             order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
+        }
         for (int i=0; i< total_var_ct; i++) pre_preedit[i] = oext_values[i] ? strdup(oext_values[i]): NULL;
 
         do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits);
@@ -477,7 +480,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         }
         free(final_value);
         free(drew.textx);
-        for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
+        if (has_edits) for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
     }
 }
 

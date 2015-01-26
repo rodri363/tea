@@ -221,10 +221,12 @@ static int make_recode_view(char **tag, char **first_or_last){
         create_index(intab, group_id);
         apop_table_exists("tea_group_stats", 'd');
         apop_table_exists("tea_record_recodes", 'd');
-        Qcheck("create view tea_group_stats as "
+        Qcheck("create table tea_group_stats as " //views can't be indexed
                    "select %s %s from %s group by %s; ",
                      group_id, group_recodestr, intab, group_id);
-        Qcheck("create view tea_record_recodes as select * %s from %s", XN(recodestr), intab);
+        Qcheck("create table tea_record_recodes as select * %s from %s", XN(recodestr), intab);
+        create_index("tea_group_stats", group_id);
+        create_index("tea_record_recodes", group_id);
 //      Qcheck("create view %s as select * from tea_record_recodes r, tea_group_stats g "
         Qcheck("create table %s as select * from tea_record_recodes r, tea_group_stats g "
                    "where r.%s=g.%s", out_name, group_id, group_id);
