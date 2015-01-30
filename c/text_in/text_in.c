@@ -22,7 +22,9 @@ void generate_indices(char const *tag){
     char const *table_holder = get_key_word_tagged("input", "output table", tag);
     char *table_out;
 
-    Asprintf(&table_out, "view%s", table_holder);
+    bool has_recodes = apop_query_to_text("select tag from keys where key "
+                                "like 'recode%%' or key like 'group recodes%%'");
+    Asprintf(&table_out, has_recodes ? "view%s" : "%s", table_holder);
      
     apop_data *indices = get_key_text("input", "indices");
     char *id_column = get_key_word(NULL, "id");

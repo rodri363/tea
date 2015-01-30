@@ -239,6 +239,8 @@ static int make_recode_view(char **tag, char **first_or_last){
 }
 
 void do_recodes(){
+     bool has_recodes = apop_query_to_text("select tag from keys where key like 'recode%%' or key like 'group recodes%%'");
+     if (!has_recodes) return;
     Tea_stopif(get_key_word("input", "output table") == NULL, return, 0, "You didn't specify an output table in your input key so I don't know where to write your recodes. Please specify an output table in your spec file.");
     char *goalname; 
     Asprintf(&goalname, "view%s", get_key_word("input", "output table"))

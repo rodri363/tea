@@ -59,7 +59,7 @@ void merge_two_sets(apop_data *left, apop_data *right){
 // Zero out the weights of those rows that don't match.
 // Rescale the weights of those rows that are near-misses.
 static double cull2(apop_data const *onerow, apop_data *cullback){
-    if (!cullback) return;
+    if (!cullback) return 0;
     #pragma omp parallel for
     for (int row=0; row<cullback->matrix->size1; row++){
         Apop_row(cullback, row, cull_row);
@@ -167,6 +167,7 @@ void merge_in_weights_so_far(apop_data *new_bit, apop_data *main_set){
 }
 
 void rescale_cp_and_merge_into_candidate(apop_data *candidate, apop_data **cp, double scale_to){
+    if (!*cp) return;
     double cp_weight_sum = apop_sum((*cp)->weights);
     if (cp_weight_sum) {
         gsl_vector_scale((*cp)->weights, scale_to/cp_weight_sum);
@@ -222,8 +223,8 @@ apop_data *em_weight_base(em_weight_s in){
         if (ctr==saturated) clean_up_for_phase_II(candidate, &cp);
         if (candidate) apop_vector_normalize(candidate->weights);
     } while (ctr++<= saturated
-              || (candidate->weights->size != prior_candidate->weights->size
-              || apop_vector_distance(candidate->weights, prior_candidate->weights, .metric='m') > tolerance));
+              || (candidate && (candidate->weights->size != prior_candidate->weights->size
+              || apop_vector_distance(candidate->weights, prior_candidate->weights, .metric='m') > tolerance)));
     apop_data_free(cp);
     apop_data_free(prior_candidate);
     apop_data_free(clean_copy);
