@@ -304,7 +304,7 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
     return nanvals;
 }
 
-static char *get_edit_associates(char const*depvar, char const*dt, char const*id_col, int id_number, bool *has_edits){
+static char *get_edit_associates(char const*depvar, char const*dt, char const*id_col, long int id_number, bool *has_edits){
     *has_edits = false;
     if (!edit_list) return NULL;
     used_var_t *this = used_vars;
@@ -317,8 +317,8 @@ static char *get_edit_associates(char const*depvar, char const*dt, char const*id
         apop_text_add(this->edit_associates, 0, 0, depvar);
         for (edit_t *this_ed=edit_list; this_ed && this_ed->clause; this_ed++){
             bool use_this_edit=false;
-            for(int i=0; i< this_ed->var_ct; i++)
-                if ((use_this_edit=!strcasecmp(depvar, this_ed->vars_used[i].name))) break;
+            for (int i=0; i< this_ed->var_ct; i++)
+                if (use_this_edit=!strcasecmp(depvar, this_ed->vars_used[i].name)) break;
             if (!use_this_edit) continue;
 
             *has_edits = true;
@@ -339,7 +339,7 @@ static char *get_edit_associates(char const*depvar, char const*dt, char const*id
 
     if (!*this->edit_associates->textsize) return NULL;
     char *tail;
-    Asprintf(&tail, " from %s where %s=%i", dt, id_col, id_number);
+    Asprintf(&tail, " from %s where %s=%Li", dt, id_col, id_number);
     char *out = apop_text_paste(this->edit_associates, .between=", ",  .before="select ", .after=tail);
     free(tail);
     return out;
@@ -379,7 +379,7 @@ then sending it to consistency_check for an up-down vote.
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
 */
 static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
-        char type, int id_number, int model_id, char **oext_values,
+        char type, long int id_number, int model_id, char **oext_values,
         int col_of_interest, bool has_edits){
     a_draw_struct out = { };
 	static char const *const whattodo="passfail";
@@ -437,7 +437,7 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)=='m')
             continue;
         int tryctr=0;
-        int id_number = atoi(is->isnan->names->row[rowindex]);
+        long int id_number = atol(is->isnan->names->row[rowindex]);
         a_draw_struct drew;
         bool has_edits;
         char *associated_query = get_edit_associates(is->depvar, dt, id_col, id_number, &has_edits);

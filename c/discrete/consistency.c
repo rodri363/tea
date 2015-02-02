@@ -186,7 +186,7 @@ passes the edit; move on to the next.
   requested by the user).
   */
 static int check_a_record_discrete(int const * restrict row,  int **failures,
-                   int rownumber, bool *has_sql_edits, int *run_this_preedit){
+                    bool *has_sql_edits, int *run_this_preedit){
     int rowfailures[total_var_ct];
     int out = 0;
     if (failures)   //is this initialization necessary?
@@ -255,7 +255,7 @@ static int check_a_record_discrete(int const * restrict row,  int **failures,
 
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
-static void fill_a_record(int *record, int record_width, char * const restrict *oext_values, int id){
+static void fill_a_record(int *record, int record_width, char * const restrict *oext_values, long int id){
     for (int rctr=0; rctr < record_width; rctr++)
         record[rctr]=-1;   //-1 == ignore-this-field marker
     int rctr=0; //i is the index for oext_values or used_vars; rctr for record.
@@ -279,7 +279,7 @@ static void fill_a_record(int *record, int record_width, char * const restrict *
         rctr++;
     }
     if (verbose){
-        printf("record %i:\n", id);
+        printf("record %Li:\n", id);
         for (int rctr=0; rctr< record_width; rctr++)
             printf("%i\t", record[rctr]);
         printf("\n");
@@ -295,7 +295,7 @@ static void do_fields_and_fails_agree(int **ofailed_fields, int fails_edits, int
 }
 
 int cc2(char * *oext_values, char const *const *what_you_want, 
-			int const *id, int **ofailed_fields, bool do_preedits, int recursion_count){
+			long int const *id, int **ofailed_fields, bool do_preedits, int recursion_count){
 
     if (!edit_grid) init_edit_list();
     if (!edit_grid || !edit_grid->matrix) return 0; //then there are no edits.
@@ -307,8 +307,8 @@ int cc2(char * *oext_values, char const *const *what_you_want,
     bool has_sql_edits = false, gotta_start_over=false;
 int wanted_preed=1000000;
     bool pf = !strcmp(what_you_want[0], "passfail");
-    int fail_count = check_a_record_discrete(record, ofailed_fields, (pf ? 0:*id),
-                              &has_sql_edits, &wanted_preed);
+    int fail_count = check_a_record_discrete(record, ofailed_fields,
+                                              &has_sql_edits, &wanted_preed);
     if (!do_preedits) wanted_preed=-1;//don't apply preedit, even if a failure was found.
     fail_count += (has_sql_edits||wanted_preed>=0) 
                        && check_a_record_sql(oext_values, ofailed_fields, wanted_preed, &gotta_start_over);
@@ -330,6 +330,9 @@ This function takes in a data set with an arbitrarily-ordered list of records. c
 above, takes in a list that exactly matches the order of the edit matrix. It simplifies
 this file a lot, and perhaps we can some day deprecate this function in favor of
 that one.
+
+
+BUG: R won't let you pass a long int from R to C. ID numbers are often long ints. Probably the only solution is to ass the id as a string. This only affects an output when verbose is on, not internal processing.
 */
 int consistency_check(char * const *record_names, char * const *ud_values, 
 			int const *record_size, char const *const *what_you_want, 
@@ -337,9 +340,10 @@ int consistency_check(char * const *record_names, char * const *ud_values,
 	Tea_stopif(*record_size <= 0, return 0, 1, "zero record size; returning zero failures.");
     char *oext_values[total_var_ct];
     int *ofailed_fields[total_var_ct];
+    long int as_long_int = *id;
     order_things(ud_values, record_names, *record_size, oext_values);
     if (failed_fields) order_things_int(failed_fields, record_names, *record_size, ofailed_fields);
-    return cc2(oext_values, what_you_want, id, (failed_fields? ofailed_fields : NULL), !!ud_post_preedit, 0);
+    return cc2(oext_values, what_you_want, &as_long_int, (failed_fields? ofailed_fields : NULL), !!ud_post_preedit, 0);
 }
 
 apop_data *checkData(apop_data *data){

@@ -132,7 +132,7 @@ void db_to_em(void){
             //We're only doing integer and text edits. If there's a real variable anywhere
             //along the row, then we'll use the sql-based edit system to make it work. 
             //Also, the DISCRETE system is ill-suited for handling "if var is null"
-            //conditions; the reader is welcome to modify it to suit; meanwhile use SQL.
+            //conditions. The reader is welcome to modify it to suit; meanwhile use SQL.
             bool has_nulls_needs_sql = strcasestr(edit_list[current_explicit].clause, "null");
             for (int i=0; i< edit_list[current_explicit].var_ct; i++)
                 if (has_nulls_needs_sql || edit_list[current_explicit].vars_used[i].type =='r'){
