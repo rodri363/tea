@@ -458,27 +458,31 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
                 apop_query("insert into tea_fails values(%i)", id_number)
                 , 0, "I just made a thousand attempts to find an imputed value "
             "that passes checks, and couldn't. Something's wrong that a "
-            "computer can't fix.\nI'm at id %i.", id_number);
+            "computer can't fix.\nI'm at id %Li.", id_number);
 
-        char * final_value = (type=='c') 
-				//Get external value from row ID
+        if (!drew.fail_count){
+            if (!has_edits){
+                char * final_value = (type=='c') 
+			    	//Get external value from row ID
                               ? ext_from_ri(is->depvar, drew.pre_round+1)
                               : strdup(drew.textx); //I should save the numeric val.
-
-        Tea_stopif(isnan(atof(final_value)), return, 0,
+                Tea_stopif(isnan(atof(final_value)), return, 0,
                          "I drew a blank from the imputed column "
-                         "when I shouldn't have for record %i.", id_number);
-
-        //write down anything that changed due to a preedit or because it's what we'd been
-        //imputing to begin with.
-        for (int i=0; i< total_var_ct; i++){
-            if (!oext_values[i] && !pre_preedit[i]) continue;
-            if ((!oext_values[i] && pre_preedit[i]) || (oext_values[i] && !pre_preedit[i]) ||
-                    strcmp(oext_values[i], pre_preedit[i]) || !strcmp(used_vars[i].name, is->depvar))
+                         "when I shouldn't have for record %Li.", id_number);
                 setit(is->autofill?datatab:filltab, draw, final_value, id_col,
+                        is->isnan->names->row[rowindex], is->depvar, is->autofill);
+                free(final_value);
+            }
+            else for (int i=0; i< total_var_ct; i++){
+                //write down anything that changed due to a preedit or because it's what
+                //we'd been imputing to begin with.
+                if (!oext_values[i] && !pre_preedit[i]) continue;
+                if ((!oext_values[i] && pre_preedit[i]) || (oext_values[i] && !pre_preedit[i]) ||
+                        strcmp(oext_values[i], pre_preedit[i]) || !strcmp(used_vars[i].name, is->depvar))
+                    setit(is->autofill?datatab:filltab, draw, oext_values[i], id_col,
                         is->isnan->names->row[rowindex], used_vars[i].name, is->autofill);
+            }
         }
-        free(final_value);
         free(drew.textx);
         if (has_edits) for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
     }
