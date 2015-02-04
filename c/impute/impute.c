@@ -379,7 +379,7 @@ then sending it to consistency_check for an up-down vote.
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
 */
 static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
-        char type, long int id_number, int model_id, char **oext_values,
+        char type, long int id_number, char **oext_values,
         int col_of_interest, bool has_edits){
     a_draw_struct out = { };
 	static char const *const whattodo="passfail";
@@ -425,7 +425,7 @@ static void setit(char const *tabname, int draw, char const *final_value, char c
 
 //a shell for do onedraw() while (!done).
 static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
-                        int model_id, int draw, apop_data *nanvals, char *filltab){
+                        int draw, apop_data *nanvals, char *filltab, bool last_chance){
     char type = get_coltype(is->depvar);
     int col_of_interest;
     for (col_of_interest=0; col_of_interest<total_var_ct; col_of_interest++)
@@ -452,11 +452,11 @@ static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char con
         }
         for (int i=0; i< total_var_ct; i++) pre_preedit[i] = oext_values[i] ? strdup(oext_values[i]): NULL;
 
-        do drew = onedraw(r, is, type, id_number, model_id, oext_values, col_of_interest, has_edits);
-        while (drew.fail_count && tryctr++ < 1000);
-        Tea_stopif(drew.fail_count, 
+        do drew = onedraw(r, is, type, id_number, oext_values, col_of_interest, has_edits);
+        while (drew.fail_count && tryctr++ < 100);
+        Tea_stopif(last_chance && drew.fail_count, 
                 apop_query("insert into tea_fails values(%i)", id_number)
-                , 0, "I just made a thousand attempts to find an imputed value "
+                , 0, "I just made a hundred attempts to find an imputed value "
             "that passes checks, and couldn't. Something's wrong that a "
             "computer can't fix.\nI'm at id %Li.", id_number);
 
@@ -552,8 +552,8 @@ static void impute_a_variable(const char *datatab, const char *underlying, impus
                 model_est(is, &model_id); //notnan may be pmf_compressed here.
                 prep_for_draw(is);
                 for (int innerdraw=0; innerdraw< innermax; innerdraw++)
-                    make_a_draw(is, r, id_col, dt, model_id,
-                                    GSL_MAX(outerdraw, innerdraw), nanvals, filltab);
+                    make_a_draw(is, r, id_col, dt, GSL_MAX(outerdraw, innerdraw), nanvals, filltab,
+                                    (!category_matrix||!*category_matrix->textsize));
                 apop_model_free(is->fitted_model); //if (is_hotdeck) apop_data_free(is->fitted_model->data);
                 bail:
                 apop_data_free(is->notnan);
