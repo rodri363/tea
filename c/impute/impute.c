@@ -1,4 +1,3 @@
-
 //See Notes (the `walk-through of imputation' section) for a detailed discussion of what goes on here.
 
 #include <rapophenia.h>
@@ -304,13 +303,11 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
     return nanvals;
 }
 
-static char *get_edit_associates(char const*depvar, char const*dt, char const*id_col, long int id_number, bool *has_edits){
+static char *get_edit_associates(char const*depvar, int depvar_posn, char const*dt, char const*id_col,
+                                    long int id_number, bool *has_edits){
     *has_edits = false;
     if (!edit_list) return NULL;
-    used_var_t *this = used_vars;
-    for( ; this && strcmp(this->name, depvar); this++) 
-        ;//loop `til we find the right entry
-    Tea_stopif(!this, return NULL, 0, "Can't find %s in the list of declared variables", depvar);
+    used_var_t *this = used_vars+depvar_posn;
 
     if (!this->edit_associates){
         this->edit_associates = apop_text_alloc(NULL, 1, 1);
@@ -362,12 +359,6 @@ static char mark_an_id(const char *target, char * const *list, int len, char jus
     return 0;
 }
 
-typedef struct {
-    char *textx;
-    double pre_round;
-    int fail_count;
-} a_draw_struct;
-
 /*This function is the inner loop cut out from impute(). As you can see from the list of
 arguments, it really doesn't stand by itself.
 
@@ -378,113 +369,134 @@ then sending it to consistency_check for an up-down vote.
 
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
 */
-static a_draw_struct onedraw(gsl_rng *r, impustruct *is, 
-        char type, long int id_number, char **oext_values,
-        int col_of_interest, bool has_edits){
-    a_draw_struct out = { };
-	static char const *const whattodo="passfail";
-    double x;
-    apop_draw(&x, r, is->fitted_model);
-    Tea_stopif(isnan(x), return out, 0, "I drew NaN from the fitted model. Something is wrong.");
+static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
+                    char **oext_values, int col_of_interest, bool has_edits){
+    double x[is->fitted_model->dsize];
+    apop_draw(x, r, is->fitted_model);
+    Tea_stopif(isnan(*x), return -1, 0, "I drew NaN from the fitted model. Something is wrong.");
     apop_data *rd = get_data_from_R(is->fitted_model);
     if (rd) {
-        x = rd->vector ? *rd->vector->data : *rd->matrix->data;
+        *x = rd->vector ? *rd->vector->data : *rd->matrix->data;
         apop_data_free(rd);
     }
-    out.pre_round=x;
-    if (type == '\0'){ // '\0' means not in the index of variables to check.
-        Asprintf(&out.textx, "%g", x);
-    } else {
-        if (!is->is_hotdeck && is->is_bounds_checkable) //inputs all valid ==> outputs all valid
-            check_bounds(&x, is->depvar, type); // just use the rounded value.
-        apop_data *f;
-        if (is->textdep && (f = apop_data_get_factor_names(is->fitted_model->data, .type='t')))
-             out.textx = strdup(*f->text[(int)x]);
-        else Asprintf(&out.textx, "%g", x);
-        if (!has_edits) return out;
-        
-        //copy the new impute to full_record, for re-testing
-        //just get a success/failure, but a smarter system would request the list of failed fields.
-        Asprintf(oext_values+col_of_interest, "%s", out.textx);
-        out.fail_count = cc2(oext_values, &whattodo, &id_number, NULL, /*do_preedits=*/true, 0);
-    }
-    return out;
+    if (is->depvar){ //everything but the EM model
+        char type = used_vars[col_of_interest].type;
+        if (type == '\0'){ // '\0' means not in the index of variables to check.
+            Asprintf(oext_values+col_of_interest, "%g", *x);
+            return 0;
+        } else {
+            if (!is->is_hotdeck && is->is_bounds_checkable) //inputs all valid ==> outputs all valid
+                check_bounds(x, is->depvar, type); // just use the rounded value.
+            apop_data *f;
+            if (is->textdep && (f = apop_data_get_factor_names(is->fitted_model->data, .type='t')))
+                 oext_values[col_of_interest] = strdup(*f->text[(int)*x]);
+            else Asprintf(oext_values+col_of_interest, "%g", *x);
+            if (!has_edits) return 0;
+            
+        }
+    } else  //the EM model
+        for (int i=0; i<total_var_ct; i++)
+            if (!oext_values[i]) Asprintf(oext_values+i, "%g", x[i]);
+
+    //just get a success/failure, but a smarter system would request the list of failed fields.
+    return cc2(oext_values, (char const*[]){"passfail"},
+                                 &id_number, NULL, /*do_preedits=*/true, 0);
 }
 
 static void setit(char const *tabname, int draw, char const *final_value, char const *id_col,
-        char const *id, char const *field_name, bool autofill){
+                    char const *id, char const *field_name, bool autofill){
         char tick = final_value ? '\'': ' ';
-        char const *fv = final_value ? final_value : "NULL";
         if (!autofill)
-            apop_query("insert into %s values(%i, %c%s%c, '%s', '%s');",
-                       tabname,  draw, tick, fv, tick, id, field_name);
-        else
-            apop_query("update %s set %s = %c%s%c where  %s='%s';",
-                       tabname, field_name, tick, fv, tick, id_col, id);
+             apop_query("insert into %s values(%i, %c%s%c, '%s', '%s');",
+                       tabname,  draw, tick, XN(final_value), tick, id, field_name);
+        else apop_query("update %s set %s = %c%s%c where  %s='%s';",
+                       tabname, field_name, tick, XN(final_value), tick, id_col, id);
 }
 
+bool strings_dont_match(char const *a, char const *b){ 
+printf("[%s %s]\t", XN(a), XN(b)); fflush(NULL);
+    return (a && !b) || (!a && b) || strcmp(a, b); }
+
+/*
+There are many cases, which primarily boil down to whether we need to potentially record one field or all.
+
+We would need to record all if there are edits, or for the EM algorithm.
+
+If is->depvar is set, this is a signal that we're not using EM. The hope is to allow
+for other models with multiple specified variables (depvars), but we currently don't
+use any such models(!), so this remains on the to-implement list.
+
+To potentially record all fields, we initialize oext_values, which is an ordered,
+external-value(*) list of the record. For non-EM dealings, care is taken to record
+only those fields that are relevant to the current record's edits.
+
+A NULL in oext_values means the element doesn't need to be recorded later.
+
+
+
+(*) Arbitrary user-defined values, versus the rowids that are used for the DISCRETE subsystem.
+
+ */
+
 //a shell for do onedraw() while (!done).
-static void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
-                        int draw, apop_data *nanvals, char *filltab, bool last_chance){
-    char type = get_coltype(is->depvar);
-    int col_of_interest;
-    for (col_of_interest=0; col_of_interest<total_var_ct; col_of_interest++)
-        if (!strcmp(is->depvar, used_vars[col_of_interest].name)) break;
-    Tea_stopif(col_of_interest==total_var_ct, return, 0, "I couldn't find %s in the list "
-                                                       "of declared fields.", is->depvar);
+void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
+                        int draw, apop_data *nanvals, char const *filltab, bool last_chance){
+    int col_of_interest = is->depvar ? is->var_posns[0]: -1;
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         char *name = is->isnan->names->row[rowindex];
         if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)=='m')
             continue;
         int tryctr=0;
         long int id_number = atol(is->isnan->names->row[rowindex]);
-        a_draw_struct drew;
         bool has_edits;
-        char *associated_query = get_edit_associates(is->depvar, dt, id_col, id_number, &has_edits);
-        apop_data *drecord = associated_query ? apop_query_to_text(associated_query) : NULL;
-        Tea_stopif(has_edits && associated_query && !*drecord->textsize, return, 0,
-                    "Trouble querying for fields associated with %s", is->depvar);
 
-        char *oext_values[total_var_ct], *pre_preedit[total_var_ct];
+        char *oext_values[total_var_ct]; char *pre_preedit[total_var_ct];
         memset(oext_values, 0, total_var_ct * sizeof(char*));
-        if (has_edits && drecord){ //else, no relevant queries, and oext_values are irrelevant?
-            order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
-        }
-        for (int i=0; i< total_var_ct; i++) pre_preedit[i] = oext_values[i] ? strdup(oext_values[i]): NULL;
 
-        do drew = onedraw(r, is, type, id_number, oext_values, col_of_interest, has_edits);
-        while (drew.fail_count && tryctr++ < 100);
-        Tea_stopif(last_chance && drew.fail_count, 
+        if (is->depvar){
+            apop_data *drecord = NULL;
+            char *associated_query = get_edit_associates(is->depvar, col_of_interest, dt, id_col, id_number, &has_edits);
+            if (has_edits && associated_query) drecord = apop_query_to_text(associated_query);
+            Tea_stopif(has_edits && associated_query && !*drecord->textsize, return, 0,
+                        "Trouble querying for fields associated with %s", is->depvar);
+            if (drecord && (has_edits || !is->depvar))
+                order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
+        } else 
+            for (int j=0; j< is->isnan->matrix->size2; j++){
+                double val = apop_data_get(is->isnan, rowindex, j);
+                if (!isnan(val))
+                    Asprintf(oext_values+is->var_posns[j], "%g", val)
+            }
+
+        for (int i=0; i< total_var_ct; i++)
+            pre_preedit[i] = oext_values[i] ? strdup(oext_values[i]): NULL;
+
+        int fail_count=0;
+        do fail_count = onedraw(r, is, id_number, oext_values, col_of_interest, has_edits);
+        while (fail_count && tryctr++ < 100);
+        Tea_stopif(last_chance && fail_count, 
                 apop_query("insert into tea_fails values(%i)", id_number)
                 , 0, "I just made a hundred attempts to find an imputed value "
             "that passes checks, and couldn't. Something's wrong that a "
             "computer can't fix.\nI'm at id %Li.", id_number);
 
-        if (!drew.fail_count){
-            if (!has_edits){
-                char * final_value = (type=='c') 
-			    	//Get external value from row ID
-                              ? ext_from_ri(is->depvar, drew.pre_round+1)
-                              : strdup(drew.textx); //I should save the numeric val.
-                Tea_stopif(isnan(atof(final_value)), return, 0,
+        if (!fail_count){
+            if (!has_edits && is->depvar){ //is->depvar is a semaphore for not the EM model.
+                char * final_value = oext_values[col_of_interest];
+                Tea_stopif(!final_value || isnan(atof(final_value)), return, 0,
                          "I drew a blank from the imputed column "
                          "when I shouldn't have for record %Li.", id_number);
                 setit(is->autofill?datatab:filltab, draw, final_value, id_col,
                         is->isnan->names->row[rowindex], is->depvar, is->autofill);
-                free(final_value);
             }
             else for (int i=0; i< total_var_ct; i++){
-                //write down anything that changed due to a preedit or because it's what
-                //we'd been imputing to begin with.
-                if (!oext_values[i] && !pre_preedit[i]) continue;
-                if ((!oext_values[i] && pre_preedit[i]) || (oext_values[i] && !pre_preedit[i]) ||
-                        strcmp(oext_values[i], pre_preedit[i]) || !strcmp(used_vars[i].name, is->depvar))
+               if (!oext_values[i] && !pre_preedit[i]) continue;
+               if (col_of_interest==i || strings_dont_match(oext_values[i], pre_preedit[i]))
                     setit(is->autofill?datatab:filltab, draw, oext_values[i], id_col,
                         is->isnan->names->row[rowindex], used_vars[i].name, is->autofill);
             }
         }
-        free(drew.textx);
-        if (has_edits) for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
+        //for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
     }
 }
 
@@ -629,7 +641,7 @@ apop_model *tea_get_model_by_name(char *name, impustruct *model){
             out= rapop_model_from_registry(name);
         Tea_stopif(!strcmp(out->name, "Null model"), return &(apop_model){}, 0, "model selection fail.");
         Apop_model_add_group(out, apop_parts_wanted, .predicted='y'); //no cov
-        if (!strcmp(out->name, "PDF or sparse matrix")) out->dsize=-2;
+        //if (!strcmp(out->name, "PDF or sparse matrix")) out->dsize=-2;
         return out;
 }
 
@@ -649,7 +661,7 @@ TeaKEY(impute/input vars, <<<A comma-separated list of the independent, right-ha
 TeaKEY(impute/output vars, <<<The variables that will be imputed. For OLS-type models, the left-hand, dependent variable (notice that we still use the plural "vars"). For models that have no distinction between inputs and outputs, this behaves identically to the "impute/vars" key (so only use one or the other).>>>)
 TeaKEY(impute/subset, <<<If you would like to do imputation only on some subset of the data, specify a condition here. This will become an SQL where clause, such as "age>15 and status='married'".>>>)
  */
-impustruct read_model_info(char const *configbase, char const *tag, char const *id_col){
+static impustruct read_model_info(char const *configbase, char const *tag, char const *id_col){
 	apop_data *varlist=NULL, *indepvarlist=NULL, *outputvarlist=NULL;
     apop_regex(get_key_word_tagged(configbase, "vars", tag),
                 " *([^,]*[^ ]) *(,|$) *", &varlist); //split at the commas
@@ -659,7 +671,7 @@ impustruct read_model_info(char const *configbase, char const *tag, char const *
                 " *([^,]*[^ ]) *(,|$) *", &indepvarlist);
     Tea_stopif(!varlist && !outputvarlist, return (impustruct){.error=1}, 0, "I couldn't find a 'vars' or 'output vars' line in the %s segment", configbase);
 
-	impustruct model = (impustruct) {.position=-2, .vartypes=strdup("n")};
+	impustruct model = (impustruct) {.vartypes=strdup("n")};
     model.depvar = strdup(outputvarlist ? **outputvarlist->text : **varlist->text);
     model.allvars_ct = (indepvarlist ? *indepvarlist->textsize : 0)
                        + (varlist ? *varlist->textsize : 0)
@@ -725,7 +737,7 @@ char *configbase = "impute";
   TeaKEY(impute/earlier output table, <<<If this imputation depends on a previous one, then give the fill-in table from the previous output here.>>>)
   TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
  */
-int do_impute(char **tag, char **idatatab, int *autofill){ 
+static int do_impute(char **tag, char **idatatab, int *autofill){ 
     Tea_stopif(get_key_word("impute", "method") == NULL, return -1, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
     
     Tea_stopif(!*tag, return -1, 0, "All the impute segments really should be tagged.");
@@ -787,6 +799,7 @@ int do_impute(char **tag, char **idatatab, int *autofill){
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
 
     impustruct model = read_model_info(configbase, *tag, id_col);
+    model.var_posns = (int[]){get_ordered_posn(model.depvar), -1};
     model.autofill = *autofill;
     Tea_stopif(model.error, return -1, 0, "Trouble reading in model info.");
 

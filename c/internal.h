@@ -44,11 +44,16 @@ apop_data * get_variables_to_impute(char *tag);
 
 typedef struct {
 	apop_model *base_model, *fitted_model;
-	char * depvar, **allvars, *vartypes, *selectclause, *subset;
-	int position, allvars_ct, error;
+	char *depvar, **allvars, *vartypes, *selectclause, *subset,
+         *depvars; //Am retrofitting this to deal with multivariate models.
+                   //The reader is invited to rewrite all uses of depvar with depvars.
+	int allvars_ct, error, *var_posns;
 	apop_data *isnan, *notnan;
     bool is_bounds_checkable, is_hotdeck, textdep, is_em, is_regression, allow_near_misses, autofill;
 } impustruct;
+
+void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
+                                int draw, apop_data *nanvals, char const *filltab, bool last_chance);
 
 //impute/em.c
 void em_to_completion(char const *datatab, char const *underlying,
@@ -86,6 +91,7 @@ void test_check_out_impute();//in checkout.c
 //a certain order for the edit matrix.
 void order_things(char * const* record_in, char *const *record_names, int record_size, char **oext_vals);
 void order_things_int(int * ints_in, char *const *record_names, int record_size, int **oint_vals);
+int get_ordered_posn(char const*in);
 
 //in discrete/consistency.c, version 2 of consistency_check
 int cc2(char * *oext_values, char const *const *what_you_want, 

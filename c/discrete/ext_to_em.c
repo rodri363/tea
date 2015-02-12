@@ -36,3 +36,16 @@ void order_things_int(int * ints_in, char *const *record_names, int record_size,
                 break;
             }
 }
+
+/* Get the position of a variable in the ordered list above.
+ return position number
+ -1 = not found
+ -2 = other error
+*/
+int get_ordered_posn(char const*in){
+    if (!used_vars) return -2;
+    for (int out=0; out<total_var_ct; out++)
+        if (!strcmp(in, used_vars[out].name)) return out;
+        Tea_stopif(1, return -1, 0, "I couldn't find %s in the list "
+                         "of declared fields.", in);
+}
