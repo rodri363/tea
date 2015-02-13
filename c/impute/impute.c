@@ -413,9 +413,7 @@ static void setit(char const *tabname, int draw, char const *final_value, char c
                        tabname, field_name, tick, XN(final_value), tick, id_col, id);
 }
 
-bool strings_dont_match(char const *a, char const *b){ 
-printf("[%s %s]\t", XN(a), XN(b)); fflush(NULL);
-    return (a && !b) || (!a && b) || strcmp(a, b); }
+bool strings_dont_match(char const *a, char const *b){ return (a && !b) || (!a && b) || strcmp(a, b); }
 
 /*
 There are many cases, which primarily boil down to whether we need to potentially record one field or all.
@@ -821,7 +819,6 @@ static int do_impute(char **tag, char **idatatab, int *autofill){
                     and = " and ";
                 }
             }
-if(catlist) printf("%s\n", catlist->text[i][0]);
             char *margintab = get_key_word_tagged(configbase, "margin table", *tag);
             em_to_completion(*idatatab, underlying, model, min_group_size, 
                         r, draw_count, wherecat, fingerprint_vars, id_col, 
