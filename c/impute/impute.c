@@ -494,7 +494,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
                         is->isnan->names->row[rowindex], used_vars[i].name, is->autofill);
             }
         }
-        //for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
+        for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
     }
 }
 
