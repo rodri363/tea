@@ -101,3 +101,6 @@ int cc2(char * *oext_values, char const *const *what_you_want,
 int create_index_base(char const *tab, char const**fields);
 //Just one field to index? Use this:
 #define create_index(tab, f) create_index_base(tab, (char const*[]){f, NULL})
+
+void in_out_row_add(char *tag); //in_out_tab.c
+void in_out_tab_reset();

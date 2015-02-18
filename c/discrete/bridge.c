@@ -333,6 +333,7 @@ void start_over(){ //Reset everything in case this wasn't the first call
         free(used_vars);
     }
     apop_data_free(ud_queries);
+    in_out_tab_reset();
     used_vars = NULL;
     fname = "-stdin-";
     lineno = 1;
@@ -397,8 +398,10 @@ void read_spec(char **infile, char **dbname_out){
     apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key "
 					      "like 'input/%' order by count");
     if (tags){
-        for (int i=0; i< *tags->textsize;i++)
+        for (int i=0; i< *tags->textsize;i++){
             generate_indices(*tags->text[i]);
+            in_out_row_add(*tags->text[i]);
+        }
         apop_data_free(tags);
     }
 
