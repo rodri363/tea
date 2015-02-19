@@ -395,13 +395,15 @@ void read_spec(char **infile, char **dbname_out){
     }
 
     //Generating indices for ID
-    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key "
-					      "like 'input/%' order by count");
+    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys");
     if (tags){
         for (int i=0; i< *tags->textsize;i++){
-            generate_indices(*tags->text[i]);
+            if (apop_query_to_float("select count(*) from keys where "
+                            "tag='%s' and key like 'input/%%'", *tags->text[i]))
+                    generate_indices(*tags->text[i]);
             in_out_row_add(*tags->text[i]);
         }
+        in_out_recode_fix();
         apop_data_free(tags);
     }
 

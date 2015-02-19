@@ -106,28 +106,6 @@ void recodes(char **key, char** tag, char **outstring, char **intab){
     apop_data_free(editcheck);
 }
 
-static void get_in_out_tabs(char const *first_or_last, char **intab, char **out_name){
-    //Names are a pain: the first input should be the intab,
-    //the last output should be view[intab]
-    //but in the middle, we may chain an arbitrary number of views together,
-    //so we'll need to chain this in = last out and make up intermediate names.
-    if (apop_strcmp(first_or_last, "first") 
-           || apop_strcmp(first_or_last, "both"))
-        *intab = get_key_word("input", "output table");
-    else {//chaining from before
-        Tea_stopif(!intab, return, 0, "intab is blank but shouldn't be in this situation. Shouldn't happen.");
-        free(*intab);
-        *intab = strdup(*out_name);
-    }
-    if (apop_strcmp(first_or_last, "last") 
-           || apop_strcmp(first_or_last, "both")){
-         Asprintf(out_name, "view%s", get_key_word("input", "output table"))
-    } else {
-        free(*out_name);
-        Asprintf(out_name, "mid%s", *intab);
-    }
-}
-
 static apop_data* get_vars_to_impute(void){
     apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
     char *v = NULL;
@@ -197,24 +175,20 @@ TeaKEY(group recodes/group id, <<<The column with a unique ID for each group (e.
 Returns 0 on OK, 1 on error.
 */
 
+int make_recode_view(char *tag){
+    if (tag && !test_for_recodes(tag)) return 0;
 
-static int make_recode_view(char **tag, char **first_or_last){
-    Tea_stopif(!*first_or_last, return -1, 0, "first_or_last not set. Should never happen.");
-    //first_or_last may be "first", "last", "both", or "middle"
-    if (tag && !test_for_recodes(*tag)) return 0;
+    run_predecessor(tag);
 
-    if (!file_read && get_key_word("input", "input file")) text_in();
-
-    static char *intab =NULL;
-    static char *out_name =NULL;
-    get_in_out_tabs(*first_or_last, &intab, &out_name);
+    char *intab = in_out_get(tag, 'i');
+    char *out_name = in_out_get(tag, 'o');
     Tea_stopif(!out_name, return -1, 0, "Error setting recode table name.");
 
     char *recodestr=NULL, *group_recodestr=NULL;
     apop_table_exists(out_name, 'd');
     char *rgroup="recodes", *grgroup="group recodes";
-    recodes(&rgroup, tag, &recodestr, &intab);      //will query there for whether any recodes exist.
-    recodes(&grgroup, tag, &group_recodestr, &intab);
+    recodes(&rgroup, &tag, &recodestr, &intab);      //will query there for whether any recodes exist.
+    recodes(&grgroup, &tag, &group_recodestr, &intab);
     if (group_recodestr){
         char *group_id= get_key_word("group recodes", "group id");
         Tea_stopif(!group_id, return -1, 0, "There's a group recodes section, but no \"group id\" tag.");
@@ -255,14 +229,9 @@ void do_recodes(){
         apop_data *recode_tags = apop_query_to_text("select distinct tag from keys "
                 " where key like 'recode%%' or key like 'group recodes%%' order by count");
         if (recode_tags){
-            if (recode_tags->textsize[0]==1) make_recode_view(NULL, (char*[]){"both"});
-            else for (int i=0; i< *recode_tags->textsize; i++){
-                Tea_stopif(!(
-                        !make_recode_view(recode_tags->text[i], //pointer to list of char*s.
-                            ( (i==0) ? (char*[]){"first"}
-                            : (i==*recode_tags->textsize-1) ? (char*[]){"last"}
-                            : (char*[]){"middle"}))
-                        ), return, 0, "Error in recode production.");
+            for (int i=0; i< *recode_tags->textsize; i++){
+                Tea_stopif(make_recode_view(*recode_tags->text[i])
+                        , return, 0, "Error in recode production.");
             }
             apop_data_free(recode_tags);
         }

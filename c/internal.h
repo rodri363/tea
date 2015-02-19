@@ -56,7 +56,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
                                 int draw, apop_data *nanvals, char const *filltab, bool last_chance);
 
 //impute/em.c
-void em_to_completion(char const *datatab, char const *underlying,
+void em_to_completion(char const *datatab,
         impustruct is, int min_group_size, gsl_rng *r,
         int draw_count, char *catlist,
         apop_data const *fingerprint_vars, char const *id_col,
@@ -65,6 +65,7 @@ void em_to_completion(char const *datatab, char const *underlying,
 
 
 int join_tables(); //text_in/text_in.c
+int text_in_by_tag(char const *tag);
 
 void reset_ri_ext_table();  //c/discrete/name_conversions.c
 int ri_from_ext(char const *varname, char const* ext_val);
@@ -74,6 +75,8 @@ double find_nearest_val(char const *varname, double ext_val);
 char get_coltype(char const* depvar); //bridge.c
 
 void do_recodes(); //c/text_in/recodes.c.
+int make_recode_view(char *tag);
+int run_predecessor(char *tag);
 
 
 int check_levenshtein_distances(int);//c/peptalk/levendistance.c
@@ -104,3 +107,5 @@ int create_index_base(char const *tab, char const**fields);
 
 void in_out_row_add(char *tag); //in_out_tab.c
 void in_out_tab_reset();
+void in_out_recode_fix();
+char *in_out_get(char *tag, char in_or_out);

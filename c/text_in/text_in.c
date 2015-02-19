@@ -88,7 +88,7 @@ TeaKEY(input/indices, <<<Each row specifies another column of data that needs an
 
 TeaKEY(input/missing marker, <<<How your text file indicates missing data. Popular choices include NA, ., NaN, N/A, et cetera.>>>)
 */
-static int text_in_by_tag(char const *tag){
+int text_in_by_tag(char const *tag){
     char *file_in   = get_key_word_tagged("input", "input file", tag);
     char *table_out = get_key_word_tagged("input", "output table", tag);
     char *nan_marker = get_key_word_tagged("input", "missing marker", tag);
