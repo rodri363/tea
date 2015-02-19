@@ -41,6 +41,7 @@ int using_r; //r_init handles this. If zero, then it's a standalone C library.
 
 //impute/impute.c:
 apop_data * get_variables_to_impute(char *tag); 
+int do_impute(char **tag, char **idatatab, int *autofill);
 
 typedef struct {
 	apop_model *base_model, *fitted_model;
@@ -76,8 +77,6 @@ char get_coltype(char const* depvar); //bridge.c
 
 void do_recodes(); //c/text_in/recodes.c.
 int make_recode_view(char *tag);
-int run_predecessor(char *tag);
-
 
 int check_levenshtein_distances(int);//c/peptalk/levendistance.c
 void test_levenshtein_distance(); //also in levendistance.c, for the test suite.
@@ -105,7 +104,9 @@ int create_index_base(char const *tab, char const**fields);
 //Just one field to index? Use this:
 #define create_index(tab, f) create_index_base(tab, (char const*[]){f, NULL})
 
-void in_out_row_add(char *tag); //in_out_tab.c
+void in_out_row_add(char const *tag);       //in_out_tab.c
 void in_out_tab_reset();
 void in_out_recode_fix();
-char *in_out_get(char *tag, char in_or_out);
+char *in_out_get(char const *tag, char in_or_out);
+bool run_one_tag(int row, char **active_tab, void *aux_info);
+bool run_all_tags(char *type, char **active_tab, void* aux_info);

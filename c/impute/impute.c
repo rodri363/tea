@@ -735,24 +735,20 @@ char *configbase = "impute";
   TeaKEY(impute/earlier output table, <<<If this imputation depends on a previous one, then give the fill-in table from the previous output here.>>>)
   TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
  */
-static int do_impute(char **tag, char **idatatab, int *autofill){ 
-    Tea_stopif(get_key_word("impute", "method") == NULL, return -1, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
+int do_impute(char **tag, char **idatatab, int *autofill){ 
+    Tea_stopif(get_key_word("impute", "method") == NULL, return false, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
     
-    Tea_stopif(!*tag, return -1, 0, "All the impute segments really should be tagged.");
-    if (!*idatatab) *idatatab = in_out_get(*tag, 'i');
-    Tea_stopif(!*idatatab, return -1, 0,
+     *idatatab = in_out_get(*tag, 'i');
+    Tea_stopif(!*idatatab, return false-1, 0,
                         "I need an input table, via a '%s/input table' key. "
                         "Or, search the documentation "
                         "for the active table (which is currently not set).", configbase);
-    run_predecessor(*tag);
-    Tea_stopif(!apop_table_exists(*idatatab), return -1, 0, "'%s/input table' is %s, but I can't "
+    Tea_stopif(!apop_table_exists(*idatatab), return false-1, 0, "'%s/input table' is %s, but I can't "
                      "find that table in the db.", configbase, *idatatab);
 
     char *af = get_key_word_tagged(configbase, "autofill", *tag);
     *autofill = *autofill || (af && !strcmp(af, "no"));
     Tea_stopif(!*autofill && get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
-
-
 
 /* TeaKEY(impute/categories, <<<Denotes the categorized set of variables by which to impute your output vars.>>>)
  */
@@ -767,7 +763,7 @@ static int do_impute(char **tag, char **idatatab, int *autofill){
     if (isnan(draw_count) || !draw_count) draw_count = 1;
 
     char *weight_col = get_key_word_tagged(configbase, "weights", *tag);
-    char *out_tab = get_key_word_tagged(configbase, "output table", *tag);
+    char *out_tab = in_out_get(*tag, 'o');
 
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
     if (!out_tab && previous_fill_tab) out_tab = previous_fill_tab;
@@ -799,14 +795,14 @@ static int do_impute(char **tag, char **idatatab, int *autofill){
     impustruct model = read_model_info(configbase, *tag, id_col);
     model.var_posns = (int[]){get_ordered_posn(model.depvar), -1};
     model.autofill = *autofill;
-    Tea_stopif(model.error, return -1, 0, "Trouble reading in model info.");
+    Tea_stopif(model.error, return false, 0, "Trouble reading in model info.");
 
     if (model.is_em) {
         apop_data *catlist=NULL;
         if (category_matrix){
             char *cats = apop_text_paste(category_matrix, .between=", ");
             catlist = apop_query_to_text("select distinct %s from %s", cats, *idatatab);
-            Tea_stopif(!catlist || catlist->error, return -1, 0, 
+            Tea_stopif(!catlist || catlist->error, return false, 0, 
                 "Trouble querying for categories [select distinct %s from %s].", cats, *idatatab);
         }
         for (int i=0; i< (catlist ? *catlist->textsize: 1); i++){
@@ -831,24 +827,13 @@ static int do_impute(char **tag, char **idatatab, int *autofill){
     apop_data_free(fingerprint_vars);
     apop_data_free(category_matrix);
     sprintf(apop_opts.db_name_column, "%s", tmp_db_name_col);
-    return 0;
+    return true;
 }
 
 /* TeaKEY(impute, <<<The key where the user defines all of the subkeys related to the doMImpute() part of the imputation process. For details on these subkeys, see their descriptions elsewhere in the appendix.>>>)
  */
 void impute(char **idatatab, int *autofill){ 
-    apop_data *tags = apop_query_to_text("%s", "select distinct tag from keys where key like 'impute/%'");
-    Tea_stopif(!tags, return, 0, "No 'impute' section found in the spec file");
-    for (int i=0; i< *tags->textsize; i++){
-        char *out_tab = get_key_word_tagged(configbase, "output table", *tags->text[i]);
-        if (!out_tab) out_tab = "filled";
-        apop_table_exists(out_tab, 'd');
-    }
-
     apop_table_exists("tea_fails", 'd');
     apop_query("create table tea_fails('id')");
-
-    for (int i=0; i< *tags->textsize; i++)
-        do_impute(tags->text[i], idatatab, autofill);
-    apop_data_free(tags);
+    run_all_tags("impute", idatatab, autofill);
 }

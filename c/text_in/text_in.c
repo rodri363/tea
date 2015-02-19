@@ -90,24 +90,16 @@ TeaKEY(input/missing marker, <<<How your text file indicates missing data. Popul
 */
 int text_in_by_tag(char const *tag){
     char *file_in   = get_key_word_tagged("input", "input file", tag);
-    char *table_out = get_key_word_tagged("input", "output table", tag);
+    char *table_out = in_out_get(tag, 'o');
+    Tea_stopif(!file_in, return false, 0,  "I don't have an input file name");
+    Tea_stopif(!table_out, return false, 0, "I don't have a name for the output table.");
+
     char *nan_marker = get_key_word_tagged("input", "missing marker", tag);
     if (nan_marker) apop_opts.nan_string = nan_marker;
     if (!nan_marker) nan_marker=apop_opts.nan_string;
-    char *overwrite = get_key_word_tagged("input", "overwrite", tag);
-    if (!overwrite  || !strcasecmp(overwrite,"n") 
-                    || !strcasecmp(overwrite,"no") 
-                    || !strcasecmp(overwrite,"0") )
-            free(overwrite), overwrite = NULL;
 
     char *delimiters = get_key_word_tagged("input", "delimiters", tag);
     if (delimiters) sprintf(apop_opts.input_delimiters, delimiters);
-
-    Tea_stopif(!file_in, return -1, 0,  "I don't have an input file name");
-
-    Tea_stopif(!table_out, return -1, 0, "I don't have a name for the output table.");
-    Tea_stopif(!overwrite && apop_table_exists(table_out), return 0, 0,
-                        "Table %s exists; skipping the input from file %s.", table_out, file_in);
 
     // Script that converts a sas input file into a regular text file
     if(strrchr(file_in, '.') && strcmp(strrchr(file_in, '.'), "sas7bdat") == 0){
@@ -122,9 +114,7 @@ int text_in_by_tag(char const *tag){
         char *directory = dirname(file_in);
         if(!strcmp(directory, ".")) Asprintf(&directory, " ")
 
-        if (overwrite) apop_table_exists(table_out, 'd');
-
-       return apop_system(
+       return !apop_system(
            "sas -noterminal -stdio <<XXXXXX| apop_text_to_db -d',' - %s %s;\n"
            "libname indata '%s';    \n"
            "PROC EXPORT             \n"
@@ -139,10 +129,7 @@ int text_in_by_tag(char const *tag){
 
 	printf("Reading text file %s into database table %s.\n", file_in, table_out);
 
-    if (overwrite) apop_table_exists(table_out, 'd');
-
     apop_data *types = make_type_table();
-
 
     char *table_key = NULL;
     char comma = ' ';
@@ -165,25 +152,20 @@ int text_in_by_tag(char const *tag){
     //We've moved generate_indices(table_out) to after recodes at bridge.c:428
     file_read ++;
     apop_data_free(types);
-    return 0;
+    return true;
 }
 
 void text_in(){
-    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key like 'input/%' order by count");
-    if (!tags) return;
-    for (int i=0; i< *tags->textsize;i++)
-        text_in_by_tag(*tags->text[i]);
-    apop_data_free(tags);
+    char *active_tab; //dummy
+    run_all_tags("input", &active_tab, NULL);
 }
 
-// Hilariously, including libgen.h for dirname gives us the POSIX version of
+// Including libgen.h for dirname gives us the POSIX version of
 // basename instead of GNU C. So I just instantiated it here.
-char *gnu_c_basename(char *file_input)
-{
-            char *basename = strrchr(file_input, '/');
-                        return basename ? basename+1 : file_input;
+char *gnu_c_basename(char *file_input) {
+    char *basename = strrchr(file_input, '/');
+    return basename ? basename+1 : file_input;
 }
-
 
 
 /* TeaKEY(database, <<<The database to use for all of this. It must be the first line in your spec file because all the rest of the keys get written to the database you specify. If you don't specify a database than the rest of the keys have nowhere to be written and your spec file will not get read correctly.>>>)

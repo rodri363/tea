@@ -47,9 +47,8 @@ currently the sales-pitch document, but should also be 100% of what a user needs
 read for a simple survey processing problem. It's based on {pkg base}/doc/tea.tex,
 which is not particularly well written or complete; please edit.
 
---We have a demo. If it isn't running right now, let us know. However, it certainly
-won't run via the demo() function in R.
-
+--The demo has largely been abandoned in favor of the demos at
+http://b-k.github.in/tea-tutorial .
 
 
 --------------The files
@@ -67,6 +66,13 @@ discrete/bridge.c:
     C/spec file. It includes functions for SQL edits-to-edit grid work, reading/writing
     keys, and the main parsing function; see below for these.
 
+in_out_tree.c:
+    One could imagine a simple graph connecting segments of the spec: the input segment
+    produces an output which goes to the recodes, which goes to the imputations. A table
+    here keeps track of the input/output table names, so if you call the imputation, it
+    finds and runs the recodes, which requires finding and running the inputs. Ideally,
+    all segments would launch from run_one_tag (we're not there yet, though).
+
 text_in/text_in.c: 
     reading in text, primarily just prep for apop_text_to_db. We want to get the
     types right, so we have to convert between the used_vars list and SQL type names
@@ -81,6 +87,7 @@ text_in/recodes.c:
         create view middletab as select ... from originaldata
         create view midmiddletab as select ... from middletab
         create view vieworiginaldata as select ... from midmiddletab
+    which is now done in in_out_tree.c
 
     set_up_triggers isn't used right now.
 

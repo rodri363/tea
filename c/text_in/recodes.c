@@ -46,7 +46,7 @@ static char *one_recode_to_string(apop_data const *recode_list, int *is_formula,
     return clauses;
 }
 
-void recodes(char **key, char** tag, char **outstring, char **intab){
+static void recodes(char **key, char** tag, char **outstring, char **intab){
 // All this function does is produce a query string. text_in/recodes then runs the query.
 // **key may be "recodes" or "group recodes".
     apop_data *all_recodes;
@@ -176,13 +176,11 @@ Returns 0 on OK, 1 on error.
 */
 
 int make_recode_view(char *tag){
-    if (tag && !test_for_recodes(tag)) return 0;
-
-    run_predecessor(tag);
+    if (tag && !test_for_recodes(tag)) return true;
 
     char *intab = in_out_get(tag, 'i');
     char *out_name = in_out_get(tag, 'o');
-    Tea_stopif(!out_name, return -1, 0, "Error setting recode table name.");
+    Tea_stopif(!out_name, return false, 0, "Error setting recode table name.");
 
     char *recodestr=NULL, *group_recodestr=NULL;
     apop_table_exists(out_name, 'd');
@@ -191,7 +189,7 @@ int make_recode_view(char *tag){
     recodes(&grgroup, &tag, &group_recodestr, &intab);
     if (group_recodestr){
         char *group_id= get_key_word("group recodes", "group id");
-        Tea_stopif(!group_id, return -1, 0, "There's a group recodes section, but no \"group id\" tag.");
+        Tea_stopif(!group_id, return false, 0, "There's a group recodes section, but no \"group id\" tag.");
         create_index(intab, group_id);
         apop_table_exists("tea_group_stats", 'd');
         apop_table_exists("tea_record_recodes", 'd');
@@ -209,32 +207,10 @@ int make_recode_view(char *tag){
         Qcheck("create table %s as select * %s from %s", out_name, XN(recodestr), intab);
 //        Qcheck("create view %s as select * %s from %s", out_name, XN(recodestr), intab);
 //    return set_up_triggers(intab);
-    return 0;
+    return true;
 }
 
 void do_recodes(){
-     bool has_recodes = apop_query_to_text("select tag from keys where key like 'recode%%' or key like 'group recodes%%'");
-     if (!has_recodes) return;
-    Tea_stopif(get_key_word("input", "output table") == NULL, return, 0, "You didn't specify an output table in your input key so I don't know where to write your recodes. Please specify an output table in your spec file.");
-    char *goalname; 
-    Asprintf(&goalname, "view%s", get_key_word("input", "output table"))
-    char *overwrite = get_key_word("input", "overwrite");
-    if (!overwrite || !strcasecmp(overwrite,"n")
-                || !strcasecmp(overwrite,"no")
-                || !strcasecmp(overwrite,"0") )
-        {free(overwrite), overwrite = NULL;}
-    if (!overwrite && apop_table_exists(goalname)){
-        Apop_notify(1, "Recode view %s exists and input/overwrite tells me to not recreate it.", goalname);
-    } else{
-        apop_data *recode_tags = apop_query_to_text("select distinct tag from keys "
-                " where key like 'recode%%' or key like 'group recodes%%' order by count");
-        if (recode_tags){
-            for (int i=0; i< *recode_tags->textsize; i++){
-                Tea_stopif(make_recode_view(*recode_tags->text[i])
-                        , return, 0, "Error in recode production.");
-            }
-            apop_data_free(recode_tags);
-        }
-    }
-    free(goalname);
+    char *active_tab; //dummy
+    run_all_tags("RRR", &active_tab, NULL);
 }
