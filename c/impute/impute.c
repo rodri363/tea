@@ -315,7 +315,7 @@ static char *get_edit_associates(char const*depvar, int depvar_posn, char const*
         for (edit_t *this_ed=edit_list; this_ed && this_ed->clause; this_ed++){
             bool use_this_edit=false;
             for (int i=0; i< this_ed->var_ct; i++)
-                if (use_this_edit=!strcasecmp(depvar, this_ed->vars_used[i].name)) break;
+                if ((use_this_edit=!strcasecmp(depvar, this_ed->vars_used[i].name))) break;
             if (!use_this_edit) continue;
 
             *has_edits = true;
@@ -336,7 +336,7 @@ static char *get_edit_associates(char const*depvar, int depvar_posn, char const*
 
     if (!*this->edit_associates->textsize) return NULL;
     char *tail;
-    Asprintf(&tail, " from %s where %s=%Li", dt, id_col, id_number);
+    Asprintf(&tail, " from %s where %s=%li", dt, id_col, id_number);
     char *out = apop_text_paste(this->edit_associates, .between=", ",  .before="select ", .after=tail);
     free(tail);
     return out;
@@ -473,17 +473,17 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
         do fail_count = onedraw(r, is, id_number, oext_values, col_of_interest, has_edits);
         while (fail_count && tryctr++ < 100);
         Tea_stopif(last_chance && fail_count, 
-                apop_query("insert into tea_fails values(%i)", id_number)
+                apop_query("insert into tea_fails values(%li)", id_number)
                 , 0, "I just made a hundred attempts to find an imputed value "
             "that passes checks, and couldn't. Something's wrong that a "
-            "computer can't fix.\nI'm at id %Li.", id_number);
+            "computer can't fix.\nI'm at id %li.", id_number);
 
         if (!fail_count){
             if (!has_edits && is->depvar){ //is->depvar is a semaphore for not the EM model.
                 char * final_value = oext_values[col_of_interest];
                 Tea_stopif(!final_value || isnan(atof(final_value)), return, 0,
                          "I drew a blank from the imputed column "
-                         "when I shouldn't have for record %Li.", id_number);
+                         "when I shouldn't have for record %li.", id_number);
                 setit(is->autofill?datatab:filltab, draw, final_value, id_col,
                         is->isnan->names->row[rowindex], is->depvar, is->autofill);
             }

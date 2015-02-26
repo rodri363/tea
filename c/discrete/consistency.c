@@ -279,7 +279,7 @@ static void fill_a_record(int *record, int record_width, char * const restrict *
         rctr++;
     }
     if (verbose){
-        printf("record %Li:\n", id);
+        printf("record %li:\n", id);
         for (int rctr=0; rctr< record_width; rctr++)
             printf("%i\t", record[rctr]);
         printf("\n");
