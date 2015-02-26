@@ -177,7 +177,7 @@ void diagnostic_print(apop_data *d, apop_data *raked){
 }
 */
 
-void em_to_completion(char const *datatab, char const *underlying,
+void em_to_completion(char const *datatab,
         impustruct is, int min_group_size, gsl_rng *r,
         int draw_count, char *catlist,
         apop_data const *fingerprint_vars, char const *id_col,

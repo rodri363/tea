@@ -333,6 +333,7 @@ void start_over(){ //Reset everything in case this wasn't the first call
         free(used_vars);
     }
     apop_data_free(ud_queries);
+    in_out_tab_reset();
     used_vars = NULL;
     fname = "-stdin-";
     lineno = 1;
@@ -384,7 +385,6 @@ void read_spec(char **infile, char **dbname_out){
     
     if(get_key_word("verbose", NULL) != NULL) verbose = 2;
     num_typos = check_levenshtein_distances(max_lev_distance);
-    do_recodes();
 
     // SPEER bounds generating routine
     char *bfld_exits = get_key_word("SPEERparams", "BFLD");
@@ -394,13 +394,19 @@ void read_spec(char **infile, char **dbname_out){
     }
 
     //Generating indices for ID
-    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys where key "
-					      "like 'input/%' order by count");
+    apop_data *tags=apop_query_to_text("%s", "select distinct tag from keys");
     if (tags){
-        for (int i=0; i< *tags->textsize;i++)
-            generate_indices(*tags->text[i]);
+        for (int i=0; i< *tags->textsize;i++){
+            if (apop_query_to_float("select count(*) from keys where "
+                            "tag='%s' and key like 'input/%%'", *tags->text[i]))
+                    generate_indices(*tags->text[i]);
+            in_out_row_add(*tags->text[i]);
+        }
+        in_out_recode_fix();
         apop_data_free(tags);
     }
+
+    do_recodes();
 
     pass++;
     rewind(yyin); //go back to position zero in the config file
@@ -410,14 +416,11 @@ void read_spec(char **infile, char **dbname_out){
 	dbname_out[0] = strdup(database);
     join_tables();
     commit_transaction();
-    return; 
 }
 
 /** Used in /tea/c/tests/levenshtein_test.c to test check_levenshtein_distances()
   */
-int get_num_typos(){
-    return num_typos;
-}
+int get_num_typos(){ return num_typos; }
 
 void get_key_count_for_R(char **group,  char **key, char **tag, int *out, int *is_sub){
 	apop_data *dout = *is_sub 

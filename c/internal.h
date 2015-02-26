@@ -41,6 +41,7 @@ int using_r; //r_init handles this. If zero, then it's a standalone C library.
 
 //impute/impute.c:
 apop_data * get_variables_to_impute(char *tag); 
+int do_impute(char **tag, char **idatatab, int *autofill);
 
 typedef struct {
 	apop_model *base_model, *fitted_model;
@@ -56,7 +57,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
                                 int draw, apop_data *nanvals, char const *filltab, bool last_chance);
 
 //impute/em.c
-void em_to_completion(char const *datatab, char const *underlying,
+void em_to_completion(char const *datatab,
         impustruct is, int min_group_size, gsl_rng *r,
         int draw_count, char *catlist,
         apop_data const *fingerprint_vars, char const *id_col,
@@ -65,6 +66,7 @@ void em_to_completion(char const *datatab, char const *underlying,
 
 
 int join_tables(); //text_in/text_in.c
+int text_in_by_tag(char const *tag);
 
 void reset_ri_ext_table();  //c/discrete/name_conversions.c
 int ri_from_ext(char const *varname, char const* ext_val);
@@ -74,7 +76,7 @@ double find_nearest_val(char const *varname, double ext_val);
 char get_coltype(char const* depvar); //bridge.c
 
 void do_recodes(); //c/text_in/recodes.c.
-
+int make_recode_view(char *tag);
 
 int check_levenshtein_distances(int);//c/peptalk/levendistance.c
 void test_levenshtein_distance(); //also in levendistance.c, for the test suite.
@@ -101,3 +103,10 @@ int cc2(char * *oext_values, char const *const *what_you_want,
 int create_index_base(char const *tab, char const**fields);
 //Just one field to index? Use this:
 #define create_index(tab, f) create_index_base(tab, (char const*[]){f, NULL})
+
+void in_out_row_add(char const *tag);       //in_out_tab.c
+void in_out_tab_reset();
+void in_out_recode_fix();
+char *in_out_get(char const *tag, char in_or_out);
+bool run_one_tag(int row, char **active_tab, void *aux_info);
+bool run_all_tags(char *type, char **active_tab, void* aux_info);
