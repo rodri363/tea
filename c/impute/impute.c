@@ -56,7 +56,7 @@ static char *construct_a_query(char const *datatab, char const *underlying, char
         else {
             free(q);
             apop_data_free(val);
-            return "stop";
+            return "stop"; //a NULL category will have to be culled off, hopefully on the next run-through.
         }
         apop_data_free(val);
     }
