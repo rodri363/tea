@@ -19,20 +19,16 @@ apop_data *make_type_table(){
 }
 
 void generate_indices(char const *tag){
-    char const *table_holder = get_key_word_tagged("input", "output table", tag);
-    char *table_out;
-
-    bool has_recodes = apop_query_to_text("select tag from keys where key "
-                                "like 'recode%%' or key like 'group recodes%%'");
-    Asprintf(&table_out, has_recodes ? "view%s" : "%s", table_holder);
-     
+    char const *table_out = in_out_get(tag, 'o');
+    if (!table_out) return;
     apop_data *indices = get_key_text("input", "indices");
     char *id_column = get_key_word(NULL, "id");
    if (id_column) create_index(table_out, id_column);
    else id_column = "rowid"; //SQLite-specific.
+
    if (indices)
        for (int i = 0; i< *indices->textsize; i++){
-           if (apop_strcmp(*indices->text[i], id_column)) continue;
+           if (!strcmp(*indices->text[i], id_column)) continue;
            create_index(table_out, *indices->text[i]);
        }
 }
@@ -40,29 +36,33 @@ void generate_indices(char const *tag){
 /* TeaKEY(join/host, <<<The main data set to be merged with.>>>)
 TeaKEY(join/add, <<<The set to be merged in to join/host.>>>)
 TeaKEY(join/output table, <<<The name of the table (actually, a view) with the join of both tables. Use this as the basis for subsequent steps.>>>)
-TeaKEY(join/field, <<<The name of the field appearing in both tables on which the join takes place. If you don't provide this, use the id key.>>>)
+TeaKEY(join/host field, <<<The name of the field appearing in the host table on which the join takes place. If you don't provide this, use the id key.>>>)
+TeaKEY(join/add field, <<<The name of the field appearing in the added table on which the join takes place. If you don't provide this, use the id key.>>>)
 */
-int join_tables(){
-    char *jointo = get_key_word("join", "host");
-    if (!jointo) return 0;
+int join_tables(char const *tag){
+    char *jointo = get_key_word_tagged("join", "host", tag);
+    if (!jointo) return false;
 
-    char *addtab = get_key_word("join", "add");
-    char *specid = get_key_word("join", "field");
-    char *idcol = specid ? specid : get_key_word("id", NULL);
-    char *outview = get_key_word("join", "output table");
-    Tea_stopif(!jointo || !addtab || !outview, return -1, 0, "If you have a 'join' segment in the spec, it has to have "
+    char *outview = in_out_get(tag, 'o');
+    char *addtab = get_key_word_tagged("join", "add", tag);
+    char *host_id = get_key_word_tagged("join", "host field", tag);
+    host_id = host_id ? host_id : get_key_word("id", NULL);
+    char *add_id = get_key_word_tagged("join", "add field", tag);
+    add_id = add_id ? add_id : get_key_word("id", NULL);
+
+    Tea_stopif(!jointo || !addtab || !outview, return false, 0, "If you have a 'join' segment in the spec, it has to have "
                     "a 'host' key, an 'add' key, and an 'output table' key.");
-    Tea_stopif(!idcol, return -1, 0, "You asked me to join %s and %s, but I have no 'id' column name "
+    Tea_stopif(!idcol, return false, 0, "You asked me to join %s and %s, but I have no 'id' column name "
                         "on which to join (put it outside of all groups in the spec, "
                         "and until we get to implementing otherwise, it has to be the same for both tables).", addtab, jointo);
     create_index(jointo, idcol);
     create_index(addtab, idcol);
-    return apop_query("create table %s as select * from "
+    return !apop_query("create table %s as select * from "
                "%s join %s "
                "on %s.%s = %s.%s;",
                 outview,
                 addtab, jointo, 
-                addtab, idcol, jointo, idcol);
+                addtab, add_id, jointo, host_id);
 }
 
 /*

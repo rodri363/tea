@@ -10,7 +10,9 @@ void xprintf(char **q, char *format, ...){
     va_list ap; 
     char *r = *q; 
     va_start(ap, format); 
-    vasprintf(q, format, ap);
+    int discard = vasprintf(q, format, ap);
+    if (discard)
+        ;
     va_end(ap);
     free(r);
 }

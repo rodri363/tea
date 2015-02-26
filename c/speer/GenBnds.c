@@ -243,28 +243,26 @@ int PostChecks(void)
   return 0;
 }
 
-int ReadExplicits(void)
+int ReadExplicits(void) {
 /******************************************************/ 
 /* *** DEFINE ALL EXPLICIT BOUNDS BY READING IN EXISTING BOUNDS **** */
 /* *** AND FINDING THEIR INVERSE.                               **** */
-{
-  /* Local variables */
+
   static int i, j;
   static double temp;
   float lo, up;
 
   /* *** INITIALIZE BOUNDS FOR EACH CATEGOR **** */
-  for (i = 1; i <= BFLD; ++i) {
+  for (i = 1; i <= BFLD; ++i)
     for (j = 1; j <= BFLD; ++j) {
-        bnds.lower[i][j] = (double)0.0;
-	    bnds.upper[i][j] = (double)99999.9;
+        bnds.lower[i][j] = 0.0;
+	    bnds.upper[i][j] = 99999.9;
 	}
-  }
 
 /* *** INITIALIZE IDENTITY DIAGONAL. **** */
   for (i = 1; i <= BFLD; ++i) {
-	  bnds.lower[i][i] = (double)1.0;
-	  bnds.upper[i][i] = (double)1.0;
+	  bnds.lower[i][i] = 1.0;
+	  bnds.upper[i][i] = 1.0;
   }
 
 /*******************************************************************************/ 
@@ -284,8 +282,8 @@ int ReadExplicits(void)
     numff[i+1] = 0;
     denff[i+1] = 0;
     for (j = 1; j <= BFLD; ++j) {
-	  if( strcmp(num, bnames[j]) == 0 ) { numff[i+1] = j; }
-	  if( strcmp(den, bnames[j]) == 0 ) { denff[i+1] = j; }
+	  if( strcmp(num, bnames[j]) == 0 ) numff[i+1] = j;
+	  if( strcmp(den, bnames[j]) == 0 ) denff[i+1] = j;
 	}
     Tea_stopif( numff[i+1] == 0 || denff[i+1] == 0, return 0, -5,
 		"**** FATAL ERROR in GenBnds:  Problem reading explicit ratio #%d. ****\n", i ); 
@@ -294,34 +292,26 @@ int ReadExplicits(void)
     bnds.lower[numff[i+1]][denff[i+1]] = lo;
     bnds.upper[numff[i+1]][denff[i+1]] = up;
  }
-/*******************************************************************************/ 
-
+/*******************************************************************************/
 /* *** ASSIGN THE EXISTING RATIOS' INVERSE LOWER BOUND TO THE **** */
 /* *** INVERSE RATIOS' UPPER BOUND, AND THE EXISTING RATIOS'  **** */
 /* *** INVERSE UPPER BOUND TO THE INVERSE RATIOS' LOWER BOUND **** */
     for (i = 1; i <= NEDFF; ++i) {
        /* printf("        ****  Running for12 i=%d numff[i]=%d denff[i]=%d\n", i,numff[i],denff[i]);  */
-  	  if (bnds.lower[numff[i]][denff[i]] > (double)0.0) {
-	      temp = (double)1.0 / bnds.lower[numff[i]][denff[i]];
-	  } else {
-	      temp = (double)99999.8;
-	  }
+  	  if (bnds.lower[numff[i]][denff[i]] > 0.0)
+	      temp = 1.0 / bnds.lower[numff[i]][denff[i]];
+	  else temp = 99999.8;
 
-	  if (temp < bnds.upper[denff[i]][numff[i]]) {
+	  if (temp < bnds.upper[denff[i]][numff[i]])
 	             bnds.upper[denff[i]][numff[i]] = temp;
-	  }
 
-  	  if (bnds.upper[numff[i]][denff[i]] < (double)99999.9) {
-	      temp = (double)1.0 / bnds.upper[numff[i]][denff[i]];
-	  } else {
-	      temp = (double)0.0;
-	  }
+  	  if (bnds.upper[numff[i]][denff[i]] < 99999.9)
+	      temp = 1.0 / bnds.upper[numff[i]][denff[i]];
+	  else temp = 0.0;
 
-	  if (temp > bnds.lower[denff[i]][numff[i]]) {
+	  if (temp > bnds.lower[denff[i]][numff[i]])
 	             bnds.lower[denff[i]][numff[i]] = temp;
-	  }
     }
 
     return 0;
 }
-

@@ -3,15 +3,14 @@ the segment's input and output tables. We can use this table to determine whethe
 certain input is derived from a previous segment of the spec.
 
 The table could thus be expressed as a set of linked lists, but that much structure seemed like overkill.
-
-col  name
-0    tag
-1    type of segment (input, recode,...)
-2    input table name
-3    output table name
-4    overwrite
 */
 
+#define Tag(rr) in_out_tab->text[rr][0]         //col 0=tag
+#define SegType(rr) in_out_tab->text[rr][1]     //1=input, recode, join, ...
+#define Input(rr) in_out_tab->text[rr][2]       //2=input table name
+#define Output(rr) in_out_tab->text[rr][3]      //3=output table name
+#define Overwrite(rr) in_out_tab->text[rr][4]   //4='y' if overwrite
+#define Match(L, R) (!strcasecmp((L), (R))) //got sick of typing this so often.
 #include "internal.h"
 
 apop_data *in_out_tab;
@@ -26,15 +25,25 @@ void in_out_row_add(char const *tag){
     char *tagbase= **rows->text;
     for (char *i=tagbase; *i; i++) if (*i=='/') *i='\0';
 
-    char *in = get_key_word_tagged(tagbase, "input table", tag);
-    if (!in) in = strdup(last_out ? last_out: "");
-
-    char *out = get_key_word_tagged(tagbase, "output table", tag);
-    if (!out && strcmp(tagbase, "impute") && strcmp(tagbase, "input"))
-        out = in ? strdup(in): NULL;
-
     int ts = in_out_tab ? *in_out_tab->textsize : 0;
     in_out_tab = apop_text_alloc(in_out_tab, ts+1, 5);
+
+    char *in = get_key_word_tagged(tagbase, "input table", tag);
+    bool redo_join_tag = false;
+    if (Match(tagbase, "join")) {
+        if (ts>=1 && Match(SegType(ts-1), "join")
+                  && Match(in_out_tab->text[ts-1][0], tag))
+            in = get_key_word_tagged(tagbase, "add", tag);
+        else {
+            redo_join_tag=true;
+            in = get_key_word_tagged(tagbase, "host", tag);
+        }
+    }
+    if (!in && !Match(tagbase, "input")) in = strdup(last_out ? last_out: "");
+
+    char *out = get_key_word_tagged(tagbase, "output table", tag);
+    if (!out && !Match(tagbase, "impute") && !Match(tagbase, "input"))
+        out = in ? strdup(in): NULL;
 
     apop_text_add(in_out_tab, ts, 0, tag);
     apop_text_add(in_out_tab, ts, 1, tagbase);
@@ -42,17 +51,18 @@ void in_out_row_add(char const *tag){
     if (out) apop_text_add(in_out_tab, ts, 3, out);
 
     char *overwrite = get_key_word_tagged(tagbase, "overwrite", tag);
-    if ((overwrite && (overwrite[0]=='y' || overwrite[0]=='Y'))
-        || (!overwrite && !strcmp(tagbase, "impute")) )
-        apop_text_add(in_out_tab, ts, 4, "y");
+    apop_text_add(in_out_tab, ts, 4,
+            (overwrite && (overwrite[0]=='y' || overwrite[0]=='Y'))
+            || (!overwrite && Match(tagbase, "impute"))
+                ? "y" : "n");
 
     apop_data_free(rows); free(in); free(last_out);
     last_out = out;
+    if (redo_join_tag) in_out_row_add(tag);
 } 
 
-static bool is_recode_line(int i){ return 
-    !strcmp(in_out_tab->text[i][1], "recodes") ||
-    !strcmp(in_out_tab->text[i][1], "group recodes");
+static bool is_recode_line(int i){ 
+    return Match(SegType(i), "recodes") || Match(SegType(i), "group recodes");
 }
 
 /* Recodes may depend on previous recodes. The last (only) must be named view<input>.
@@ -62,27 +72,26 @@ void in_out_recode_fix(){
     in_out_tab->vector = gsl_vector_calloc(*in_out_tab->textsize);
     for (int i=0; i< *in_out_tab->textsize; i++){
         if (!is_recode_line(i)) continue;
-        char *in = in_out_tab->text[i][2]; //alias
         bool has_successors = false;
         for (int j=i+1; j < *in_out_tab->textsize; j++){
-            if (!is_recode_line(j) || strcmp(in_out_tab->text[j][2], in)) 
+            if (!is_recode_line(j) || !Match(Input(j), Input(i))) 
                 continue;
             has_successors = true;
-            apop_text_add(in_out_tab, j, 2, "mid%s", in);
+            apop_text_add(in_out_tab, j, 2, "mid%s", Input(i));
             (*gsl_vector_ptr(in_out_tab->vector, j))++;
         }
         if (!has_successors)
             apop_text_add(in_out_tab, i, 3, "view%s",
-                             in+3*(int)apop_data_get(in_out_tab, i));//skip the 'mid's.
+                             Input(i)+3*(int)apop_data_get(in_out_tab, i));//skip the 'mid's.
         else
-            apop_text_add(in_out_tab, i, 3, "mid%s", in);
+            apop_text_add(in_out_tab, i, 3, "mid%s", Input(i));
     }
     gsl_vector_set_all(in_out_tab->vector, 0);
 }
 
 static int find_in_tab(char const *target, int col){
     for (int i=0; i< *in_out_tab->textsize; i++)
-        if (!strcmp(in_out_tab->text[i][col], target)) return i;
+        if (Match(in_out_tab->text[i][col], target)) return i;
     return -1;
 }
 
@@ -91,40 +100,54 @@ char *in_out_get(char const *tag, char in_or_out){
     return row < 0 ? NULL : in_out_tab->text[row][in_or_out=='i'? 2 : 3];
 }
 
-bool run_one_tag(int row, char **active_tab, void *aux_info){
-    char *input_tab = in_out_tab->text[row][2];
-    char *output_tab = in_out_tab->text[row][3];
+bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild){
+    int prev = find_in_tab(Input(row), 3);
+    bool OK = true, use_this_join=false;
 
-    int prev = find_in_tab(input_tab, 3);
-    bool OK = true;
-    if (prev>=0 && prev < row) OK = run_one_tag(prev, active_tab, aux_info);
-    Tea_stopif(!OK, return false,
-            0, "Trouble building predecessor table for %s.\n", output_tab);
+    bool r2=false;
+    if (row+1 < *in_out_tab->textsize && Match(SegType(row), "join")
+            && Match(SegType(row+1), "join") && Match(Tag(row+1), Tag(row))){
+        OK = run_one_tag(row+1, active_tab, run_one_tag, &r2);
+        *rebuild = *rebuild || r2;
+        Tea_stopif(!OK, return false,
+                0, "Trouble building predecessor table for %s.\n", Output(row+1));
+        use_this_join=true;
+    }
 
-    if (in_out_tab->text[row][4][0]=='y') {
-        apop_table_exists(output_tab, 'd');
-        in_out_tab->text[row][4][0]='n'; //only overwrite once.
+    r2 = false;
+    if (prev>=0 && prev < row) OK = run_one_tag(prev, active_tab, aux_info, &r2);
+    *rebuild = *rebuild || r2;
+    Tea_stopif(!OK, /*return false*/,
+            0, "Trouble building predecessor table for %s.\n", Output(row));
+
+    if (Overwrite(row)[0]=='y' || *rebuild) {
+        apop_table_exists(Output(row), 'd');
+        *rebuild=true;
+        Overwrite(row)[0]='n'; //only overwrite once.
     } else 
-        if (apop_table_exists(output_tab)) return true;
+        if (apop_table_exists(Output(row))) return true;
 
-    *active_tab = output_tab;
-    Tea_stopif(!strcmp(in_out_tab->text[row][1], "input"),
-                return text_in_by_tag(*in_out_tab->text[row]),
-                0, "Doing input for %s.", input_tab);
-    Tea_stopif(!strcmp(in_out_tab->text[row][1], "impute"),
-                return  do_impute(in_out_tab->text[row], active_tab, aux_info),
-                0, "Doing imputations for %s.", input_tab);
+    *active_tab = Output(row);
+    Tea_stopif(Match(SegType(row), "input"),
+                return text_in_by_tag(Tag(row)),
+                0, "Doing input for %s.", Output(row));
+    Tea_stopif(Match(SegType(row), "impute"),
+                return do_impute(in_out_tab->text[row], active_tab, aux_info),
+                0, "Doing imputations for %s.", Input(row));
+    Tea_stopif(Match(SegType(row), "join") && use_this_join,
+                return join_tables(Tag(row)),
+                0, "Joining tables to produce %s.", Output(row));
     Tea_stopif(is_recode_line(row),
-                return  make_recode_view(*in_out_tab->text[row]),
-                0, "Doing recodes for %s.", input_tab);
+                return make_recode_view(Tag(row)),
+                0, "Doing recodes for %s.", Input(row));
     return true;
 }
 
 bool run_all_tags(char *type, char **active_tab, void* aux_info){
     for (int i=0; i< *in_out_tab->textsize; i++)
-        if (!strcmp(in_out_tab->text[i][1], type)
-            ||(!strcmp("RRR", type) && is_recode_line(i)))
-            Tea_stopif(!run_one_tag(i, active_tab, aux_info),
+        if (Match(SegType(i), type)
+            ||(Match("RRR", type) && is_recode_line(i)))
+            Tea_stopif(!run_one_tag(i, active_tab, aux_info, (bool[]){false}),
                 return false, 0,
-                "Trouble doing %s segment with tag '%s'.", type, *in_out_tab->text[i]);
+                "Trouble doing %s segment with tag '%s'.", type, Tag(i));
 }
