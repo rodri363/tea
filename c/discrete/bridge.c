@@ -414,7 +414,6 @@ void read_spec(char **infile, char **dbname_out){
     yyparse();   //use the parser to assemble edits
     //Apop_assert(!errorcount, "%i errors. Please fix and re-run.\n", errorcount);
 	dbname_out[0] = strdup(database);
-    join_tables();
     commit_transaction();
 }
 

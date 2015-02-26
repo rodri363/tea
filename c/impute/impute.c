@@ -766,8 +766,8 @@ int do_impute(char **tag, char **idatatab, int *autofill){
     char *out_tab = in_out_get(*tag, 'o');
 
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
-    if (!out_tab && previous_fill_tab) out_tab = previous_fill_tab;
-    Tea_stopif(!out_tab, out_tab = "filled", 0, "No '%s/output table' or '%s/eariler output table' key "
+    if (!out_tab || !*out_tab && previous_fill_tab) out_tab = previous_fill_tab;
+    Tea_stopif(!out_tab || !*out_tab, out_tab = "filled", 0, "No '%s/output table' or '%s/eariler output table' key "
             "found in the spec; using 'filled' as a default.", configbase, configbase);
 
     char *id_col= get_key_word(NULL, "id");

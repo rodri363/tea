@@ -275,10 +275,9 @@ L100:
 
 
 
-int PreChex(void)
+int PreChex(void) {
 /******************************************************/ 
 /* Potential pre-processing fatal problems. */
-{
   /* Stop program if maximum # of fields is exceded. */
   /*   Just increase the value of maxflds variable.  */
   Tea_stopif( BFLD > maxflds, return 0, -5,
@@ -293,26 +292,3 @@ int PreChex(void)
 
   return 0;
 }
-
-
-
-int readlm_(void)
-/******************************************************/ 
-/* READ AND STORE ALL LOWER & UPPER IMPLICIT RATIOS */
-/* AND CENTRAL VALUES                               */
-{
-  static int i, j, k;
-
-  /* OPEN AND READ FILE CONTAINING IMPLICIT RATIOS */
-  /* OPEN( 12, FILE = 'RATIOS.BND' ) */
-  for (i = 1; i <= numsic; ++i) {
-	for (j = 1; j <= BFLD; ++j) {
-	  for (k = 1; k <= BFLD; ++k) {
-         /* READ(12,2000) bnds.lwbd[i][j][k], bnds.upbd[i][j][k] */
-	  }
-	}
-  }
-
-  return 0;
-}
-

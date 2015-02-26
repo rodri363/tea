@@ -64,8 +64,7 @@ void em_to_completion(char const *datatab,
         char const *weight_col, char const *fill_tab, char const *margintab,
         char *previous_filltab);
 
-
-int join_tables(); //text_in/text_in.c
+int join_tables(char const* tag); //text_in/text_in.c
 int text_in_by_tag(char const *tag);
 
 void reset_ri_ext_table();  //c/discrete/name_conversions.c
@@ -108,5 +107,5 @@ void in_out_row_add(char const *tag);       //in_out_tab.c
 void in_out_tab_reset();
 void in_out_recode_fix();
 char *in_out_get(char const *tag, char in_or_out);
-bool run_one_tag(int row, char **active_tab, void *aux_info);
+bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild);
 bool run_all_tags(char *type, char **active_tab, void* aux_info);
