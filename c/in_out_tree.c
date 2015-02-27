@@ -147,7 +147,8 @@ bool run_all_tags(char *type, char **active_tab, void* aux_info){
     for (int i=0; i< *in_out_tab->textsize; i++)
         if (Match(SegType(i), type)
             ||(Match("RRR", type) && is_recode_line(i)))
-            Tea_stopif(!run_one_tag(i, active_tab, aux_info, (bool[]){false}),
+            {Tea_stopif(!run_one_tag(i, active_tab, aux_info, (bool[]){false}),
                 return false, 0,
-                "Trouble doing %s segment with tag '%s'.", type, Tag(i));
+                "Trouble doing %s segment with tag '%s'.", type, Tag(i));}
+    return true;
 }

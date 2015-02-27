@@ -52,11 +52,11 @@ int join_tables(char const *tag){
 
     Tea_stopif(!jointo || !addtab || !outview, return false, 0, "If you have a 'join' segment in the spec, it has to have "
                     "a 'host' key, an 'add' key, and an 'output table' key.");
-    Tea_stopif(!idcol, return false, 0, "You asked me to join %s and %s, but I have no 'id' column name "
+    Tea_stopif(!host_id, return false, 0, "You asked me to join %s and %s, but I have no 'id' column name "
                         "on which to join (put it outside of all groups in the spec, "
                         "and until we get to implementing otherwise, it has to be the same for both tables).", addtab, jointo);
-    create_index(jointo, idcol);
-    create_index(addtab, idcol);
+    create_index(jointo, host_id);
+    create_index(addtab, add_id);
     return !apop_query("create table %s as select * from "
                "%s join %s "
                "on %s.%s = %s.%s;",

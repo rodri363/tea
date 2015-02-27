@@ -395,8 +395,8 @@ static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
             
         }
     } else  //the EM model
-        for (int i=0; i<total_var_ct; i++)
-            if (!oext_values[i]) Asprintf(oext_values+i, "%g", x[i]);
+        for (int i=0; i<is->fitted_model->dsize; i++)
+            Asprintf(oext_values+(is->var_posns[i]), "%g", x[i]);
 
     //just get a success/failure, but a smarter system would request the list of failed fields.
     return cc2(oext_values, (char const*[]){"passfail"},
@@ -766,7 +766,7 @@ int do_impute(char **tag, char **idatatab, int *autofill){
     char *out_tab = in_out_get(*tag, 'o');
 
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
-    if (!out_tab || !*out_tab && previous_fill_tab) out_tab = previous_fill_tab;
+    if (!out_tab || (!*out_tab && previous_fill_tab)) out_tab = previous_fill_tab;
     Tea_stopif(!out_tab || !*out_tab, out_tab = "filled", 0, "No '%s/output table' or '%s/eariler output table' key "
             "found in the spec; using 'filled' as a default.", configbase, configbase);
 
