@@ -68,11 +68,7 @@ input_table=NULL){
 	teaenv$overlay="vflags"
 }
 
-doMImpute <- function(tag=NULL, input_table=teaenv$active_tab){ 
-	print ("Imputing missing values")
-    active_tab <- getInputTable("impute")
-    if (!is.null(tag)) print (paste("tag= ", tag))
-
+doMImpute <- function(tag=NULL){ 
 #    rmodel <- TEAGetKey("impute", "%%/Rmodel", tag)
 #    mod <- NULL
 #    if (!is.null(rmodel)){
@@ -82,17 +78,15 @@ doMImpute <- function(tag=NULL, input_table=teaenv$active_tab){
 #    dbname <- dbGetInfo(teaenv$con)$dbname
     dbDisconnect(teaenv$con)
     autofill <- 0
-    if (!is.null(tag)){
-        .C("do_impute", as.character(tag), as.character(active_tab), as.integer(autofill)) 
-    } else {
-        .C("impute", as.character(active_tab), as.integer(autofill)) 
-    }
+    active_tab <- "ignored on input; for output"
+    if (!is.null(tag))
+        warning("Imputing certain tags is currently not implemented (and not documented). Imputing all tags")
+    .C("impute", as.character(active_tab), as.integer(autofill)) 
     teaenv$con <- dbConnect(dbDriver("SQLite"),teaenv$dbname)
 	teaenv$active_tab <- active_tab #active_tab may have changed
 }
 
 teaenv <- new.env()
-
 
 
 #' Perform regression on a data set and generate

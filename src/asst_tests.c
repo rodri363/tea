@@ -79,7 +79,6 @@ void snowman_test(){
     );
 
     read_spec(&specname, &db_dummy);
-    text_in();
     char *d="d";
     impute(&d, (int[]){0});
 
@@ -126,7 +125,6 @@ void recode_test(){
             );
 
     read_spec(&specname, &db_dummy);
-    text_in();
     assert(apop_query_to_float("select count(*) from viewd where abc=='A'")==2);
     assert(apop_query_to_float("select count(*) from viewd where L21=='L1'")==2);
 }
@@ -151,7 +149,6 @@ void group_recode_test(){
             );
 
     read_spec(&specname, &db_dummy);
-    text_in();
     assert(apop_query_to_float("select count(*) from viewd where twomax+0.0==2")==4);
     assert(apop_query_to_float("select count(*) from viewd where twomin+0.0==1")==12);
 }
@@ -241,10 +238,7 @@ void test_ols(gsl_rng *r){
     apop_data_add_names(observations, 'v', "Y");
     apop_data_prune_columns(observations, "norm", "fish"); //vector "y" always kept.
     sprintf(apop_opts.db_name_column, "id_col");
-    apop_db_open("olsdb.db");
     apop_data_print(observations, .output_name="olsdata");
-    //apop_data_show(observations);
-
 
     char *specname = "spec";
     write_a_file(specname, "database:olsdb.db\n"
@@ -274,10 +268,10 @@ void test_ols(gsl_rng *r){
                 "method: ols }\n"
                 );
 
+    apop_db_open("olsdb.db");
     read_spec(&specname, &db_dummy);
     char *d="olsdata";
     impute(&d, (int[]){0});
-
     
  /*   apop_model *stacked = apop_model_cross(apop_multivariate_normal,
                                            apop_wishart);
@@ -302,21 +296,6 @@ void test_create_index(){
     assert(create_index("ac", "b")== 1);
     apop_query("drop table ab");
 }
-
-
-    //generate random data
-    //punch holes
-    //run
-    //check out inpute
-    //re-est; compare the reestimated parameters.
-
-    /*
-    stacked models: same data set; different data sets?
-
-    with the same data set for estimation, it's e-z.
-    with different ones, where're you gonna put `em?
-    use a startsat page thing.
-    */
 
 void tea_c_tests(){
    printf("Entering test_ols(r)\n");

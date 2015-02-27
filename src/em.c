@@ -91,17 +91,6 @@ apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *o
     return apop_estimate(raked, apop_pmf);
 }
 
-//An edit that uses variables not in our current raking table will cause SQL failures.
-bool vars_in_edit_are_in_rake_table(used_var_t* vars_used, size_t ct, apop_data rake_vars){
-    for (int i=0; i< ct; i++){
-        bool pass=false;
-        for (int j=0; j< rake_vars.textsize[1] && !pass; j++)
-            if (!strcmp(vars_used[i].name, rake_vars.text[0][j])) pass=true;
-        if (!pass) return false;
-    }
-    return true;
-}
-
 apop_data *get_data_for_em(const char *datatab, char *catlist, const char *id_col, 
                            char const *weight_col, char *previous_filltab, impustruct is){
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
@@ -124,17 +113,6 @@ apop_data *get_data_for_em(const char *datatab, char *catlist, const char *id_co
     return d;
 }
 
-void writeout(apop_data *fillins, gsl_vector *cp_to_fill, apop_data const *focus, int *ctr, int drawno){
-    for (size_t j=0; j< focus->matrix->size2; j++)  
-     //   if (isnan(apop_data_get(focus, .col=j))){
-        if (isnan(gsl_matrix_get(focus->matrix, 0, j))){
-            apop_text_add(fillins, *ctr, 0, *focus->names->row);
-            apop_text_add(fillins, *ctr, 1, focus->names->col[j]);
-            gsl_matrix_set(fillins->matrix, *ctr, 0, drawno);
-            gsl_matrix_set(fillins->matrix, (*ctr)++, 1, cp_to_fill->data[j]);
-        }
-}
-
 double nnn (double in){return isnan(in);}
 
 void get_types(apop_data *raked){
@@ -144,13 +122,19 @@ void get_types(apop_data *raked){
         apop_text_add(names, i, 0, "%c", get_coltype(raked->names->col[i]));
 }
 
-apop_data *make_rake_draws(apop_data const *d, apop_data *raked, impustruct is, int count_of_nans, gsl_rng *r, int draw_count, int *ctr){
+void make_rake_draws(apop_data *d, apop_data *raked, impustruct is,/* int count_of_nans,*/ gsl_rng *r, int draw_count, int *ctr,
+                                char const *out_tab, char const *id_col, char const *datatab){
     gsl_vector *original_weights = apop_vector_copy(raked->weights);
     gsl_vector *cp_to_fill = gsl_vector_alloc(d->matrix->size2);
     Apop_row(raked, 0, firstrow);
     apop_data *name_sorted_cp = copy_by_name(d, firstrow);
+    begin_transaction();
     if (is.allow_near_misses) get_types(name_sorted_cp); //add a list of types as raked->more.
-    apop_data *fillins = apop_text_alloc(apop_data_alloc(count_of_nans*draw_count, 2), count_of_nans*draw_count, 2);
+    //apop_data *fillins = apop_text_alloc(apop_data_alloc(count_of_nans*draw_count, 2), count_of_nans*draw_count, 2);
+    int oext_posns[d->matrix->size2];
+    for (int i=0; i< d->names->colct; i++)
+        oext_posns[i] = get_ordered_posn(d->names->col[i]);
+
     for (size_t i=0; i< d->matrix->size1; i++){
         Apop_matrix_row(d->matrix, i, focusv);    //as vector
         if (!isnan(apop_sum(focusv))) continue;
@@ -159,21 +143,25 @@ apop_data *make_rake_draws(apop_data const *d, apop_data *raked, impustruct is, 
         focusn->more = name_sorted_cp->more;
 
         //draw the entire row at once, but write only the NaN elmts to the filled tab.
-        apop_model *m = prep_the_draws(raked, focusn, original_weights, 0); 
-        if (!m || m->error) goto end; //get it on the next go `round.
-        for (int drawno=0; drawno< draw_count; drawno++){
-            Tea_stopif(!focus->names, goto end, 0, "focus->names is NULL. This should never have happened.");
-            apop_draw(cp_to_fill->data, r, m);
-            writeout(fillins, cp_to_fill, focus, ctr, drawno);
-        }
+        is.fitted_model = prep_the_draws(raked, focusn, original_weights, 0); 
+        if (!is.fitted_model || is.fitted_model->error) goto end; //get it on the next go `round.
+
+        is.isnan = focus;
+        is.depvar = NULL; //effectively a semaphore to use EM.
+        is.var_posns = oext_posns;
+        for (int drawno=0; drawno< draw_count; drawno++)
+            make_a_draw(&is, r, id_col, datatab, drawno, focus, out_tab, /*.last_chance=*/false);
+            //use d, or cp_to_fill? 
+
         end:
-        apop_model_free(m);
+        apop_model_free(is.fitted_model);
         gsl_vector_memcpy(raked->weights, original_weights);
     }
+    commit_transaction();
     apop_data_free(name_sorted_cp);
     gsl_vector_free(original_weights);
     gsl_vector_free(cp_to_fill);
-    return fillins;
+    //return fillins;
 }
 
 /*
@@ -189,11 +177,11 @@ void diagnostic_print(apop_data *d, apop_data *raked){
 }
 */
 
-void em_to_completion(char const *datatab, char const *underlying,
+void em_to_completion(char const *datatab,
         impustruct is, int min_group_size, gsl_rng *r,
         int draw_count, char *catlist,
         apop_data const *fingerprint_vars, char const *id_col,
-        char const *weight_col, char const *fill_tab, char const *margintab,
+        char const *weight_col, char const *out_tab, char const *margintab,
         char *previous_filltab){
 
     apop_data *d = get_data_for_em(datatab, catlist, id_col, weight_col, previous_filltab, is);
@@ -210,23 +198,7 @@ void em_to_completion(char const *datatab, char const *underlying,
     //diagnostic_print(d, raked);
 
     int ctr = 0;
-    apop_data *fillins = make_rake_draws(d, raked, is, count_of_nans, r, draw_count, &ctr);
-    apop_matrix_realloc(fillins->matrix, ctr, fillins->matrix->size2);
-    apop_text_alloc(fillins, ctr, 2);
-    begin_transaction();
-    if (fillins->matrix) {
-        if (!is.autofill) apop_data_print(fillins, .output_name=fill_tab, .output_type='d', .output_append='a');
-        else {
-            for (int i=0; i< fillins->matrix->size1; i++)
-                for (int j=0; j< fillins->matrix->size2; j++)
-                    apop_query("update %s set %s = %g where  %s='%s');",
-                           datatab, fillins->names->col[j], apop_data_get(fillins, i, j),
-                           id_col, fillins->names->row[i]);
-
-        }
-    }
-    commit_transaction();
-    apop_data_free(fillins);
+    make_rake_draws(d, raked, is, /*count_of_nans,*/ r, draw_count, &ctr, out_tab, id_col, datatab);
     //apop_data_print(raked, .output_name="ooo", .output_append='a');
     apop_data_free(raked); //Thrown away.
     apop_data_free(d);

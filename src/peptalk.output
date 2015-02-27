@@ -1,11 +1,11 @@
-Estado 1 conflictos: 7 reducción(ones)/reducción(ones)
-Estado 2 conflictos: 7 reducción(ones)/reducción(ones)
-Estado 30 conflictos: 7 desplazamiento(s)/reducción(ones)
-Estado 34 conflictos: 10 reducción(ones)/reducción(ones)
-Estado 41 conflictos: 7 desplazamiento(s)/reducción(ones)
+State 1 conflicts: 7 reduce/reduce
+State 2 conflicts: 7 reduce/reduce
+State 30 conflicts: 7 shift/reduce
+State 34 conflicts: 10 reduce/reduce
+State 41 conflicts: 7 shift/reduce
 
 
-Gramática
+Grammar
 
     0 $accept: list $end
 
@@ -21,7 +21,7 @@ Gramática
 
     9 keyval: blob ':' blob
 
-   10 $@1: %empty
+   10 $@1: /* empty */
 
    11 keygroup: blob OPENKEY $@1 keylist CLOSEKEY
 
@@ -35,34 +35,34 @@ Gramática
    18             | error
    19             | blob
 
-   20 $@2: %empty
+   20 $@2: /* empty */
 
-   21 $@3: %empty
+   21 $@3: /* empty */
 
    22 preedit: blob $@2 THEN blob $@3 EOL
 
-   23 $@4: %empty
+   23 $@4: /* empty */
 
-   24 $@5: %empty
+   24 $@5: /* empty */
 
    25 declaration: DTEXT optionalcolon optionalweight TYPE $@4 numlist $@5 EOL
 
-   26 $@6: %empty
+   26 $@6: /* empty */
 
    27 declaration: DTEXT optionalcolon optionalweight TYPE $@6 EOL
 
-   28 $@7: %empty
+   28 $@7: /* empty */
 
-   29 $@8: %empty
+   29 $@8: /* empty */
 
    30 declaration: DTEXT optionalcolon optionalweight $@7 numlist $@8 EOL
 
    31 optionalcolon: ':'
    32              | optionalcolon SPACE
-   33              | %empty
+   33              | /* empty */
 
    34 optionalweight: WEIGHT
-   35               | %empty
+   35               | /* empty */
 
    36 numlist: num_item
    37        | numlist ',' num_item
@@ -88,7 +88,7 @@ Gramática
    54          | SPACE
 
 
-Terminales con las reglas donde aparecen
+Terminals, with rules where they appear
 
 $end (0) 0
 '$' (36) 43 53
@@ -109,78 +109,78 @@ TYPE (266) 25 27
 WEIGHT (267) 34
 
 
-No terminales con las reglas donde aparecen
+Nonterminals, with rules where they appear
 
 $accept (18)
-    en la izquierda: 0
+    on left: 0
 list (19)
-    en la izquierda: 1 2, en la derecha: 0 1
+    on left: 1 2, on right: 0 1
 item (20)
-    en la izquierda: 3 4 5 6 7 8, en la derecha: 1 2
+    on left: 3 4 5 6 7 8, on right: 1 2
 keyval (21)
-    en la izquierda: 9, en la derecha: 3 15
+    on left: 9, on right: 3 15
 keygroup (22)
-    en la izquierda: 11, en la derecha: 4 16
+    on left: 11, on right: 4 16
 $@1 (23)
-    en la izquierda: 10, en la derecha: 11
+    on left: 10, on right: 11
 keylist (24)
-    en la izquierda: 12 13, en la derecha: 11 12
+    on left: 12 13, on right: 11 12
 keylist_item (25)
-    en la izquierda: 14 15 16 17 18 19, en la derecha: 12 13
+    on left: 14 15 16 17 18 19, on right: 12 13
 preedit (26)
-    en la izquierda: 22, en la derecha: 14
+    on left: 22, on right: 14
 $@2 (27)
-    en la izquierda: 20, en la derecha: 22
+    on left: 20, on right: 22
 $@3 (28)
-    en la izquierda: 21, en la derecha: 22
+    on left: 21, on right: 22
 declaration (29)
-    en la izquierda: 25 27 30, en la derecha: 7
+    on left: 25 27 30, on right: 7
 $@4 (30)
-    en la izquierda: 23, en la derecha: 25
+    on left: 23, on right: 25
 $@5 (31)
-    en la izquierda: 24, en la derecha: 25
+    on left: 24, on right: 25
 $@6 (32)
-    en la izquierda: 26, en la derecha: 27
+    on left: 26, on right: 27
 $@7 (33)
-    en la izquierda: 28, en la derecha: 30
+    on left: 28, on right: 30
 $@8 (34)
-    en la izquierda: 29, en la derecha: 30
+    on left: 29, on right: 30
 optionalcolon (35)
-    en la izquierda: 31 32 33, en la derecha: 25 27 30 32
+    on left: 31 32 33, on right: 25 27 30 32
 optionalweight (36)
-    en la izquierda: 34 35, en la derecha: 25 27 30
+    on left: 34 35, on right: 25 27 30
 numlist (37)
-    en la izquierda: 36 37 38, en la derecha: 25 30 37 38
+    on left: 36 37 38, on right: 25 30 37 38
 num_item (38)
-    en la izquierda: 39 40 41 42 43 44, en la derecha: 36 37
+    on left: 39 40 41 42 43 44, on right: 36 37
 blob (39)
-    en la izquierda: 45 46 47, en la derecha: 9 11 19 22 45
+    on left: 45 46 47, on right: 9 11 19 22 45
 blob_elmt (40)
-    en la izquierda: 48 49 50 51 52 53 54, en la derecha: 45 46
+    on left: 48 49 50 51 52 53 54, on right: 45 46
 
 
 State 0
 
     0 $accept: . list $end
 
-    error   desplazar e ir al estado 1
-    SPACE   desplazar e ir al estado 2
-    NUMBER  desplazar e ir al estado 3
-    DTEXT   desplazar e ir al estado 4
-    EOL     desplazar e ir al estado 5
-    TEXT    desplazar e ir al estado 6
-    ','     desplazar e ir al estado 7
-    '$'     desplazar e ir al estado 8
-    '-'     desplazar e ir al estado 9
-    '*'     desplazar e ir al estado 10
+    error   shift, and go to state 1
+    SPACE   shift, and go to state 2
+    NUMBER  shift, and go to state 3
+    DTEXT   shift, and go to state 4
+    EOL     shift, and go to state 5
+    TEXT    shift, and go to state 6
+    ','     shift, and go to state 7
+    '$'     shift, and go to state 8
+    '-'     shift, and go to state 9
+    '*'     shift, and go to state 10
 
-    list         ir al estado 11
-    item         ir al estado 12
-    keyval       ir al estado 13
-    keygroup     ir al estado 14
-    declaration  ir al estado 15
-    blob         ir al estado 16
-    blob_elmt    ir al estado 17
+    list         go to state 11
+    item         go to state 12
+    keyval       go to state 13
+    keygroup     go to state 14
+    declaration  go to state 15
+    blob         go to state 16
+    blob_elmt    go to state 17
 
 
 State 1
@@ -188,23 +188,23 @@ State 1
     8 item: error .
    47 blob: error .
 
-    SPACE     reduce usando la regla 8 (item)
-    SPACE     [reduce usando la regla 47 (blob)]
-    NUMBER    reduce usando la regla 8 (item)
-    NUMBER    [reduce usando la regla 47 (blob)]
-    TEXT      reduce usando la regla 8 (item)
-    TEXT      [reduce usando la regla 47 (blob)]
-    ','       reduce usando la regla 8 (item)
-    ','       [reduce usando la regla 47 (blob)]
-    ':'       reduce usando la regla 47 (blob)
-    OPENKEY   reduce usando la regla 47 (blob)
-    '$'       reduce usando la regla 8 (item)
-    '$'       [reduce usando la regla 47 (blob)]
-    '-'       reduce usando la regla 8 (item)
-    '-'       [reduce usando la regla 47 (blob)]
-    '*'       reduce usando la regla 8 (item)
-    '*'       [reduce usando la regla 47 (blob)]
-    $default  reduce usando la regla 8 (item)
+    SPACE     reduce using rule 8 (item)
+    SPACE     [reduce using rule 47 (blob)]
+    NUMBER    reduce using rule 8 (item)
+    NUMBER    [reduce using rule 47 (blob)]
+    TEXT      reduce using rule 8 (item)
+    TEXT      [reduce using rule 47 (blob)]
+    ','       reduce using rule 8 (item)
+    ','       [reduce using rule 47 (blob)]
+    ':'       reduce using rule 47 (blob)
+    OPENKEY   reduce using rule 47 (blob)
+    '$'       reduce using rule 8 (item)
+    '$'       [reduce using rule 47 (blob)]
+    '-'       reduce using rule 8 (item)
+    '-'       [reduce using rule 47 (blob)]
+    '*'       reduce using rule 8 (item)
+    '*'       [reduce using rule 47 (blob)]
+    $default  reduce using rule 8 (item)
 
 
 State 2
@@ -212,30 +212,30 @@ State 2
     6 item: SPACE .
    54 blob_elmt: SPACE .
 
-    SPACE     reduce usando la regla 6 (item)
-    SPACE     [reduce usando la regla 54 (blob_elmt)]
-    NUMBER    reduce usando la regla 6 (item)
-    NUMBER    [reduce usando la regla 54 (blob_elmt)]
-    TEXT      reduce usando la regla 6 (item)
-    TEXT      [reduce usando la regla 54 (blob_elmt)]
-    ','       reduce usando la regla 6 (item)
-    ','       [reduce usando la regla 54 (blob_elmt)]
-    ':'       reduce usando la regla 54 (blob_elmt)
-    OPENKEY   reduce usando la regla 54 (blob_elmt)
-    '$'       reduce usando la regla 6 (item)
-    '$'       [reduce usando la regla 54 (blob_elmt)]
-    '-'       reduce usando la regla 6 (item)
-    '-'       [reduce usando la regla 54 (blob_elmt)]
-    '*'       reduce usando la regla 6 (item)
-    '*'       [reduce usando la regla 54 (blob_elmt)]
-    $default  reduce usando la regla 6 (item)
+    SPACE     reduce using rule 6 (item)
+    SPACE     [reduce using rule 54 (blob_elmt)]
+    NUMBER    reduce using rule 6 (item)
+    NUMBER    [reduce using rule 54 (blob_elmt)]
+    TEXT      reduce using rule 6 (item)
+    TEXT      [reduce using rule 54 (blob_elmt)]
+    ','       reduce using rule 6 (item)
+    ','       [reduce using rule 54 (blob_elmt)]
+    ':'       reduce using rule 54 (blob_elmt)
+    OPENKEY   reduce using rule 54 (blob_elmt)
+    '$'       reduce using rule 6 (item)
+    '$'       [reduce using rule 54 (blob_elmt)]
+    '-'       reduce using rule 6 (item)
+    '-'       [reduce using rule 54 (blob_elmt)]
+    '*'       reduce using rule 6 (item)
+    '*'       [reduce using rule 54 (blob_elmt)]
+    $default  reduce using rule 6 (item)
 
 
 State 3
 
    49 blob_elmt: NUMBER .
 
-    $default  reduce usando la regla 49 (blob_elmt)
+    $default  reduce using rule 49 (blob_elmt)
 
 
 State 4
@@ -244,53 +244,53 @@ State 4
    27            | DTEXT . optionalcolon optionalweight TYPE $@6 EOL
    30            | DTEXT . optionalcolon optionalweight $@7 numlist $@8 EOL
 
-    ':'  desplazar e ir al estado 18
+    ':'  shift, and go to state 18
 
-    $default  reduce usando la regla 33 (optionalcolon)
+    $default  reduce using rule 33 (optionalcolon)
 
-    optionalcolon  ir al estado 19
+    optionalcolon  go to state 19
 
 
 State 5
 
     5 item: EOL .
 
-    $default  reduce usando la regla 5 (item)
+    $default  reduce using rule 5 (item)
 
 
 State 6
 
    48 blob_elmt: TEXT .
 
-    $default  reduce usando la regla 48 (blob_elmt)
+    $default  reduce using rule 48 (blob_elmt)
 
 
 State 7
 
    50 blob_elmt: ',' .
 
-    $default  reduce usando la regla 50 (blob_elmt)
+    $default  reduce using rule 50 (blob_elmt)
 
 
 State 8
 
    53 blob_elmt: '$' .
 
-    $default  reduce usando la regla 53 (blob_elmt)
+    $default  reduce using rule 53 (blob_elmt)
 
 
 State 9
 
    52 blob_elmt: '-' .
 
-    $default  reduce usando la regla 52 (blob_elmt)
+    $default  reduce using rule 52 (blob_elmt)
 
 
 State 10
 
    51 blob_elmt: '*' .
 
-    $default  reduce usando la regla 51 (blob_elmt)
+    $default  reduce using rule 51 (blob_elmt)
 
 
 State 11
@@ -298,52 +298,52 @@ State 11
     0 $accept: list . $end
     1 list: list . item
 
-    $end    desplazar e ir al estado 20
-    error   desplazar e ir al estado 1
-    SPACE   desplazar e ir al estado 2
-    NUMBER  desplazar e ir al estado 3
-    DTEXT   desplazar e ir al estado 4
-    EOL     desplazar e ir al estado 5
-    TEXT    desplazar e ir al estado 6
-    ','     desplazar e ir al estado 7
-    '$'     desplazar e ir al estado 8
-    '-'     desplazar e ir al estado 9
-    '*'     desplazar e ir al estado 10
+    $end    shift, and go to state 20
+    error   shift, and go to state 1
+    SPACE   shift, and go to state 2
+    NUMBER  shift, and go to state 3
+    DTEXT   shift, and go to state 4
+    EOL     shift, and go to state 5
+    TEXT    shift, and go to state 6
+    ','     shift, and go to state 7
+    '$'     shift, and go to state 8
+    '-'     shift, and go to state 9
+    '*'     shift, and go to state 10
 
-    item         ir al estado 21
-    keyval       ir al estado 13
-    keygroup     ir al estado 14
-    declaration  ir al estado 15
-    blob         ir al estado 16
-    blob_elmt    ir al estado 17
+    item         go to state 21
+    keyval       go to state 13
+    keygroup     go to state 14
+    declaration  go to state 15
+    blob         go to state 16
+    blob_elmt    go to state 17
 
 
 State 12
 
     2 list: item .
 
-    $default  reduce usando la regla 2 (list)
+    $default  reduce using rule 2 (list)
 
 
 State 13
 
     3 item: keyval .
 
-    $default  reduce usando la regla 3 (item)
+    $default  reduce using rule 3 (item)
 
 
 State 14
 
     4 item: keygroup .
 
-    $default  reduce usando la regla 4 (item)
+    $default  reduce using rule 4 (item)
 
 
 State 15
 
     7 item: declaration .
 
-    $default  reduce usando la regla 7 (item)
+    $default  reduce using rule 7 (item)
 
 
 State 16
@@ -352,31 +352,31 @@ State 16
    11 keygroup: blob . OPENKEY $@1 keylist CLOSEKEY
    45 blob: blob . blob_elmt
 
-    SPACE    desplazar e ir al estado 22
-    NUMBER   desplazar e ir al estado 3
-    TEXT     desplazar e ir al estado 6
-    ','      desplazar e ir al estado 7
-    ':'      desplazar e ir al estado 23
-    OPENKEY  desplazar e ir al estado 24
-    '$'      desplazar e ir al estado 8
-    '-'      desplazar e ir al estado 9
-    '*'      desplazar e ir al estado 10
+    SPACE    shift, and go to state 22
+    NUMBER   shift, and go to state 3
+    TEXT     shift, and go to state 6
+    ','      shift, and go to state 7
+    ':'      shift, and go to state 23
+    OPENKEY  shift, and go to state 24
+    '$'      shift, and go to state 8
+    '-'      shift, and go to state 9
+    '*'      shift, and go to state 10
 
-    blob_elmt  ir al estado 25
+    blob_elmt  go to state 25
 
 
 State 17
 
    46 blob: blob_elmt .
 
-    $default  reduce usando la regla 46 (blob)
+    $default  reduce using rule 46 (blob)
 
 
 State 18
 
    31 optionalcolon: ':' .
 
-    $default  reduce usando la regla 31 (optionalcolon)
+    $default  reduce using rule 31 (optionalcolon)
 
 
 State 19
@@ -386,80 +386,80 @@ State 19
    30            | DTEXT optionalcolon . optionalweight $@7 numlist $@8 EOL
    32 optionalcolon: optionalcolon . SPACE
 
-    SPACE   desplazar e ir al estado 26
-    WEIGHT  desplazar e ir al estado 27
+    SPACE   shift, and go to state 26
+    WEIGHT  shift, and go to state 27
 
-    $default  reduce usando la regla 35 (optionalweight)
+    $default  reduce using rule 35 (optionalweight)
 
-    optionalweight  ir al estado 28
+    optionalweight  go to state 28
 
 
 State 20
 
     0 $accept: list $end .
 
-    $default  aceptar
+    $default  accept
 
 
 State 21
 
     1 list: list item .
 
-    $default  reduce usando la regla 1 (list)
+    $default  reduce using rule 1 (list)
 
 
 State 22
 
    54 blob_elmt: SPACE .
 
-    $default  reduce usando la regla 54 (blob_elmt)
+    $default  reduce using rule 54 (blob_elmt)
 
 
 State 23
 
     9 keyval: blob ':' . blob
 
-    error   desplazar e ir al estado 29
-    SPACE   desplazar e ir al estado 22
-    NUMBER  desplazar e ir al estado 3
-    TEXT    desplazar e ir al estado 6
-    ','     desplazar e ir al estado 7
-    '$'     desplazar e ir al estado 8
-    '-'     desplazar e ir al estado 9
-    '*'     desplazar e ir al estado 10
+    error   shift, and go to state 29
+    SPACE   shift, and go to state 22
+    NUMBER  shift, and go to state 3
+    TEXT    shift, and go to state 6
+    ','     shift, and go to state 7
+    '$'     shift, and go to state 8
+    '-'     shift, and go to state 9
+    '*'     shift, and go to state 10
 
-    blob       ir al estado 30
-    blob_elmt  ir al estado 17
+    blob       go to state 30
+    blob_elmt  go to state 17
 
 
 State 24
 
    11 keygroup: blob OPENKEY . $@1 keylist CLOSEKEY
 
-    $default  reduce usando la regla 10 ($@1)
+    $default  reduce using rule 10 ($@1)
 
-    $@1  ir al estado 31
+    $@1  go to state 31
 
 
 State 25
 
    45 blob: blob blob_elmt .
 
-    $default  reduce usando la regla 45 (blob)
+    $default  reduce using rule 45 (blob)
 
 
 State 26
 
    32 optionalcolon: optionalcolon SPACE .
 
-    $default  reduce usando la regla 32 (optionalcolon)
+    $default  reduce using rule 32 (optionalcolon)
 
 
 State 27
 
    34 optionalweight: WEIGHT .
 
-    $default  reduce usando la regla 34 (optionalweight)
+    $default  reduce using rule 34 (optionalweight)
 
 
 State 28
@@ -468,18 +468,18 @@ State 28
    27            | DTEXT optionalcolon optionalweight . TYPE $@6 EOL
    30            | DTEXT optionalcolon optionalweight . $@7 numlist $@8 EOL
 
-    TYPE  desplazar e ir al estado 32
+    TYPE  shift, and go to state 32
 
-    $default  reduce usando la regla 28 ($@7)
+    $default  reduce using rule 28 ($@7)
 
-    $@7  ir al estado 33
+    $@7  go to state 33
 
 
 State 29
 
    47 blob: error .
 
-    $default  reduce usando la regla 47 (blob)
+    $default  reduce using rule 47 (blob)
 
 
 State 30
@@ -487,47 +487,47 @@ State 30
     9 keyval: blob ':' blob .
    45 blob: blob . blob_elmt
 
-    SPACE   desplazar e ir al estado 22
-    NUMBER  desplazar e ir al estado 3
-    TEXT    desplazar e ir al estado 6
-    ','     desplazar e ir al estado 7
-    '$'     desplazar e ir al estado 8
-    '-'     desplazar e ir al estado 9
-    '*'     desplazar e ir al estado 10
+    SPACE   shift, and go to state 22
+    NUMBER  shift, and go to state 3
+    TEXT    shift, and go to state 6
+    ','     shift, and go to state 7
+    '$'     shift, and go to state 8
+    '-'     shift, and go to state 9
+    '*'     shift, and go to state 10
 
-    SPACE     [reduce usando la regla 9 (keyval)]
-    NUMBER    [reduce usando la regla 9 (keyval)]
-    TEXT      [reduce usando la regla 9 (keyval)]
-    ','       [reduce usando la regla 9 (keyval)]
-    '$'       [reduce usando la regla 9 (keyval)]
-    '-'       [reduce usando la regla 9 (keyval)]
-    '*'       [reduce usando la regla 9 (keyval)]
-    $default  reduce usando la regla 9 (keyval)
+    SPACE     [reduce using rule 9 (keyval)]
+    NUMBER    [reduce using rule 9 (keyval)]
+    TEXT      [reduce using rule 9 (keyval)]
+    ','       [reduce using rule 9 (keyval)]
+    '$'       [reduce using rule 9 (keyval)]
+    '-'       [reduce using rule 9 (keyval)]
+    '*'       [reduce using rule 9 (keyval)]
+    $default  reduce using rule 9 (keyval)
 
-    blob_elmt  ir al estado 25
+    blob_elmt  go to state 25
 
 
 State 31
 
    11 keygroup: blob OPENKEY $@1 . keylist CLOSEKEY
 
-    error   desplazar e ir al estado 34
-    SPACE   desplazar e ir al estado 22
-    NUMBER  desplazar e ir al estado 3
-    EOL     desplazar e ir al estado 35
-    TEXT    desplazar e ir al estado 6
-    ','     desplazar e ir al estado 7
-    '$'     desplazar e ir al estado 8
-    '-'     desplazar e ir al estado 9
-    '*'     desplazar e ir al estado 10
+    error   shift, and go to state 34
+    SPACE   shift, and go to state 22
+    NUMBER  shift, and go to state 3
+    EOL     shift, and go to state 35
+    TEXT    shift, and go to state 6
+    ','     shift, and go to state 7
+    '$'     shift, and go to state 8
+    '-'     shift, and go to state 9
+    '*'     shift, and go to state 10
 
-    keyval        ir al estado 36
-    keygroup      ir al estado 37
-    keylist       ir al estado 38
-    keylist_item  ir al estado 39
-    preedit       ir al estado 40
-    blob          ir al estado 41
-    blob_elmt     ir al estado 17
+    keyval        go to state 36
+    keygroup      go to state 37
+    keylist       go to state 38
+    keylist_item  go to state 39
+    preedit       go to state 40
+    blob          go to state 41
+    blob_elmt     go to state 17
 
 
 State 32
@@ -535,25 +535,25 @@ State 32
    25 declaration: DTEXT optionalcolon optionalweight TYPE . $@4 numlist $@5 EOL
    27            | DTEXT optionalcolon optionalweight TYPE . $@6 EOL
 
-    EOL       reduce usando la regla 26 ($@6)
-    $default  reduce usando la regla 23 ($@4)
+    EOL       reduce using rule 26 ($@6)
+    $default  reduce using rule 23 ($@4)
 
-    $@4  ir al estado 42
-    $@6  ir al estado 43
+    $@4  go to state 42
+    $@6  go to state 43
 
 
 State 33
 
    30 declaration: DTEXT optionalcolon optionalweight $@7 . numlist $@8 EOL
 
-    error   desplazar e ir al estado 44
-    NUMBER  desplazar e ir al estado 45
-    DTEXT   desplazar e ir al estado 46
-    '$'     desplazar e ir al estado 47
-    '*'     desplazar e ir al estado 48
+    error   shift, and go to state 44
+    NUMBER  shift, and go to state 45
+    DTEXT   shift, and go to state 46
+    '$'     shift, and go to state 47
+    '*'     shift, and go to state 48
 
-    numlist   ir al estado 49
-    num_item  ir al estado 50
+    numlist   go to state 49
+    num_item  go to state 50
 
 
 State 34
@@ -561,51 +561,51 @@ State 34
    18 keylist_item: error .
    47 blob: error .
 
-    error     reduce usando la regla 18 (keylist_item)
-    error     [reduce usando la regla 47 (blob)]
-    SPACE     reduce usando la regla 18 (keylist_item)
-    SPACE     [reduce usando la regla 47 (blob)]
-    NUMBER    reduce usando la regla 18 (keylist_item)
-    NUMBER    [reduce usando la regla 47 (blob)]
-    THEN      reduce usando la regla 47 (blob)
-    EOL       reduce usando la regla 18 (keylist_item)
-    EOL       [reduce usando la regla 47 (blob)]
-    TEXT      reduce usando la regla 18 (keylist_item)
-    TEXT      [reduce usando la regla 47 (blob)]
-    ','       reduce usando la regla 18 (keylist_item)
-    ','       [reduce usando la regla 47 (blob)]
-    ':'       reduce usando la regla 47 (blob)
-    OPENKEY   reduce usando la regla 47 (blob)
-    CLOSEKEY  reduce usando la regla 18 (keylist_item)
-    CLOSEKEY  [reduce usando la regla 47 (blob)]
-    '$'       reduce usando la regla 18 (keylist_item)
-    '$'       [reduce usando la regla 47 (blob)]
-    '-'       reduce usando la regla 18 (keylist_item)
-    '-'       [reduce usando la regla 47 (blob)]
-    '*'       reduce usando la regla 18 (keylist_item)
-    '*'       [reduce usando la regla 47 (blob)]
-    $default  reduce usando la regla 18 (keylist_item)
+    error     reduce using rule 18 (keylist_item)
+    error     [reduce using rule 47 (blob)]
+    SPACE     reduce using rule 18 (keylist_item)
+    SPACE     [reduce using rule 47 (blob)]
+    NUMBER    reduce using rule 18 (keylist_item)
+    NUMBER    [reduce using rule 47 (blob)]
+    THEN      reduce using rule 47 (blob)
+    EOL       reduce using rule 18 (keylist_item)
+    EOL       [reduce using rule 47 (blob)]
+    TEXT      reduce using rule 18 (keylist_item)
+    TEXT      [reduce using rule 47 (blob)]
+    ','       reduce using rule 18 (keylist_item)
+    ','       [reduce using rule 47 (blob)]
+    ':'       reduce using rule 47 (blob)
+    OPENKEY   reduce using rule 47 (blob)
+    CLOSEKEY  reduce using rule 18 (keylist_item)
+    CLOSEKEY  [reduce using rule 47 (blob)]
+    '$'       reduce using rule 18 (keylist_item)
+    '$'       [reduce using rule 47 (blob)]
+    '-'       reduce using rule 18 (keylist_item)
+    '-'       [reduce using rule 47 (blob)]
+    '*'       reduce using rule 18 (keylist_item)
+    '*'       [reduce using rule 47 (blob)]
+    $default  reduce using rule 18 (keylist_item)
 
 
 State 35
 
    17 keylist_item: EOL .
 
-    $default  reduce usando la regla 17 (keylist_item)
+    $default  reduce using rule 17 (keylist_item)
 
 
 State 36
 
    15 keylist_item: keyval .
 
-    $default  reduce usando la regla 15 (keylist_item)
+    $default  reduce using rule 15 (keylist_item)
 
 
 State 37
 
    16 keylist_item: keygroup .
 
-    $default  reduce usando la regla 16 (keylist_item)
+    $default  reduce using rule 16 (keylist_item)
 
 
 State 38
@@ -613,37 +613,37 @@ State 38
    11 keygroup: blob OPENKEY $@1 keylist . CLOSEKEY
    12 keylist: keylist . keylist_item
 
-    error     desplazar e ir al estado 34
-    SPACE     desplazar e ir al estado 22
-    NUMBER    desplazar e ir al estado 3
-    EOL       desplazar e ir al estado 35
-    TEXT      desplazar e ir al estado 6
-    ','       desplazar e ir al estado 7
-    CLOSEKEY  desplazar e ir al estado 51
-    '$'       desplazar e ir al estado 8
-    '-'       desplazar e ir al estado 9
-    '*'       desplazar e ir al estado 10
+    error     shift, and go to state 34
+    SPACE     shift, and go to state 22
+    NUMBER    shift, and go to state 3
+    EOL       shift, and go to state 35
+    TEXT      shift, and go to state 6
+    ','       shift, and go to state 7
+    CLOSEKEY  shift, and go to state 51
+    '$'       shift, and go to state 8
+    '-'       shift, and go to state 9
+    '*'       shift, and go to state 10
 
-    keyval        ir al estado 36
-    keygroup      ir al estado 37
-    keylist_item  ir al estado 52
-    preedit       ir al estado 40
-    blob          ir al estado 41
-    blob_elmt     ir al estado 17
+    keyval        go to state 36
+    keygroup      go to state 37
+    keylist_item  go to state 52
+    preedit       go to state 40
+    blob          go to state 41
+    blob_elmt     go to state 17
 
 
 State 39
 
    13 keylist: keylist_item .
 
-    $default  reduce usando la regla 13 (keylist)
+    $default  reduce using rule 13 (keylist)
 
 
 State 40
 
    14 keylist_item: preedit .
 
-    $default  reduce usando la regla 14 (keylist_item)
+    $default  reduce using rule 14 (keylist_item)
 
 
 State 41
@@ -654,56 +654,56 @@ State 41
    22 preedit: blob . $@2 THEN blob $@3 EOL
    45 blob: blob . blob_elmt
 
-    SPACE    desplazar e ir al estado 22
-    NUMBER   desplazar e ir al estado 3
-    TEXT     desplazar e ir al estado 6
-    ','      desplazar e ir al estado 7
-    ':'      desplazar e ir al estado 23
-    OPENKEY  desplazar e ir al estado 24
-    '$'      desplazar e ir al estado 8
-    '-'      desplazar e ir al estado 9
-    '*'      desplazar e ir al estado 10
+    SPACE    shift, and go to state 22
+    NUMBER   shift, and go to state 3
+    TEXT     shift, and go to state 6
+    ','      shift, and go to state 7
+    ':'      shift, and go to state 23
+    OPENKEY  shift, and go to state 24
+    '$'      shift, and go to state 8
+    '-'      shift, and go to state 9
+    '*'      shift, and go to state 10
 
-    SPACE     [reduce usando la regla 19 (keylist_item)]
-    NUMBER    [reduce usando la regla 19 (keylist_item)]
-    THEN      reduce usando la regla 20 ($@2)
-    TEXT      [reduce usando la regla 19 (keylist_item)]
-    ','       [reduce usando la regla 19 (keylist_item)]
-    '$'       [reduce usando la regla 19 (keylist_item)]
-    '-'       [reduce usando la regla 19 (keylist_item)]
-    '*'       [reduce usando la regla 19 (keylist_item)]
-    $default  reduce usando la regla 19 (keylist_item)
+    SPACE     [reduce using rule 19 (keylist_item)]
+    NUMBER    [reduce using rule 19 (keylist_item)]
+    THEN      reduce using rule 20 ($@2)
+    TEXT      [reduce using rule 19 (keylist_item)]
+    ','       [reduce using rule 19 (keylist_item)]
+    '$'       [reduce using rule 19 (keylist_item)]
+    '-'       [reduce using rule 19 (keylist_item)]
+    '*'       [reduce using rule 19 (keylist_item)]
+    $default  reduce using rule 19 (keylist_item)
 
-    $@2        ir al estado 53
-    blob_elmt  ir al estado 25
+    $@2        go to state 53
+    blob_elmt  go to state 25
 
 
 State 42
 
    25 declaration: DTEXT optionalcolon optionalweight TYPE $@4 . numlist $@5 EOL
 
-    error   desplazar e ir al estado 44
-    NUMBER  desplazar e ir al estado 45
-    DTEXT   desplazar e ir al estado 46
-    '$'     desplazar e ir al estado 47
-    '*'     desplazar e ir al estado 48
+    error   shift, and go to state 44
+    NUMBER  shift, and go to state 45
+    DTEXT   shift, and go to state 46
+    '$'     shift, and go to state 47
+    '*'     shift, and go to state 48
 
-    numlist   ir al estado 54
-    num_item  ir al estado 50
+    numlist   go to state 54
+    num_item  go to state 50
 
 
 State 43
 
    27 declaration: DTEXT optionalcolon optionalweight TYPE $@6 . EOL
 
-    EOL  desplazar e ir al estado 55
+    EOL  shift, and go to state 55
 
 
 State 44
 
    44 num_item: error .
 
-    $default  reduce usando la regla 44 (num_item)
+    $default  reduce using rule 44 (num_item)
 
 
 State 45
@@ -711,30 +711,30 @@ State 45
    39 num_item: NUMBER . '-' NUMBER
    40         | NUMBER .
 
-    '-'  desplazar e ir al estado 56
+    '-'  shift, and go to state 56
 
-    $default  reduce usando la regla 40 (num_item)
+    $default  reduce using rule 40 (num_item)
 
 
 State 46
 
    41 num_item: DTEXT .
 
-    $default  reduce usando la regla 41 (num_item)
+    $default  reduce using rule 41 (num_item)
 
 
 State 47
 
    43 num_item: '$' . NUMBER
 
-    NUMBER  desplazar e ir al estado 57
+    NUMBER  shift, and go to state 57
 
 
 State 48
 
    42 num_item: '*' .
 
-    $default  reduce usando la regla 42 (num_item)
+    $default  reduce using rule 42 (num_item)
 
 
 State 49
@@ -743,40 +743,40 @@ State 49
    37 numlist: numlist . ',' num_item
    38        | numlist . SPACE
 
-    SPACE  desplazar e ir al estado 58
-    ','    desplazar e ir al estado 59
+    SPACE  shift, and go to state 58
+    ','    shift, and go to state 59
 
-    $default  reduce usando la regla 29 ($@8)
+    $default  reduce using rule 29 ($@8)
 
-    $@8  ir al estado 60
+    $@8  go to state 60
 
 
 State 50
 
    36 numlist: num_item .
 
-    $default  reduce usando la regla 36 (numlist)
+    $default  reduce using rule 36 (numlist)
 
 
 State 51
 
    11 keygroup: blob OPENKEY $@1 keylist CLOSEKEY .
 
-    $default  reduce usando la regla 11 (keygroup)
+    $default  reduce using rule 11 (keygroup)
 
 
 State 52
 
    12 keylist: keylist keylist_item .
 
-    $default  reduce usando la regla 12 (keylist)
+    $default  reduce using rule 12 (keylist)
 
 
 State 53
 
    22 preedit: blob $@2 . THEN blob $@3 EOL
 
-    THEN  desplazar e ir al estado 61
+    THEN  shift, and go to state 61
 
 
 State 54
@@ -785,105 +785,105 @@ State 54
    37 numlist: numlist . ',' num_item
    38        | numlist . SPACE
 
-    SPACE  desplazar e ir al estado 58
-    ','    desplazar e ir al estado 59
+    SPACE  shift, and go to state 58
+    ','    shift, and go to state 59
 
-    $default  reduce usando la regla 24 ($@5)
+    $default  reduce using rule 24 ($@5)
 
-    $@5  ir al estado 62
+    $@5  go to state 62
 
 
 State 55
 
    27 declaration: DTEXT optionalcolon optionalweight TYPE $@6 EOL .
 
-    $default  reduce usando la regla 27 (declaration)
+    $default  reduce using rule 27 (declaration)
 
 
 State 56
 
    39 num_item: NUMBER '-' . NUMBER
 
-    NUMBER  desplazar e ir al estado 63
+    NUMBER  shift, and go to state 63
 
 
 State 57
 
    43 num_item: '$' NUMBER .
 
-    $default  reduce usando la regla 43 (num_item)
+    $default  reduce using rule 43 (num_item)
 
 
 State 58
 
    38 numlist: numlist SPACE .
 
-    $default  reduce usando la regla 38 (numlist)
+    $default  reduce using rule 38 (numlist)
 
 
 State 59
 
    37 numlist: numlist ',' . num_item
 
-    error   desplazar e ir al estado 44
-    NUMBER  desplazar e ir al estado 45
-    DTEXT   desplazar e ir al estado 46
-    '$'     desplazar e ir al estado 47
-    '*'     desplazar e ir al estado 48
+    error   shift, and go to state 44
+    NUMBER  shift, and go to state 45
+    DTEXT   shift, and go to state 46
+    '$'     shift, and go to state 47
+    '*'     shift, and go to state 48
 
-    num_item  ir al estado 64
+    num_item  go to state 64
 
 
 State 60
 
    30 declaration: DTEXT optionalcolon optionalweight $@7 numlist $@8 . EOL
 
-    EOL  desplazar e ir al estado 65
+    EOL  shift, and go to state 65
 
 
 State 61
 
    22 preedit: blob $@2 THEN . blob $@3 EOL
 
-    error   desplazar e ir al estado 29
-    SPACE   desplazar e ir al estado 22
-    NUMBER  desplazar e ir al estado 3
-    TEXT    desplazar e ir al estado 6
-    ','     desplazar e ir al estado 7
-    '$'     desplazar e ir al estado 8
-    '-'     desplazar e ir al estado 9
-    '*'     desplazar e ir al estado 10
+    error   shift, and go to state 29
+    SPACE   shift, and go to state 22
+    NUMBER  shift, and go to state 3
+    TEXT    shift, and go to state 6
+    ','     shift, and go to state 7
+    '$'     shift, and go to state 8
+    '-'     shift, and go to state 9
+    '*'     shift, and go to state 10
 
-    blob       ir al estado 66
-    blob_elmt  ir al estado 17
+    blob       go to state 66
+    blob_elmt  go to state 17
 
 
 State 62
 
    25 declaration: DTEXT optionalcolon optionalweight TYPE $@4 numlist $@5 . EOL
 
-    EOL  desplazar e ir al estado 67
+    EOL  shift, and go to state 67
 
 
 State 63
 
    39 num_item: NUMBER '-' NUMBER .
 
-    $default  reduce usando la regla 39 (num_item)
+    $default  reduce using rule 39 (num_item)
 
 
 State 64
 
    37 numlist: numlist ',' num_item .
 
-    $default  reduce usando la regla 37 (numlist)
+    $default  reduce using rule 37 (numlist)
 
 
 State 65
 
    30 declaration: DTEXT optionalcolon optionalweight $@7 numlist $@8 EOL .
 
-    $default  reduce usando la regla 30 (declaration)
+    $default  reduce using rule 30 (declaration)
 
 
 State 66
@@ -891,36 +891,36 @@ State 66
    22 preedit: blob $@2 THEN blob . $@3 EOL
    45 blob: blob . blob_elmt
 
-    SPACE   desplazar e ir al estado 22
-    NUMBER  desplazar e ir al estado 3
-    TEXT    desplazar e ir al estado 6
-    ','     desplazar e ir al estado 7
-    '$'     desplazar e ir al estado 8
-    '-'     desplazar e ir al estado 9
-    '*'     desplazar e ir al estado 10
+    SPACE   shift, and go to state 22
+    NUMBER  shift, and go to state 3
+    TEXT    shift, and go to state 6
+    ','     shift, and go to state 7
+    '$'     shift, and go to state 8
+    '-'     shift, and go to state 9
+    '*'     shift, and go to state 10
 
-    $default  reduce usando la regla 21 ($@3)
+    $default  reduce using rule 21 ($@3)
 
-    $@3        ir al estado 68
-    blob_elmt  ir al estado 25
+    $@3        go to state 68
+    blob_elmt  go to state 25
 
 
 State 67
 
    25 declaration: DTEXT optionalcolon optionalweight TYPE $@4 numlist $@5 EOL .
 
-    $default  reduce usando la regla 25 (declaration)
+    $default  reduce using rule 25 (declaration)
 
 
 State 68
 
    22 preedit: blob $@2 THEN blob $@3 . EOL
 
-    EOL  desplazar e ir al estado 69
+    EOL  shift, and go to state 69
 
 
 State 69
 
    22 preedit: blob $@2 THEN blob $@3 EOL .
 
-    $default  reduce usando la regla 22 (preedit)
+    $default  reduce using rule 22 (preedit)

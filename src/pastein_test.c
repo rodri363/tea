@@ -2,7 +2,6 @@
 
 #define foreach(s, ...) for (char **s = (char*[]){__VA_ARGS__, NULL}; *s; s=&s[1])
 
-
 #define close_enough(a, b) assert(fabs(a-b) < 1e-2)
 #define assert_false(a) assert(!a)
 #define assert_equals(a, b) assert(a == b)
@@ -408,5 +407,4 @@ char *db_dummy;
      free(spec5);
 
      printf("Reached end of test.\n");
-
 }
