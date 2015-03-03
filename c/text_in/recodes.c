@@ -51,14 +51,15 @@ static void recodes(char **key, char** tag, char **outstring, char **intab){
 // **key may be "recodes" or "group recodes".
     apop_data *all_recodes;
     *outstring=NULL;
-    if(tag && strlen(*tag)>0)
-        all_recodes = apop_query_to_text("select distinct key from keys where "
-                "(key like '%s%%' and key not like '%s%%no checks' and key not like 'group recodes/group id')"
-                " and tag ='%s'",*key,*key, XN(tag[0]));
-    else
-        all_recodes = apop_query_to_text("select distinct key from keys where "
-                "(key like '%s%%' and key not like '%s%%no checks' and key not like 'group recodes/group id')"
-                " order by tag", *key, *key);
+    char *tagstr = NULL, *like=NULL;
+    if(tag && strlen(*tag)>0) Asprintf(&tagstr, " and tag ='%s'", XN(tag[0]));
+    Asprintf(&like, "key like '%s%%' and key not like '%s%%no checks' "
+            "and key not like 'group recodes/group id' "
+            "and key not like '%s/input table' "
+            "and key not like '%s/output table' "
+            "and key not like '%s/overwrite' " ,*key,*key, *key, *key, *key, *key);
+
+    all_recodes = apop_query_to_text("select distinct key from keys where %s %s order by tag", like, XN(tagstr));
     if (!all_recodes || !*all_recodes->textsize) return;
 
     for(int i=0; i < *all_recodes->textsize; i++) // "recodes/var1" ==> "var1"
@@ -66,8 +67,8 @@ static void recodes(char **key, char** tag, char **outstring, char **intab){
     if (verbose) apop_data_show(all_recodes);
 
     int new_vars = apop_query_to_float("select count(*) from (select distinct key from keys where "
-                                "(key like '%s%%' and key not like '%s%%no checks' and key not like 'group recodes/group id') %s%s%s "
-                                , *key, *key, tag ? "and tag='":"", tag ? *tag:"", tag ? "')": ")");
+                                "%s %s%s%s "
+                                , like, tag ? "and tag='":"", tag ? *tag:"", tag ? "')": ")");
     apop_data *editcheck = apop_query_to_text("select value from keys where "
                 "key like '%s%%no checks' %s%s%s"
                 , *key, tag ? "and tag='":"", tag ? *tag:"", tag ? "'": " ");
