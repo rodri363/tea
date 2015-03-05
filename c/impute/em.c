@@ -192,7 +192,7 @@ void em_to_completion(char const *datatab,
     if (is.allow_near_misses) get_types(d); //add a list of types as d->more
     
     apop_data *raked = em_weight(d, .tolerance=1e-3);
-    Tea_stopif(!raked, return, 0, "Raking returned a blank table. This shouldn't happen.");
+    Tea_stopif(!raked, return, 0, "EM algorithm returned a blank table. This shouldn't happen.");
     Tea_stopif(raked->error, return, 0, "Error (%c) in raking.", raked->error);
 
     //diagnostic_print(d, raked);

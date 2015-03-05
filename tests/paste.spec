@@ -1,5 +1,5 @@
 database: demo.db
-id: SERIALNO
+id: SSN
 
 input {
     input file: dc_pums_08.csv 

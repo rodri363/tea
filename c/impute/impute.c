@@ -122,6 +122,15 @@ static void verify(impustruct is){
     Tea_stopif(!is.isnan, return, 2, "%s had no missing values. This sometimes happens when the fields used for sub-classes "
             "still has missing values. Perhaps do an imputation for these fields and add an 'earlier output table' line to "
             "this segment of the spec.", is.depvar);
+
+    if (is.isnan && is.isnan->names->rowct){
+        char *lastname=is.isnan->names->row[0];
+        for (int i=1; i< is.isnan->names->rowct; i++){
+            Tea_stopif(!strcmp(lastname, is.isnan->names->row[i]),
+                   return, 0, "IDs should be unique, but found a duplicate id (%s). I stopped checking after this one.");
+            lastname= is.isnan->names->row[i];
+        }
+    }
 }
 
 /* Generate two tables: those that have Nulls and therefore need to be
@@ -199,8 +208,11 @@ static void model_est(impustruct *is, int *model_id){
             "the imputation model. This shouldn't happen");
     if (is->is_hotdeck) apop_data_pmf_compress(notnan);
 	//Apop_model_add_group(&(is->base_model), apop_parts_wanted); //no extras like cov or log like.
-
     install_data_to_R(notnan, is->base_model); //no-op if not an R model.
+
+    //suppress a useless error msg
+    if (is->is_hotdeck && !notnan->matrix && !notnan->vector) is->base_model->dsize=1;
+
 	is->fitted_model = apop_estimate(notnan, is->base_model);
     Tea_stopif(!is->fitted_model, return, 0, "model fitting fail.");
     if (!strcmp(is->base_model->name, "multinomial"))
@@ -639,15 +651,13 @@ apop_model *tea_get_model_by_name(char *name, impustruct *model){
             out= rapop_model_from_registry(name);
         Tea_stopif(!strcmp(out->name, "Null model"), return &(apop_model){}, 0, "model selection fail.");
         Apop_model_add_group(out, apop_parts_wanted, .predicted='y'); //no cov
-        //if (!strcmp(out->name, "PDF or sparse matrix")) out->dsize=-2;
         return out;
 }
 
 void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
     int seed = get_key_float(configbase, "seed");
     *r = apop_rng_alloc((!isnan(seed) && seed>=0) ? seed : 35);
-    //apop_table_exists("impute_log", 'd');
-    //apop_query("create table impute_log (%s, 'model', 'draw', 'declared', 'status')", id_col);
+
     if (!apop_table_exists("model_log"))
         apop_query("create table model_log ('model_id', 'parameter', 'value')");
 }
@@ -748,7 +758,6 @@ int do_impute(char **tag, char **idatatab, int *autofill){
 
     char *af = get_key_word_tagged(configbase, "autofill", *tag);
     *autofill = *autofill || (af && !strcmp(af, "no"));
-    Tea_stopif(!*autofill && get_key_word("input", "output table") == NULL, , 0, "You didn't specify an output table in your input key so I'm going to use `filled' as a default. If you want another name then specify one in your spec file.");
 
 /* TeaKEY(impute/categories, <<<Denotes the categorized set of variables by which to impute your output vars.>>>)
  */
@@ -767,8 +776,7 @@ int do_impute(char **tag, char **idatatab, int *autofill){
 
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
     if (!out_tab || (!*out_tab && previous_fill_tab)) out_tab = previous_fill_tab;
-    Tea_stopif(!out_tab || !*out_tab, out_tab = "filled", 0, "No '%s/output table' or '%s/eariler output table' key "
-            "found in the spec; using 'filled' as a default.", configbase, configbase);
+    if (!out_tab || !*out_tab) out_tab = "filled";
 
     char *id_col= get_key_word(NULL, "id");
     if (!id_col) {
