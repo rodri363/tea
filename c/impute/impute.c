@@ -47,12 +47,11 @@ static char *construct_a_query(char const *datatab, char const *varlist,
         if (!strcmp(n, depvar)) continue; //we know the missing var is missing.
         apop_data *val = apop_query_to_text("select %s from %s where %s = %s",  
                                                     n,  datatab, id_col, ego_id);
-        //char *endptr;
-        //strtol(**val->text, &endptr, 10);
-        //char sp_or_q = (*endptr == '\0') ? ' ': '"';
-        char sp_or_q = '"'; //sqlite does just as well treating everything as a string.
+
+        //Until revision c2f2f57 we distinguished between numeric and string, but
+        //sqlite does just as well treating everything as a string.
         if (strcmp(**val->text, apop_opts.nan_string))
-            qxprintf(&q, "%s (%s) = %c%s%c and\n", q, n, sp_or_q, **val->text, sp_or_q);
+            qxprintf(&q, "%s (%s) = \"%s\" and\n", q, n, **val->text);
         else {
             free(q);
             apop_data_free(val);
@@ -365,10 +364,10 @@ static int forsearch(const void *a, const void *b){
 static char mark_an_id(const char *target, char * const *list, int len, char just_check){
     char **found = bsearch(target, list, len, sizeof(char*), forsearch);
     if (!found) return 'n';
-    int out= (*found)[strlen(*found)-1]== '.' ? 'm' : 'u' ;
+    char out= (*found)[strlen(*found)-1]== '.' ? 'm' : 'u' ;
     if (just_check) return out;
     if (out=='u') Asprintf(found, "%s.", *found); //it's marked now.
-    return 0;
+    return out;
 }
 
 /*This function is the inner loop cut out from impute(). As you can see from the list of
@@ -532,8 +531,6 @@ static void impute_a_variable(const char *datatab, impustruct *is,
         const apop_data *fingerprint_vars, const char *id_col, char *filltab,
         char *previous_filltab){
     static int model_id=-1;
-    apop_data *nanvals = get_all_nanvals(*is, id_col, datatab);
-    if (!nanvals) return;
     char *dt;
     char *dataxxx = (char*)datatab; //can't constify checkout, because of R
 
@@ -542,8 +539,6 @@ static void impute_a_variable(const char *datatab, impustruct *is,
     int outermax = previous_filltab ? draw_count : 1;
     int innermax = previous_filltab ? 1 : draw_count;
 
-    apop_name *clean_names = NULL;
-    if (outermax > 1) clean_names = apop_name_copy(nanvals->names);
     create_index(datatab, is->depvar);
     create_index(datatab, id_col);
 
@@ -556,6 +551,11 @@ static void impute_a_variable(const char *datatab, impustruct *is,
         } else dt=strdup(datatab);
         begin_transaction();
 
+        //Get the list of all missing values, possibly after the fill-ins change subsets.
+        //Below, we'll get subsets depending on the categories
+        apop_data *nanvals = get_all_nanvals(*is, id_col, datatab);
+        if (!nanvals) continue;
+
         is->is_bounds_checkable = (ri_from_ext(is->depvar, "0") != -100); //-100=var not found.
 
         bool still_has_missings=true, hit_zero=false;
@@ -565,7 +565,7 @@ static void impute_a_variable(const char *datatab, impustruct *is,
                 if (!still_is_nan(row_i)) continue;
                 get_nans_and_notnans(is, nanvals->names->row[i] /*ego_id*/, 
                         dt, min_group_size, category_matrix, fingerprint_vars, id_col);
-                if (!is->isnan) goto bail; //because that first guy should've been missing.
+                if (!is->isnan) goto bail; //probably a NaN-valued category.
                 if (!is->notnan || GSL_MAX((is->notnan)->textsize[0]
                             , (is->notnan)->matrix ? (is->notnan)->matrix->size1: 0) < min_group_size)
                     goto bail;
@@ -600,13 +600,8 @@ static void impute_a_variable(const char *datatab, impustruct *is,
         commit_transaction();
         if (still_has_missings && hit_zero) printf("Even with no constraints, I still "
                              "couldn't find enough data to model the data set.");
-        if (outermax > 1){
-            apop_name_free(nanvals->names);
-            nanvals->names = apop_name_copy(clean_names);
-        }
+        apop_data_free(nanvals);
     }
-    apop_data_free(nanvals);
-    apop_name_free(clean_names);
 }
 
 apop_model null_model = {.name="null model"};
