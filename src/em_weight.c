@@ -1,7 +1,7 @@
 #include "em_weight.h"
 
 //cut/pasted from Apophenia/model/apop_pmf.c. It should be an apop_data_rowcmp function.
-static int are_equal(apop_data *left, apop_data *right){
+static int are_equal(apop_data const *left, apop_data const *right){
     if (left->vector){
         if (!right->vector ||
               (*left->vector->data != *right->vector->data

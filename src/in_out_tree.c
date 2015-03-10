@@ -110,7 +110,7 @@ bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild){
         OK = run_one_tag(row+1, active_tab, run_one_tag, &r2);
         *rebuild = *rebuild || r2;
         Tea_stopif(!OK, return false,
-                0, "Trouble building predecessor table for %s.\n", Output(row+1));
+                0, "Trouble building predecessor table for %s.", Output(row+1));
         use_this_join=true;
     }
 
@@ -118,14 +118,16 @@ bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild){
     if (prev>=0 && prev < row) OK = run_one_tag(prev, active_tab, aux_info, &r2);
     *rebuild = *rebuild || r2;
     Tea_stopif(!OK, /*return false*/,
-            0, "Trouble building predecessor table for %s.\n", Output(row));
+            0, "Trouble building predecessor table for %s.", Output(row));
 
-    if (Overwrite(row)[0]=='y' || *rebuild) {
-        apop_table_exists(Output(row), 'd');
-        *rebuild=true;
-        Overwrite(row)[0]='n'; //only overwrite once.
-    } else 
-        if (apop_table_exists(Output(row))) return true;
+    if (!Match(SegType(row), "impute")) {
+        if (Overwrite(row)[0]=='y' || *rebuild) {
+            apop_table_exists(Output(row), 'd');
+            *rebuild=true;
+            Overwrite(row)[0]='n'; //only overwrite once.
+        } else 
+            if (apop_table_exists(Output(row))) return true;
+    }
 
     *active_tab = Output(row);
     Tea_stopif(Match(SegType(row), "input"),
@@ -133,7 +135,9 @@ bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild){
                 0, "Doing input for %s.", Output(row));
     Tea_stopif(Match(SegType(row), "impute"),
                 return do_impute(in_out_tab->text[row], active_tab, aux_info),
-                0, "Doing imputations for %s.", Input(row));
+                0, "Doing imputations for %s%s%s."
+                , Input(row), Output(row) ? "; writing to fill table ":""
+                , Output(row));
     Tea_stopif(Match(SegType(row), "join") && use_this_join,
                 return join_tables(Tag(row)),
                 0, "Joining tables to produce %s.", Output(row));
