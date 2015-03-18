@@ -453,7 +453,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
     int col_of_interest = is->depvar ? is->var_posns[0]: -1;
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
         char *name = is->isnan->names->row[rowindex];
-        if (mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)=='m')
+        if (!is->is_em && mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)=='m')
             continue;
         int tryctr=0;
         long int id_number = atol(is->isnan->names->row[rowindex]);
