@@ -60,7 +60,6 @@ CheckDF <- function(df){
 
 blankOne <- function(r, tabname, idcolname, id){
     m <- max(r) # greater than zero, because of the if statement in the caller below.
-#browser()
     blankme <- sample(names(r)[r[]==m], 1)
     print(paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
     dbGetQuery(teaenv$con, paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
@@ -84,6 +83,7 @@ EditTable <- function(tabname, where=NULL){
     ctr <- 0 # Note also that the imputation makes 1,000 tries/record.
     while (fail == TRUE && ctr < 10) {
         fail <- FALSE
+        t <- teaTable(tabname, where=where)
         glitches <- as.data.frame(.Call("RCheckData",t))
 
         for (i in 1:nrow(glitches)){
@@ -99,7 +99,7 @@ EditTable <- function(tabname, where=NULL){
         }
         #These are rowids where we couldn't draw a consistent record
         hardFails <- teaTable("tea_fails")
-        fail <- hardFails
+        fail <- !is.null(hardFails)
         ctr <- ctr+1
     }
     if (ctr == 10) warning("Some rows couldn't be edited into consistency.")

@@ -65,33 +65,30 @@ extern int verbose;
 void get_verbosity(int *out);
 void set_verbosity(int *in);
 
+//in discrete/consistency.c
 /** This function will either return a pass/fail vote as to whether an input record
 passes edits, or provide a score counting how often each field caused an edit to fail.
 
 Inputs:
-
-\param record_name_in The list of variables that will be considered in checking the
-constraints. This can be a subset of the full list of variables. Those not listed are ignored and can not cause edit failures.
-\param ud_values The values you want the variables to have. A list of strings as long as
-the \c record_name_in list.
-\param record_in_size A pointer-to-int giving the number of records in the previous two
-elements.
+\param oext_values An ordered list of fields to be checked. If a field is NULL here, its edits don't get checked. Use order_things in discrete/ext_to_em.c to put things in the right order.
 \param what_you_want A pointer-to-string (which is what R requires) that is one of
-<tt>"passfail"</tt> or <tt>"failed_fields"</tt>.
+<tt>"passfail"</tt> or <tt>"failed fields"</tt>.
+\param id A record id, only for error reporting.
+\param ofailed_fields If you want a pass/fail, NULL. If you want the list of failed fields, a vector of ints to record the failure cout. Use order_things_int to set this up.
+
+\param do_preedits A true/false variable.
+\param recursion_count Send in zero. Used internally to keep track of sub-calls when something has been changed and we have to re-check edits.
 
 Outputs:
-
-\li In all cases, return the count of failed edits on output.
-\li For the <tt>"failed_fields"</tt> case, I will fill \c record_fails, an array of equal length
-as the input array of record names, with a count indicating how many edits the
-corresponding field failed (and zero if it is OK). If \c fails_edits is nonzero, then one of these elements will
+\li For the <tt>"failed_fields"</tt> case, I will fill \c ofailed_fields with a count indicating how many edits the
+corresponding field failed (and zero if it is OK). If the return value is nonzero, then one of these elements will
+\return The count of failed fields. 0=passes all edits.
 be nonzero.
 */
-int consistency_check(char * const *record_name_in, char * const *ud_values, 
-			int const *record_in_size, char const *const *what_you_want, 
-			int const *id, int *failed_fields, char * restrict *ud_post_preedit);
+int consistency_check(char * *oext_values, char const *const *what_you_want, 
+			long int const *id, int **ofailed_fields, _Bool do_preedits, int recursion_count);
 
-apop_data *checkData(apop_data *data);
+apop_data *checkData(apop_data *data, _Bool do_preedits);
 
 //key-getting functions for the C side. Notice that get_text returns an apop_data set.
 apop_data * get_key_text(char const *part1, char const *part2);

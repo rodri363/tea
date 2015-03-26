@@ -31,3 +31,13 @@ checks {
     weights/y1 > 30
 
 }
+
+impute {
+    method:hot deck
+    vars: y1
+}
+
+impute {
+    method:hot deck
+    vars: y2
+}

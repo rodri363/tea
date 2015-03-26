@@ -294,7 +294,12 @@ static void do_fields_and_fails_agree(int **ofailed_fields, int fails_edits, int
     assert((total_fails !=0 && fails_edits) || (total_fails==0 && !fails_edits));
 }
 
-int cc2(char * *oext_values, char const *const *what_you_want, 
+
+/* see tea.h for documentation.
+
+BUG: R won't let you pass a long int from R to C. ID numbers are often long ints. Probably the only solution is to ass the id as a string. This only affects an output when verbose is on, not internal processing.
+*/
+int consistency_check(char * *oext_values, char const *const *what_you_want, 
 			long int const *id, int **ofailed_fields, bool do_preedits, int recursion_count){
 
     if (!edit_grid) init_edit_list();
@@ -315,7 +320,7 @@ int wanted_preed=1000000;
     if (gotta_start_over) {
         Tea_stopif(recursion_count>100, return 1, 0,
                 "Over 100 pre-edits made. I am probably stuck in a loop.")
-        return cc2(oext_values, what_you_want, id, ofailed_fields, do_preedits, recursion_count++);
+        return consistency_check(oext_values, what_you_want, id, ofailed_fields, do_preedits, recursion_count++);
     }
 
     if (!pf) do_fields_and_fails_agree(ofailed_fields, fail_count, total_var_ct);
@@ -323,62 +328,52 @@ int wanted_preed=1000000;
     return fail_count;
 }
 
-
-/* see tea.h for documentation.
-
-This function takes in a data set with an arbitrarily-ordered list of records. cc2,
-above, takes in a list that exactly matches the order of the edit matrix. It simplifies
-this file a lot, and perhaps we can some day deprecate this function in favor of
-that one.
-
-
-BUG: R won't let you pass a long int from R to C. ID numbers are often long ints. Probably the only solution is to ass the id as a string. This only affects an output when verbose is on, not internal processing.
+/* Take in a data set; check each row. Return a table of the same size, with each cell
+   indicating the number of edit failures for the corresponding cell in the original data.
 */
-int consistency_check(char * const *record_names, char * const *ud_values, 
-			int const *record_size, char const *const *what_you_want, 
-			int const *id, int *failed_fields, char * restrict *ud_post_preedit){
-	Tea_stopif(*record_size <= 0, return 0, 1, "zero record size; returning zero failures.");
-    char *oext_values[total_var_ct];
-    int *ofailed_fields[total_var_ct];
-    long int as_long_int = *id;
-    order_things(ud_values, record_names, *record_size, oext_values);
-    if (failed_fields) order_things_int(failed_fields, record_names, *record_size, ofailed_fields);
-    return cc2(oext_values, what_you_want, &as_long_int, (failed_fields? ofailed_fields : NULL), !!ud_post_preedit, 0);
-}
-
-apop_data *checkData(apop_data *data){
+apop_data *checkData(apop_data *data, bool do_preedits){
+	Tea_stopif(!data, return NULL, 1, "NULL data; returning NULL failure set.");
     //copy field names from the input data.
 	int nvars = data->names->colct + data->names->textct;
+	Tea_stopif(!nvars, return NULL, 1, "Zero columns in data; returning NULL failure set.");
 	char *fields[nvars];
     memcpy(fields, data->names->col, sizeof(char*)*data->names->colct);
     memcpy(&fields[data->names->colct], data->names->text, sizeof(char*)*data->names->textct);
 
 	//now that we have the variables, we can call consistency_check for each row
-	int id=1;
+	long int id=1;
 	int nrow = data->matrix ? data->matrix->size1: *data->textsize;
 	int failed_fields[nvars];
 	char *vals[nvars];
-	char const *what = "failed_fields";
 	apop_data *failCount = apop_data_calloc(nrow,nvars);
     apop_name_stack(failCount->names, data->names, 'c', 'c');
     apop_name_stack(failCount->names, data->names, 'c', 't');
 
+    //sort filed names to ordered by external value lists.
+    //these are pointers to failed_fields and vals, and so follow along as those change.
+    char *oext_values[total_var_ct];
+    int *ofailed_fields[total_var_ct];
+    memset(failed_fields, 0, nvars*sizeof(int));
+    order_things_int(failed_fields, fields, nvars, ofailed_fields);
+
 	for(int idx=0; idx<nrow; idx++){
 		for(int jdx=0; jdx<nvars; jdx++){
 		   if(data->matrix && jdx < data->matrix->size2){
-						double v = apop_data_get(data,idx,jdx);
-						if (isnan(v)) Asprintf(&vals[jdx], "%s", apop_opts.nan_string)
-						else          Asprintf(&vals[jdx], "%g", v)
-					}
-
+                double v = apop_data_get(data,idx,jdx);
+                if (isnan(v)) Asprintf(&vals[jdx], "%s", apop_opts.nan_string)
+                else          Asprintf(&vals[jdx], "%g", v)
+            }
 			else vals[jdx] = data->text[idx][jdx - data->names->colct];
 		}
         memset(failed_fields, 0, nvars*sizeof(int));
-		consistency_check(fields,vals,&nvars,&what, &id, failed_fields, NULL);
+        order_things(vals, fields, nvars, oext_values); //has to be here for NaN-handling.
+
+        char const *ff = "failed fields";
+        int fail_count_int = consistency_check(oext_values, &ff, &id, ofailed_fields, do_preedits, 0);
+
 		//insert failure counts
-		for(int jdx=0; jdx < nvars; jdx++){
+		for(int jdx=0; jdx < nvars; jdx++)
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);
-		}
 	}
 	return failCount;
 }

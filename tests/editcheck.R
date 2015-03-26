@@ -38,3 +38,7 @@ stopifnot(tab2[6, "weights"] == 0)
 stopifnot(tab2[8, "y1"] == 0)
 stopifnot(tab2[8, "y2"] == 1)
 stopifnot(tab2[8, "weights"] == 1)
+
+EditTable("ed")
+tab <- teaTable("ed")
+tab3 <- CheckDF(tab)

@@ -126,7 +126,7 @@ static void verify(impustruct is){
         char *lastname=is.isnan->names->row[0];
         for (int i=1; i< is.isnan->names->rowct; i++){
             Tea_stopif(!strcmp(lastname, is.isnan->names->row[i]),
-                   return, 0, "IDs should be unique, but found a duplicate id (%s). I stopped checking after this one.");
+                   return, 0, "IDs should be unique, but found a duplicate id (%s). I stopped checking after this one.", lastname);
             lastname= is.isnan->names->row[i];
         }
     }
@@ -410,7 +410,7 @@ static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
             Asprintf(oext_values+(is->var_posns[i]), "%g", x[i]);
 
     //just get a success/failure, but a smarter system would request the list of failed fields.
-    return cc2(oext_values, (char const*[]){"passfail"},
+    return consistency_check(oext_values, (char const*[]){"passfail"},
                                  &id_number, NULL, /*do_preedits=*/true, 0);
 }
 
