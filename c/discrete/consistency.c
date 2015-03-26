@@ -369,7 +369,7 @@ apop_data *checkData(apop_data *data, bool do_preedits){
         order_things(vals, fields, nvars, oext_values); //has to be here for NaN-handling.
 
         char const *ff = "failed fields";
-        int fail_count_int = consistency_check(oext_values, &ff, &id, ofailed_fields, do_preedits, 0);
+        consistency_check(oext_values, &ff, &id, ofailed_fields, do_preedits, 0);
 
 		//insert failure counts
 		for(int jdx=0; jdx < nvars; jdx++)
