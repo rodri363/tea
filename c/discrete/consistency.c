@@ -72,6 +72,10 @@ static bool run_preedits(char ** oext_values, char const *preed){
     apop_query("update tea_test %s", preed);
     apop_data *newvals = apop_query_to_text("select * from tea_test");
 
+printf("> >\n");
+apop_data_print(newvals);
+printf("< <\n");
+
     int ctr=0; //order is the same as oext_values; just have to find the entering fields.
     for (int octr=0; octr< total_var_ct; octr++){
         if (oext_values[octr] && *oext_values[octr]=='\0') continue;
@@ -81,8 +85,10 @@ static bool run_preedits(char ** oext_values, char const *preed){
         char *preval = oext_values[octr];
         bool postval_is_null = !strcmp(postval, apop_opts.nan_string);
         if ((preval && !strcmp(preval, postval)) 
-            ||(!preval && postval_is_null))
+            ||(!preval && postval_is_null)){
+                ctr++;
                 continue; //no change.
+        }
 
         out=true;
         if (!postval_is_null)
@@ -320,7 +326,7 @@ int wanted_preed=1000000;
     if (gotta_start_over) {
         Tea_stopif(recursion_count>100, return 1, 0,
                 "Over 100 pre-edits made. I am probably stuck in a loop.")
-        return consistency_check(oext_values, what_you_want, id, ofailed_fields, do_preedits, recursion_count++);
+        return consistency_check(oext_values, what_you_want, id, ofailed_fields, do_preedits, ++recursion_count);
     }
 
     if (!pf) do_fields_and_fails_agree(ofailed_fields, fail_count, total_var_ct);
