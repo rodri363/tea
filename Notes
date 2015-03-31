@@ -67,7 +67,7 @@ discrete/bridge.c:
     keys, and the main parsing function; see below for these.
 
 in_out_tree.c:
-    One could imagine a simple graph connecting segments of the spec: the input segment
+    One could imagine a simple graph connecting segments of the spec. For example, the input segment
     produces an output which goes to the recodes, which goes to the imputations. A table
     here keeps track of the input/output table names, so if you call the imputation, it
     finds and runs the recodes, which requires finding and running the inputs. Ideally,

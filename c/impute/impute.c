@@ -410,8 +410,8 @@ static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
             Asprintf(oext_values+(is->var_posns[i]), "%g", x[i]);
 
     //just get a success/failure, but a smarter system would request the list of failed fields.
-    return consistency_check(oext_values, (char const*[]){"passfail"},
-                                 &id_number, NULL, /*do_preedits=*/true, 0);
+    return consistency_check(oext_values, "passfail",
+                                 id_number, NULL, /*do_preedits=*/true);
 }
 
 static void setit(char const *tabname, int draw, char const *final_value, char const *id_col,

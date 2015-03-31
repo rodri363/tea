@@ -71,13 +71,11 @@ passes edits, or provide a score counting how often each field caused an edit to
 
 Inputs:
 \param oext_values An ordered list of fields to be checked. If a field is NULL here, its edits don't get checked. Use order_things in discrete/ext_to_em.c to put things in the right order.
-\param what_you_want A pointer-to-string (which is what R requires) that is one of
-<tt>"passfail"</tt> or <tt>"failed fields"</tt>.
+\param what_you_want One of <tt>"passfail"</tt> or <tt>"failed fields"</tt>.
 \param id A record id, only for error reporting.
 \param ofailed_fields If you want a pass/fail, NULL. If you want the list of failed fields, a vector of ints to record the failure cout. Use order_things_int to set this up.
 
 \param do_preedits A true/false variable.
-\param recursion_count Send in zero. Used internally to keep track of sub-calls when something has been changed and we have to re-check edits.
 
 Outputs:
 \li For the <tt>"failed_fields"</tt> case, I will fill \c ofailed_fields with a count indicating how many edits the
@@ -85,8 +83,8 @@ corresponding field failed (and zero if it is OK). If the return value is nonzer
 \return The count of failed fields. 0=passes all edits.
 be nonzero.
 */
-int consistency_check(char * *oext_values, char const *const *what_you_want, 
-			long int const *id, int **ofailed_fields, _Bool do_preedits, int recursion_count);
+int consistency_check(char * *oext_values, char const * what_you_want, 
+			long int id, int **ofailed_fields, _Bool do_preedits);
 
 apop_data *checkData(apop_data *data, _Bool do_preedits);
 

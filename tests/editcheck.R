@@ -2,7 +2,7 @@ library(tea)
 readSpec("editcheck.spec")
 doInput(do_preedit='no')
 tab <- teaTable("ed")
-tab2 <- CheckDF(tab)
+tab2 <- CheckDF(tab, do_preedits=0)
 
 #y1==1, weights/y1>30
 stopifnot(tab2[1, "y1"] == 2)

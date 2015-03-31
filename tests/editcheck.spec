@@ -27,7 +27,6 @@ checks {
 
     y2*weights > 100
 
-    #sum is even
     weights/y1 > 30
 
 }
