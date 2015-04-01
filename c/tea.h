@@ -80,10 +80,10 @@ Inputs:
 Outputs:
 \li For the <tt>"failed_fields"</tt> case, I will fill \c ofailed_fields with a count indicating how many edits the
 corresponding field failed (and zero if it is OK). If the return value is nonzero, then one of these elements will
-\return The count of failed fields. 0=passes all edits.
 be nonzero.
+\return 0=passes all edits. If "failed fields", the count of failed fields. If "passfail", something nonzero if there are failed fields.
 */
-int consistency_check(char * *oext_values, char const * what_you_want, 
+int consistency_check(char ***oext_values, char const * what_you_want, 
 			long int id, int **ofailed_fields, _Bool do_preedits);
 
 apop_data *checkData(apop_data *data, _Bool do_preedits);

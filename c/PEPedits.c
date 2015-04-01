@@ -23,6 +23,7 @@ SEXP RCheckData(SEXP df, SEXP do_preedits){
     apop_data *d  =rapop_ad_from_df(df);
     apop_data *outd = checkData(d, *INTEGER(do_preedits));
     SEXP out = rapop_df_from_ad(outd);
+    apop_data_print(d, "okgo", .output_type='d');
     apop_data_free(d);
     apop_data_free(outd);
     return out;

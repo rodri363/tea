@@ -381,7 +381,7 @@ then sending it to consistency_check for an up-down vote.
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
 */
 static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
-                    char **oext_values, int col_of_interest, bool has_edits){
+                    char ***oext_values, int col_of_interest, bool has_edits){
     double x[is->fitted_model->dsize];
     apop_draw(x, r, is->fitted_model);
     Tea_stopif(isnan(*x), return -1, 0, "I drew NaN from the fitted model. Something is wrong.");
@@ -393,21 +393,22 @@ static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
     if (is->depvar){ //everything but the EM model
         char type = used_vars[col_of_interest].type;
         if (type == '\0'){ // '\0' means not in the index of variables to check.
-            Asprintf(oext_values+col_of_interest, "%g", *x);
+            Asprintf(oext_values[col_of_interest], "%g", *x);
             return 0;
         } else {
             if (!is->is_hotdeck && is->is_bounds_checkable) //inputs all valid ==> outputs all valid
                 check_bounds(x, is->depvar, type); // just use the rounded value.
             apop_data *f;
             if (is->textdep && (f = apop_data_get_factor_names(is->fitted_model->data, .type='t')))
-                 oext_values[col_of_interest] = strdup(*f->text[(int)*x]);
-            else Asprintf(oext_values+col_of_interest, "%g", *x);
+                 *oext_values[col_of_interest] = strdup(*f->text[(int)*x]);
+            else Asprintf(oext_values[col_of_interest], "%g", *x);
             if (!has_edits) return 0;
             
         }
     } else  //the EM model
         for (int i=0; i<is->fitted_model->dsize; i++)
-            Asprintf(oext_values+(is->var_posns[i]), "%g", x[i]);
+            if (is->var_posns[i]>=0)  //-1=not in used_vars list.
+                Asprintf(oext_values[is->var_posns[i]], "%g", x[i]);
 
     //just get a success/failure, but a smarter system would request the list of failed fields.
     return consistency_check(oext_values, "passfail",
@@ -451,7 +452,14 @@ A NULL in oext_values means the element doesn't need to be recorded later.
 void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
                         int draw, apop_data *nanvals, char const *filltab, bool last_chance){
     int col_of_interest = is->depvar ? is->var_posns[0]: -1;
+
+    char **oext_values[total_var_ct];
+    for (int i=0; i<total_var_ct; i++)
+        oext_values[i] = calloc(1, sizeof(char*));
+
     for (int rowindex=0; rowindex< is->isnan->names->rowct; rowindex++){
+        for (int i=0; i<total_var_ct; i++)
+            *oext_values[i] = NULL;
         char *name = is->isnan->names->row[rowindex];
         if (!is->is_em && mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)=='m')
             continue;
@@ -459,8 +467,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
         long int id_number = atol(is->isnan->names->row[rowindex]);
         bool has_edits;
 
-        char *oext_values[total_var_ct]; char *pre_preedit[total_var_ct];
-        memset(oext_values, 0, total_var_ct * sizeof(char*));
+         char *pre_preedit[total_var_ct];
 
         if (is->depvar){
             apop_data *drecord = NULL;
@@ -468,17 +475,21 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
             if (has_edits && associated_query) drecord = apop_query_to_text(associated_query);
             Tea_stopif(has_edits && associated_query && !*drecord->textsize, return, 0,
                         "Trouble querying for fields associated with %s", is->depvar);
-            if (drecord && (has_edits || !is->depvar))
+            if (drecord)
                 order_things(*drecord->text, drecord->names->text, drecord->textsize[1], oext_values);
         } else 
             for (int j=0; j< is->isnan->matrix->size2; j++){
+                if (is->var_posns[j] == -1) continue;
                 double val = apop_data_get(is->isnan, rowindex, j);
                 if (!isnan(val))
-                    Asprintf(oext_values+is->var_posns[j], "%g", val)
+                    Asprintf(oext_values[is->var_posns[j]], "%g", val)
+                else 
+                    Asprintf(oext_values[is->var_posns[j]], "")
             }
 
         for (int i=0; i< total_var_ct; i++)
-            pre_preedit[i] = oext_values[i] ? strdup(oext_values[i]): NULL;
+            pre_preedit[i] = (oext_values[i] && *oext_values[i])
+                                ? strdup(*oext_values[i]): NULL;
 
         int fail_count=0;
         do fail_count = onedraw(r, is, id_number, oext_values, col_of_interest, has_edits);
@@ -491,22 +502,25 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
 
         if (!fail_count){
             if (!has_edits && is->depvar){ //is->depvar is a semaphore for not the EM model.
-                char * final_value = oext_values[col_of_interest];
-                Tea_stopif(!final_value || isnan(atof(final_value)), return, 0,
+                char * final_value = *oext_values[col_of_interest];
+                Tea_stopif(!final_value || isnan(atof(final_value)), goto cutout, 0,
                          "I drew a blank from the imputed column "
                          "when I shouldn't have for record %li.", id_number);
                 setit(is->autofill?datatab:filltab, draw, final_value, id_col,
                         is->isnan->names->row[rowindex], is->depvar, is->autofill);
             }
             else for (int i=0; i< total_var_ct; i++){
-               if (!oext_values[i] && !pre_preedit[i]) continue;
-               if (col_of_interest==i || strings_dont_match(oext_values[i], pre_preedit[i]))
-                    setit(is->autofill?datatab:filltab, draw, oext_values[i], id_col,
+               if (!*oext_values[i] && !pre_preedit[i]) continue;
+               if (col_of_interest==i || strings_dont_match(*oext_values[i], pre_preedit[i]))
+                    setit(is->autofill?datatab:filltab, draw, *oext_values[i], id_col,
                         is->isnan->names->row[rowindex], used_vars[i].name, is->autofill);
             }
         }
         for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
     }
+    cutout:
+        for (int i=0; i<total_var_ct; i++)
+            free(oext_values[i]);
 }
 
 double still_is_nan(apop_data *in){return in->names->row[0][strlen(*in->names->row)-1]!= '.';}

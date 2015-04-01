@@ -90,7 +90,7 @@ void test_check_out_impute();//in checkout.c
 
 //in discrete/ext_to_em.c, used for putting an arbitrary list of fields into
 //a certain order for the edit matrix.
-void order_things(char * const* record_in, char *const *record_names, int record_size, char **oext_vals);
+void order_things(char * const* record_in, char *const *record_names, int record_size, char ***oext_vals);
 void order_things_int(int * ints_in, char *const *record_names, int record_size, int **oint_vals);
 int get_ordered_posn(char const*in);
 

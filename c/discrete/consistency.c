@@ -21,7 +21,12 @@ static int prune_edits(apop_data *d, int row, int col, void *us){ //callback for
     return usable_sql[row];
 }
 
-static void check_for_all_vars(bool *usable_sql, char * const restrict*oext_values){
+/* We may be given a subset of the complete record; don't check edits that mention a field 
+   that was not provided in the subset.
+   Also, if (field is in promised_nan list + record has a NULL here + no preedit) => skip.
+*/
+static void check_for_all_vars(bool *usable_sql, char ** const restrict*oext_values,
+                                                        bool const *promised_nans){
     for (int r=0; r< edit_grid->vector->size; r++){
         if(apop_data_get(edit_grid, r, -1) != 2) {
             usable_sql[r] = false;
@@ -31,11 +36,15 @@ static void check_for_all_vars(bool *usable_sql, char * const restrict*oext_valu
         for (int i=0; i< edit_grid_to_list[r]->var_ct; i++){
             bool found=false;
             for (int j=0; j< total_var_ct; j++){
-                if (oext_values[j] && *oext_values[j]=='\0') continue;
-                if (!strcasecmp(edit_grid_to_list[r]->vars_used[i].name, used_vars[j].name))
-                        {found=true; break;}
+                if (*oext_values[j] && **oext_values[j]=='\0') continue;
+                if (!strcasecmp(edit_grid_to_list[r]->vars_used[i].name, used_vars[j].name)){
+                    found=true;
+                    if (promised_nans[j] && !*oext_values[j] && !edit_grid_to_list[i]->pre_edit)
+                        usable_sql[r]=false;
+                    break;
+                }
             }
-            if (!found) {
+            if (!found || !usable_sql[r]) {
                 usable_sql[r] = false;
                 break;
             }
@@ -47,18 +56,18 @@ static void check_for_all_vars(bool *usable_sql, char * const restrict*oext_valu
 //NULL=use for checks, and val is null
 static bool use_elmt (char const *str){ return !str || *str!='\0'; }
 
-static void sqlify(char * const restrict* oext_values){
+static void sqlify(char ** const restrict* oext_values){
     /*qstring will hold a query to generate a sample table, like "create table tea_test(a,
     b); insert into tea_test values('left', 'right');"*/
     char *qstring, *insert, comma=' ';
     Asprintf(&qstring, "create table tea_test(");
     Asprintf(&insert, "insert into tea_test values(");
     for (int i=0; i< total_var_ct; i++){
-        if (!use_elmt(oext_values[i])) continue;
-        if (!oext_values[i]) 
+        if (!use_elmt(*oext_values[i])) continue;
+        if (!*oext_values[i]) 
             xprintf(&insert, "%s%c NULL ", insert, comma);
         else 
-            xprintf(&insert, "%s%c'%s' ", insert, comma, oext_values[i]);
+            xprintf(&insert, "%s%c'%s' ", insert, comma, *oext_values[i]);
         xprintf(&qstring, "%s%c'%s' ", qstring, comma, used_vars[i].name);
         comma=',';
     }
@@ -74,7 +83,7 @@ static void sqlify(char * const restrict* oext_values){
    after a preedit is that the entire consistency check reruns, so if somebody wrote
    a preedit that somehow leaves the record unchanged, we only lose a few cycles. */
 
-static bool run_preedit(char ** oext_values, char const *preed){
+static bool run_preedit(char *** oext_values, char const *preed){
     apop_query("update tea_test %s", preed);
     apop_data *newvals = apop_query_to_text("select * from tea_test");
 
@@ -84,11 +93,11 @@ printf("< <\n");
 
     int ctr=0; //order is the same as oext_values; just have to find the entering fields.
     for (int octr=0; octr< total_var_ct; octr++){
-        if (!use_elmt(oext_values[octr])) continue;
+        if (!use_elmt(*oext_values[octr])) continue;
 
         //Found the right field. Write it if it changed.
         char *postval = newvals->text[0][ctr];
-        char *preval = oext_values[octr];
+        char *preval = *oext_values[octr];
         bool postval_is_null = !strcmp(postval, apop_opts.nan_string);
         if ((preval && !strcmp(preval, postval)) 
             ||(!preval && postval_is_null)){
@@ -96,8 +105,8 @@ printf("< <\n");
                 continue; //no change.
         }
 printf("%s: [%s] →→ [%s]\n", used_vars[ctr].name, XN(preval), XN(postval));
-        if (postval_is_null) oext_values[octr] = NULL;
-        else                 Asprintf(oext_values+octr, postval);
+        if (postval_is_null) *oext_values[octr] = NULL;
+        else                 Asprintf(oext_values[octr], postval);
         ctr++;
     }
 
@@ -106,17 +115,18 @@ printf("%s: [%s] →→ [%s]\n", used_vars[ctr].name, XN(preval), XN(postval));
 }
 
 //call iff there are SQL edits (or preedits) to be checked.
-static int check_a_record_sql(char ** oext_values, int **ofailures,
+static int check_a_record_sql(char *** oext_values, int **ofailures,
                          int *last_run_preedit,
                          int preedit_to_run,
-                         bool *gotta_start_over
+                         bool *gotta_start_over, bool const *promised_nans
                          ){
     int out = 0;
     bool usable_sql[edit_grid->vector->size];
-    check_for_all_vars(usable_sql, oext_values);
+    check_for_all_vars(usable_sql, oext_values, promised_nans);
     begin_transaction();
     if (!apop_table_exists("tea_test")) sqlify(oext_values); //else, we're redoing after a preedit.
 
+    //TO DO: ingomring promised_nans is a bug 
     if (!ofailures && *last_run_preedit==INT_MAX){   //just want pass-fail ==> run a single yes/no query
         char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
               .before= "select count(*) from tea_test where (", .prune=prune_edits,
@@ -125,23 +135,23 @@ static int check_a_record_sql(char ** oext_values, int **ofailures,
             out += apop_query_to_float("%s", q);
         free(q);
     } else {
-        edit_t *last_list_item = NULL;
         bool pre_edits_changed_something = false;
         for (int i=0; i< edit_grid->vector->size; i++){
             if (preedit_to_run==i) break; //discrete preedit; no earlier sql preedit found.
 
             char *has_preed = edit_grid_to_list[i]->pre_edit;
-            if (last_list_item==edit_grid_to_list[i] && (*last_run_preedit >= i || !has_preed)) continue;
-            last_list_item=edit_grid_to_list[i];
+
+            edit_t *this_list_item = edit_grid_to_list[i];
             if (!usable_sql[i]) continue;
+
             int fails = usable_sql[i] && apop_query_to_float("select count(*) from tea_test where (%s)",
                                                                 *edit_grid->text[i]);
             if (fails){
                 if (ofailures)
                     for (int i=0; i<total_var_ct; i++){
-                        if (!use_elmt(oext_values[i])) continue;
-                        for (int j=0; j< last_list_item->var_ct; j++)//is this var. used in this edit?
-                            if (!strcasecmp(last_list_item->vars_used[j].name, used_vars[i].name))
+                        if (!use_elmt(*oext_values[i])) continue;
+                        for (int j=0; j< this_list_item->var_ct; j++)//is this var. used in this edit?
+                            if (!strcasecmp(this_list_item->vars_used[j].name, used_vars[i].name))
                                 {(*ofailures[i])++; break;}
                     }
                 if (has_preed &&  i > *last_run_preedit) {preedit_to_run=i; break;}
@@ -190,16 +200,20 @@ static void report_failure(int i, int const *rowfailures){
 not have the same value as the edit in that column), we know that the record 
 passes the edit; move on to the next.
 
-  If the input array failures is NULL, then we're in brief mode: first time we find a
+  If the input array *failures is NULL, then we're in brief mode: first time we find a
   failed edit, then exit reporting non-passing.
 
   If failures is an array to be filled (of size nsize: the number of fields in
   em), then check all edits, and mark down every field involved in any failure.
   There is one slot per field (i.e., it is unrelated to any subset of records
   requested by the user).
-  */
+
+  Some fields are currently NULL because we promise to impute them later. If a 
+  promised field is NULL, and there is no preedit associated, then skip that edit.
+*/
 static int check_a_record_discrete(int const * restrict row,  int **failures,
-                    bool *has_sql_edits, int *preedit_to_run, int last_run_preedit){
+                    bool *has_sql_edits, int *preedit_to_run, int last_run_preedit,
+                    bool const *promised_nans){
     int rowfailures[total_var_ct];
     int out = 0;
     if (failures)   //is this initialization necessary?
@@ -217,6 +231,7 @@ static int check_a_record_discrete(int const * restrict row,  int **failures,
         }
         int rowfailed = 1; //each row is guilty until proven innocent.
         int has_actual_failed_fields=0;
+        char *has_preed = edit_grid_to_list[i]->pre_edit;
         memset(rowfailures, 0, sizeof(int)*total_var_ct);
         int rec = 0;
         for (int j =0; j < edit_grid->matrix->size2; j++){
@@ -229,6 +244,11 @@ static int check_a_record_discrete(int const * restrict row,  int **failures,
                 }
                 //else, row[j]==-1 && edit grid has a -1
             } else if (row[j]){
+                if (j==find_e[rec]-1 //this field value==NULL; see the declaration parser in peptalk.y
+                        && promised_nans[rec] && !has_preed){
+                    rowfailed = 0;
+                    break;
+                }
                 if (gsl_matrix_get(edit_grid->matrix, i, j)) {
                     if (entering(i, rec)){
                         rowfailures[rec]= j-find_b[rec]+2;//use the record value as a marker.
@@ -250,7 +270,6 @@ static int check_a_record_discrete(int const * restrict row,  int **failures,
                     *failures[k] += !!rowfailures[k]; //adds one or zero.
                 report_failure(i, rowfailures);
             }
-            char *has_preed = edit_grid_to_list[i]->pre_edit;
             if (has_preed && i > last_run_preedit){ //making fwd progress on preedits
                 *preedit_to_run = i; //don't run it until you know no SQL preedits precede this.
                 return out;
@@ -268,22 +287,22 @@ static int check_a_record_discrete(int const * restrict row,  int **failures,
 
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
-static void fill_a_record(int *record, int record_width, char * const restrict *oext_values, long int id){
+static void fill_a_record(int *record, int record_width, char ** const restrict *oext_values, long int id){
     for (int rctr=0; rctr < record_width; rctr++)
         record[rctr]=-1;   //-1 == ignore-this-field marker
     int rctr=0; //i is the index for oext_values or used_vars; rctr for record.
     for (int i=0; i < total_var_ct; i++){
-        if (!oext_values[i] || 
-                (oext_values[i] && *oext_values[i]=='\0') ||used_vars[i].type=='r')
+        if (!*oext_values[i] || 
+                (*oext_values[i] && **oext_values[i]=='\0') ||used_vars[i].type=='r')
             continue;
-        int ri_position = ri_from_ext(used_vars[i].name, oext_values[i]);
+        int ri_position = ri_from_ext(used_vars[i].name, *oext_values[i]);
         if (ri_position == -100) continue;  //This variable wasn't declared ==> can't be in an edit.
         for(int  kk = find_b[rctr]-1; kk< find_e[rctr]; kk++)
             record[kk] = 0;
         Tea_stopif(ri_position == -1 , return, 0, "I couldn't find the value %s in your "
                 "declarations for the variable %s. Please remove the error from the data or "
                 "add that value to the declaration, then restart the program so I can rebuild "
-                "some internal data structures.", oext_values[i], used_vars[i].name);
+                "some internal data structures.", *oext_values[i], used_vars[i].name);
         int bit = find_b[rctr]-1 + ri_position-1;
         Tea_stopif(bit >= record_width || bit < 0, return, 0,
                     "About to shift position %i in a record, but there "
@@ -310,9 +329,11 @@ static void do_fields_and_fails_agree(int **ofailed_fields, int fails_edits, int
 
 /* see tea.h for documentation.
 
-BUG: R won't let you pass a long int from R to C. ID numbers are often long ints. Probably the only solution is to ass the id as a string. This only affects an output when verbose is on, not internal processing.
+BUG: R won't let you pass a long int from R to C. ID numbers are often long
+ints. Probably the only solution is to pass the id as a string. This only affects an
+output when verbose is on, not internal processing.
 */
-int consistency_check(char * *oext_values, char const *what_you_want, 
+int consistency_check(char ***oext_values, char const *what_you_want, 
 			long int id, int **ofailed_fields, bool do_preedits){
 
     if (!edit_grid) init_edit_list();
@@ -326,21 +347,27 @@ int consistency_check(char * *oext_values, char const *what_you_want,
     int fail_count;
     bool pf = !strcmp(what_you_want, "passfail");
     bool has_sql_edits = false;
-    for (int run=0; gotta_start_over && run < 100; run++){
+    bool promised_nans[total_var_ct];memset(promised_nans, 0, sizeof(bool)*total_var_ct);  //TO DO
+    while (gotta_start_over){
         gotta_start_over = false;
         int preed_to_run = -1;
         fill_a_record(record, width, oext_values, id);
         fail_count = check_a_record_discrete(record, ofailed_fields,
-                                                  &has_sql_edits, &preed_to_run, last_run_preed);
+                                          &has_sql_edits, &preed_to_run, last_run_preed, promised_nans);
+        if (pf && fail_count && !do_preedits)
+            return 1;
         if (has_sql_edits||(preed_to_run>=0 && preed_to_run < INT_MAX)) 
             fail_count += check_a_record_sql(oext_values, ofailed_fields,
-                                                 &last_run_preed, preed_to_run, &gotta_start_over);
+                                                 &last_run_preed, preed_to_run, &gotta_start_over, promised_nans);
     }
     Tea_stopif(gotta_start_over, return 1, 0,
                 "Over 100 pre-edits made. I am probably stuck in a loop.")
 
     if (!pf) do_fields_and_fails_agree(ofailed_fields, fail_count, total_var_ct);
 
+    for (int i=0; i< total_var_ct; i++)
+        printf("%s\t", XN(*oext_values[i]));
+    printf("\n");
     return fail_count;
 }
 
@@ -367,7 +394,9 @@ apop_data *checkData(apop_data *data, bool do_preedits){
 
     //sort filed names to ordered by external value lists.
     //these are pointers to failed_fields and vals, and so follow along as those change.
-    char *oext_values[total_var_ct];
+    char **oext_values[total_var_ct];
+    for (int i=0; i<total_var_ct; i++)
+        oext_values[i] = calloc(1, sizeof(char*));
     int *ofailed_fields[total_var_ct];
     memset(failed_fields, 0, nvars*sizeof(int));
     order_things_int(failed_fields, fields, nvars, ofailed_fields);
@@ -386,9 +415,11 @@ apop_data *checkData(apop_data *data, bool do_preedits){
 
         consistency_check(oext_values, "failed fields", idx, ofailed_fields, do_preedits);
 
+
 		//insert failure counts
 		for(int jdx=0; jdx < nvars; jdx++)
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);
 	}
+apop_data_show(data);
 	return failCount;
 }

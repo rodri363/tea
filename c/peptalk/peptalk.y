@@ -314,13 +314,11 @@ void add_var(char const *var, int is_recode, char type){
     optionct[total_var_ct-1] = 0;
     if (type!='r'){
         apop_table_exists(current_var, 'd');
-		/*ahh here it is, table was always text*/
-		if(type=='i')
-	        apop_query("create table %s (%s integer); create index indx%svar on %s(%s)",
-                                    var, var,var,var,var);
-		else
-	        apop_query("create table %s (%s text); create index indx%svar on %s(%s)",
-                                    var, var,var,var,var);
+		char *typestr =   type == 'i' ? "integer"
+                        : type == 'r' ? "real"
+                                      : "text";
+        apop_query("create table %s (%s %s); create index indx%svar on %s(%s)",
+                                var, var, typestr, var,var,var);
         apop_query("insert into variables values ('%s')", var);
     }
 }
