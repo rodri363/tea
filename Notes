@@ -264,6 +264,13 @@ check_a_record is where the real action happens. It is a for loop over all of th
 There are also features for finding alternatives that are valid (via a recursive search
 over all possible values). We haven't used this feature in a while, however.
 
+The setit function is where any change to the data due to editing or imputation gets
+written. As per the tutorial, there are two options: autofill the change to the original
+data set, or add to a filltab that could be checked out via checkOutImpute after the run.
+This is the function where the actual SQL to do these things happens, and is often a good
+place to put a breakpoint if needed. Structs of type tabinfo_s support this function,
+because we often need a lot of details about the database for this function that are
+unused in the processing along the way.
 
 --------------A walk-through of imputation
 
@@ -362,9 +369,8 @@ turned out to be easier to just rewrite everything from scratch.
         --in some cases it will mean re-estimating the model, especially when this
             imputation step builds on a previous imputation.
 	--the output is a multi-impute table, with a row/col coordinate for what's
-		being filled in, plus a column per imputation.
-    --This is often overkill, and we just want to fill in the table sent in; this is the
-        autofill option.
+		being filled in, plus a column per imputation, or an autofill to the
+		input table. See the setit fn, as described in the checking walk-through.
 
 --Anybody left? If somebody didn't have enough data in their category to produce good
     estimates, remove the bottom-most category from the list and re-run.

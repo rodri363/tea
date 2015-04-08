@@ -104,8 +104,11 @@ static bool run_preedit(char *** oext_values, char const *preed){
                 ctr++;
                 continue; //no change.
         }
-        if (postval_is_null) *oext_values[octr] = NULL;
-        else                 Asprintf(oext_values[octr], postval);
+        if (postval_is_null) {
+            *oext_values[octr] = NULL;
+        } else {
+            Asprintf(oext_values[octr], postval);
+        }
         ctr++;
     }
 
@@ -421,4 +424,43 @@ apop_data *checkData(apop_data *data, bool do_preedits){
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);
 	}
 	return failCount;
+}
+
+bool an_edit(char const *in_tab, char const *out_tab, char const *tag){
+    char *do_preedits = get_key_word_tagged("edit", "do preedits", tag);
+    char *subset = get_key_word_tagged("edit", "subset", tag);
+
+    apop_data *d = apop_query_to_text ("select * from %s %s %s", 
+                                        in_tab, subset?"where":" ", XN(subset) );
+    Tea_stopif(!d, return false, 0, "Trouble pulling data from table %s.", in_tab);
+    apop_data *pre_d = apop_data_copy(d);
+
+    checkData(d, do_preedits);
+
+    //creating an output table like this means that type affinities are preserved.
+    //We expect to see relatively few changes, so the updates shouldn't be too expensive.
+    begin_transaction();
+    apop_query("create table %s as select * from %s %s %s",
+                             out_tab, in_tab, subset?"where":" ", XN(subset) );
+
+    //break here.
+
+    commit_transaction();
+    apop_data_show(pre_d);
+
+    apop_data_show(d);
+    apop_data_free(d);
+    apop_data_free(pre_d);
+
+    //Tea_stopif(!failCount, return true, 1, "Edits passed! %s is clean data.", out_tab);
+//    Tea_stopif(failCount, return true, 1, "%s still has %i edit failures.", out_tab, failCount);
+      return true;
+}
+
+/* TeaKEY(edit, <<<This key includes subkeys to describe where cleaned data should be
+written, whether to do preedits, and other logistics. The list of conditions to check are specified in the separate "checks" segment of the spec.>>>)
+TeaKEY(edit/subset, <<<Pull only certain rows from the input table to edit. E.g., "subset: age > 18". Rows that do not match your condition are ignored and will not appear in the output table.>>>)
+ */
+void edit(char **idatatab, int *autofill){
+    run_all_tags("edit", idatatab, autofill);
 }

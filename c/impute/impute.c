@@ -415,14 +415,13 @@ static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
                                  id_number, NULL, /*do_preedits=*/true);
 }
 
-static void setit(char const *tabname, int draw, char const *final_value, char const *id_col,
-                    char const *id, char const *field_name, bool autofill){
+static void setit(tabinfo_s ti, char const *final_value, char const *field_name){
         char tick = final_value ? '\'': ' ';
-        if (!autofill)
+        if (!ti.autofill)
              apop_query("insert into %s values(%i, %c%s%c, '%s', '%s');",
-                       tabname,  draw, tick, XN(final_value), tick, id, field_name);
+                       ti.tabname, ti.draw_number, tick, XN(final_value), tick, ti.id, field_name);
         else apop_query("update %s set %s = %c%s%c where  %s='%s';",
-                       tabname, field_name, tick, XN(final_value), tick, id_col, id);
+                       ti.tabname, field_name, tick, XN(final_value), tick, ti.id_col, ti.id);
 }
 
 bool strings_dont_match(char const *a, char const *b){ return (a && !b) || (!a && b) || strcmp(a, b); }
@@ -449,8 +448,8 @@ A NULL in oext_values means the element doesn't need to be recorded later.
  */
 
 //a shell for do onedraw() while (!done).
-void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
-                        int draw, apop_data *nanvals, char const *filltab, bool last_chance){
+void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
+                        tabinfo_s ti, apop_data *nanvals, bool last_chance){
     int col_of_interest = is->depvar ? is->var_posns[0]: -1;
 
     char **oext_values[total_var_ct];
@@ -471,7 +470,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
 
         if (is->depvar){
             apop_data *drecord = NULL;
-            char *associated_query = get_edit_associates(is->depvar, col_of_interest, dt, id_col, id_number, &has_edits);
+            char *associated_query = get_edit_associates(is->depvar, col_of_interest, dt, ti.id_col, id_number, &has_edits);
             if (has_edits && associated_query) drecord = apop_query_to_text(associated_query);
             Tea_stopif(has_edits && associated_query && !*drecord->textsize, return, 0,
                         "Trouble querying for fields associated with %s", is->depvar);
@@ -501,19 +500,18 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
             "computer can't fix.\nI'm at id %li.", id_number);
 
         if (!fail_count){
+            ti.id = is->isnan->names->row[rowindex];
             if (!has_edits && is->depvar){ //is->depvar is a semaphore for not the EM model.
                 char * final_value = *oext_values[col_of_interest];
                 Tea_stopif(!final_value || isnan(atof(final_value)), goto cutout, 0,
                          "I drew a blank from the imputed column "
                          "when I shouldn't have for record %li.", id_number);
-                setit(is->autofill?datatab:filltab, draw, final_value, id_col,
-                        is->isnan->names->row[rowindex], is->depvar, is->autofill);
+                setit(ti, final_value, is->depvar);
             }
             else for (int i=0; i< total_var_ct; i++){
                if (!*oext_values[i] && !pre_preedit[i]) continue;
                if (col_of_interest==i || strings_dont_match(*oext_values[i], pre_preedit[i]))
-                    setit(is->autofill?datatab:filltab, draw, *oext_values[i], id_col,
-                        is->isnan->names->row[rowindex], used_vars[i].name, is->autofill);
+                    setit(ti, *oext_values[i], used_vars[i].name);
             }
         }
         for (int i=0; i< total_var_ct; i++) free(pre_preedit[i]);
@@ -587,9 +585,15 @@ static void impute_a_variable(const char *datatab, impustruct *is,
                                         ||is->base_model->estimate ==apop_pmf->estimate);
                 model_est(is, &model_id); //notnan may be pmf_compressed here.
                 prep_for_draw(is);
-                for (int innerdraw=0; innerdraw< innermax; innerdraw++)
-                    make_a_draw(is, r, id_col, dt, GSL_MAX(outerdraw, innerdraw), nanvals, filltab,
+
+                //info primarily used for writing to the db.
+                tabinfo_s tabinfo = {.tabname=is->autofill?datatab:filltab,
+                             .id_col=id_col, .autofill = is->autofill};
+                for (int innerdraw=0; innerdraw< innermax; innerdraw++){
+                    tabinfo.draw_number = GSL_MAX(outerdraw, innerdraw);
+                    make_a_draw(is, r, dt, tabinfo, nanvals,
                                     (!category_matrix||!*category_matrix->textsize));
+                }
                 apop_model_free(is->fitted_model); //if (is_hotdeck) apop_data_free(is->fitted_model->data);
                 bail:
                 apop_data_free(is->notnan);
@@ -816,6 +820,8 @@ int do_impute(char **tag, char **idatatab, int *autofill){
 
     if (model.is_em) {
         apop_data *catlist=NULL;
+        tabinfo_s tabinfo={.tabname=*autofill? *idatatab : out_tab,
+                           .id_col=id_col, .autofill=*autofill};
         if (category_matrix){
             char *cats = apop_text_paste(category_matrix, .between=", ");
             catlist = apop_query_to_text("select distinct %s from %s", cats, *idatatab);
@@ -834,8 +840,8 @@ int do_impute(char **tag, char **idatatab, int *autofill){
             }
             char *margintab = get_key_word_tagged(configbase, "margin table", *tag);
             em_to_completion(*idatatab, model, min_group_size, 
-                        r, draw_count, wherecat, fingerprint_vars, id_col, 
-                        weight_col, out_tab, margintab, previous_fill_tab);
+                        r, draw_count, wherecat, fingerprint_vars, tabinfo, 
+                        weight_col, margintab, previous_fill_tab);
         }
     }
     else impute_a_variable(*idatatab, &model, min_group_size, 
@@ -847,7 +853,7 @@ int do_impute(char **tag, char **idatatab, int *autofill){
     return true;
 }
 
-/* TeaKEY(impute, <<<The key where the user defines all of the subkeys related to the doMImpute() part of the imputation process. For details on these subkeys, see their descriptions elsewhere in the appendix.>>>)
+/* TeaKEY(impute, <<<The key where the user defines all of the subkeys related to the doMImpute() part of the imputation process.>>>)
  */
 void impute(char **idatatab, int *autofill){ 
     apop_table_exists("tea_fails", 'd');

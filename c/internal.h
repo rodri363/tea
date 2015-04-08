@@ -43,6 +43,17 @@ int using_r; //r_init handles this. If zero, then it's a standalone C library.
 apop_data * get_variables_to_impute(char *tag); 
 int do_impute(char **tag, char **idatatab, int *autofill);
 
+typedef struct { //info primarily used for writing to the db.
+    char const *tabname;
+    int draw_number;
+    char const *id_col;
+    char const *id;
+    _Bool autofill;
+} tabinfo_s;
+
+static void setit(tabinfo_s, char const *final_value, char const *id_col);
+//static void setit(char const *tabname, int draw, char const *final_value, char const *id_col, char const *id, char const *field_name, bool autofill);
+
 typedef struct {
 	apop_model *base_model, *fitted_model;
 	char *depvar, **allvars, *vartypes, *selectclause, *subset,
@@ -53,15 +64,14 @@ typedef struct {
     bool is_bounds_checkable, is_hotdeck, textdep, is_em, is_regression, allow_near_misses, autofill;
 } impustruct;
 
-void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
-                                int draw, apop_data *nanvals, char const *filltab, bool last_chance);
+void make_a_draw(impustruct *is, gsl_rng *r, char const *dt, tabinfo_s ti, apop_data *nanvals, bool last_chance);
 
 //impute/em.c
 void em_to_completion(char const *datatab,
         impustruct is, int min_group_size, gsl_rng *r,
         int draw_count, char *catlist,
-        apop_data const *fingerprint_vars, char const *id_col,
-        char const *weight_col, char const *fill_tab, char const *margintab,
+        apop_data const *fingerprint_vars, tabinfo_s tabinfo,
+        char const *weight_col, char const *margintab,
         char *previous_filltab);
 
 int join_tables(char const* tag); //text_in/text_in.c
