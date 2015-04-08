@@ -68,10 +68,12 @@ static void sqlify(char ** const restrict* oext_values){
             xprintf(&insert, "%s%c NULL ", insert, comma);
         else 
             xprintf(&insert, "%s%c'%s' ", insert, comma, *oext_values[i]);
-        xprintf(&qstring, "%s%c'%s' ", qstring, comma, used_vars[i].name);
+        char *type = used_vars[i].type=='r' || used_vars[i].type=='i' ? "numeric" : "text";
+        xprintf(&qstring, "%s%c'%s' %s ", qstring, comma, used_vars[i].name, type);
+
         comma=',';
     }
-    xprintf(&qstring, "%s numeric); %s);", qstring, insert);
+    xprintf(&qstring, "%s); %s);", qstring, insert);
     apop_query("%s", qstring);
     free(insert);
     free(qstring);
@@ -87,9 +89,7 @@ static bool run_preedit(char *** oext_values, char const *preed){
     apop_query("update tea_test %s", preed);
     apop_data *newvals = apop_query_to_text("select * from tea_test");
 
-printf("> > %s\n", preed);
-apop_data_print(newvals);
-printf("< <\n");
+//printf("> %s\n", preed);
 
     int ctr=0; //order is the same as oext_values; just have to find the entering fields.
     for (int octr=0; octr< total_var_ct; octr++){
@@ -104,7 +104,6 @@ printf("< <\n");
                 ctr++;
                 continue; //no change.
         }
-printf("%s: [%s] →→ [%s]\n", used_vars[ctr].name, XN(preval), XN(postval));
         if (postval_is_null) *oext_values[octr] = NULL;
         else                 Asprintf(oext_values[octr], postval);
         ctr++;
@@ -126,7 +125,7 @@ static int check_a_record_sql(char *** oext_values, int **ofailures,
     begin_transaction();
     if (!apop_table_exists("tea_test")) sqlify(oext_values); //else, we're redoing after a preedit.
 
-    //TO DO: ingomring promised_nans is a bug 
+    //TO DO: ingoring promised_nans is a bug 
     if (!ofailures && *last_run_preedit==INT_MAX){   //just want pass-fail ==> run a single yes/no query
         char *q = apop_text_paste(edit_grid, .between=") or (", .after=")",
               .before= "select count(*) from tea_test where (", .prune=prune_edits,
@@ -147,6 +146,8 @@ static int check_a_record_sql(char *** oext_values, int **ofailures,
             int fails = usable_sql[i] && apop_query_to_float("select count(*) from tea_test where (%s)",
                                                                 *edit_grid->text[i]);
             if (fails){
+//printf("FF: %s\n", *edit_grid->text[i]);
+//apop_data_print(apop_query_to_text("select * from tea_test"));
                 if (ofailures)
                     for (int i=0; i<total_var_ct; i++){
                         if (!use_elmt(*oext_values[i])) continue;
@@ -365,9 +366,9 @@ int consistency_check(char ***oext_values, char const *what_you_want,
 
     if (!pf) do_fields_and_fails_agree(ofailed_fields, fail_count, total_var_ct);
 
-    for (int i=0; i< total_var_ct; i++)
-        printf("%s\t", XN(*oext_values[i]));
-    printf("\n");
+/*for (int i=0; i< total_var_ct; i++)
+    printf("%s\t", XN(*oext_values[i]));
+printf("\n");*/
     return fail_count;
 }
 
@@ -415,11 +416,9 @@ apop_data *checkData(apop_data *data, bool do_preedits){
 
         consistency_check(oext_values, "failed fields", idx, ofailed_fields, do_preedits);
 
-
 		//insert failure counts
 		for(int jdx=0; jdx < nvars; jdx++)
 			apop_data_set(failCount,.row=idx,.col=jdx,.val=failed_fields[jdx]);
 	}
-apop_data_show(data);
 	return failCount;
 }
