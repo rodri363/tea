@@ -85,7 +85,7 @@ static void sqlify(char ** const restrict* oext_values){
    after a preedit is that the entire consistency check reruns, so if somebody wrote
    a preedit that somehow leaves the record unchanged, we only lose a few cycles. */
 
-static bool run_preedit(char *** oext_values, char const *preed){
+static bool run_preedit(char *** oext_values, char const *preed, tabinfo_s tabinfo){
     apop_query("update tea_test %s", preed);
     apop_data *newvals = apop_query_to_text("select * from tea_test");
 
@@ -106,8 +106,10 @@ static bool run_preedit(char *** oext_values, char const *preed){
         }
         if (postval_is_null) {
             *oext_values[octr] = NULL;
+            if (tabinfo.tabname) setit(tabinfo, NULL, used_vars[octr].name);
         } else {
             Asprintf(oext_values[octr], postval);
+            if (tabinfo.tabname) setit(tabinfo, postval, used_vars[octr].name);
         }
         ctr++;
     }
@@ -120,7 +122,7 @@ static bool run_preedit(char *** oext_values, char const *preed){
 static int check_a_record_sql(char *** oext_values, int **ofailures,
                          int *last_run_preedit,
                          int preedit_to_run,
-                         bool *gotta_start_over, bool const *promised_nans
+                         bool *gotta_start_over, bool const *promised_nans, tabinfo_s tabinfo
                          ){
     int out = 0;
     bool usable_sql[edit_grid->vector->size];
@@ -164,7 +166,7 @@ static int check_a_record_sql(char *** oext_values, int **ofailures,
     }
 
     if (preedit_to_run >=0){
-        run_preedit(oext_values, edit_grid_to_list[preedit_to_run]->pre_edit);
+        run_preedit(oext_values, edit_grid_to_list[preedit_to_run]->pre_edit, tabinfo);
         *last_run_preedit = preedit_to_run;
         *gotta_start_over = true;
     }
@@ -291,7 +293,7 @@ static int check_a_record_discrete(int const * restrict row,  int **failures,
 
 // Generate a record in DISCRETE's preferred format for the discrete-valued fields,
 // and a query for the real-valued.
-static void fill_a_record(int *record, int record_width, char ** const restrict *oext_values, long int id){
+static void fill_a_record(int *record, int record_width, char ** const restrict *oext_values, char const*id){
     for (int rctr=0; rctr < record_width; rctr++)
         record[rctr]=-1;   //-1 == ignore-this-field marker
     int rctr=0; //i is the index for oext_values or used_vars; rctr for record.
@@ -315,7 +317,7 @@ static void fill_a_record(int *record, int record_width, char ** const restrict 
         rctr++;
     }
     if (verbose){
-        printf("record %li:\n", id);
+        printf("record %s:\n", id);
         for (int rctr=0; rctr< record_width; rctr++)
             printf("%i\t", record[rctr]);
         printf("\n");
@@ -331,15 +333,9 @@ static void do_fields_and_fails_agree(int **ofailed_fields, int fails_edits, int
 }
 
 
-/* see tea.h for documentation.
-
-BUG: R won't let you pass a long int from R to C. ID numbers are often long
-ints. Probably the only solution is to pass the id as a string. This only affects an
-output when verbose is on, not internal processing.
-*/
+// See tea.h for documentation.
 int consistency_check(char ***oext_values, char const *what_you_want, 
-			long int id, int **ofailed_fields, bool do_preedits){
-
+			 int **ofailed_fields, bool do_preedits, tabinfo_s tabinfo){
     if (!edit_grid) init_edit_list();
     if (!edit_grid || !edit_grid->matrix) return 0; //then there are no edits.
 
@@ -355,17 +351,15 @@ int consistency_check(char ***oext_values, char const *what_you_want,
     while (gotta_start_over){
         gotta_start_over = false;
         int preed_to_run = -1;
-        fill_a_record(record, width, oext_values, id);
+        fill_a_record(record, width, oext_values, tabinfo.id);
         fail_count = check_a_record_discrete(record, ofailed_fields,
                                           &has_sql_edits, &preed_to_run, last_run_preed, promised_nans);
         if (pf && fail_count && !do_preedits)
             return 1;
         if (has_sql_edits||(preed_to_run>=0 && preed_to_run < INT_MAX)) 
-            fail_count += check_a_record_sql(oext_values, ofailed_fields,
-                                                 &last_run_preed, preed_to_run, &gotta_start_over, promised_nans);
+            fail_count += check_a_record_sql(oext_values, ofailed_fields, &last_run_preed,
+                                                  preed_to_run, &gotta_start_over, promised_nans, tabinfo);
     }
-    Tea_stopif(gotta_start_over, return 1, 0,
-                "Over 100 pre-edits made. I am probably stuck in a loop.")
 
     if (!pf) do_fields_and_fails_agree(ofailed_fields, fail_count, total_var_ct);
 
@@ -378,7 +372,7 @@ printf("\n");*/
 /* Take in a data set; check each row. Return a table of the same size, with each cell
    indicating the number of edit failures for the corresponding cell in the original data.
 */
-apop_data *checkData(apop_data *data, bool do_preedits){
+apop_data *checkData(apop_data *data, bool do_preedits, tabinfo_s tabinfo){
 	Tea_stopif(!data, return NULL, 1, "NULL data; returning NULL failure set.");
     //copy field names from the input data.
 	int nvars = data->names->colct + data->names->textct;
@@ -417,7 +411,8 @@ apop_data *checkData(apop_data *data, bool do_preedits){
         memset(failed_fields, 0, nvars*sizeof(int));
         order_things(vals, fields, nvars, oext_values); //has to be here for NaN-handling.
 
-        consistency_check(oext_values, "failed fields", idx, ofailed_fields, do_preedits);
+        tabinfo.id=(data->names && data->names->rowct) ? data->names->row[idx]: 0;
+        consistency_check(oext_values, "failed fields", ofailed_fields, do_preedits, tabinfo);
 
 		//insert failure counts
 		for(int jdx=0; jdx < nvars; jdx++)
@@ -427,39 +422,32 @@ apop_data *checkData(apop_data *data, bool do_preedits){
 }
 
 bool an_edit(char const *in_tab, char const *out_tab, char const *tag){
+    bool out=true;
+    char *tmp_db_name_col = strdup(apop_opts.db_name_column);
+    tabinfo_s ti = setup_tabinfo("edit", in_tab, out_tab, /*autofill in=*/false, tag);
+    ti.draw_number = 0; //effectively unused for edits.
+
     char *do_preedits = get_key_word_tagged("edit", "do preedits", tag);
     char *subset = get_key_word_tagged("edit", "subset", tag);
 
     apop_data *d = apop_query_to_text ("select * from %s %s %s", 
                                         in_tab, subset?"where":" ", XN(subset) );
-    Tea_stopif(!d, return false, 0, "Trouble pulling data from table %s.", in_tab);
-    apop_data *pre_d = apop_data_copy(d);
-
-    checkData(d, do_preedits);
-
-    //creating an output table like this means that type affinities are preserved.
-    //We expect to see relatively few changes, so the updates shouldn't be too expensive.
+    Tea_stopif(!d, out=false; goto out, 0, "Trouble pulling data from table %s.", in_tab);
     begin_transaction();
-    apop_query("create table %s as select * from %s %s %s",
-                             out_tab, in_tab, subset?"where":" ", XN(subset) );
-
-    //break here.
-
+    checkData(d, !(do_preedits && do_preedits[0]=='n'), ti);
     commit_transaction();
-    apop_data_show(pre_d);
-
-    apop_data_show(d);
     apop_data_free(d);
-    apop_data_free(pre_d);
 
-    //Tea_stopif(!failCount, return true, 1, "Edits passed! %s is clean data.", out_tab);
-//    Tea_stopif(failCount, return true, 1, "%s still has %i edit failures.", out_tab, failCount);
-      return true;
+    out:
+    sprintf(apop_opts.db_name_column, "%s", tmp_db_name_col);
+    return true;
 }
 
 /* TeaKEY(edit, <<<This key includes subkeys to describe where cleaned data should be
 written, whether to do preedits, and other logistics. The list of conditions to check are specified in the separate "checks" segment of the spec.>>>)
 TeaKEY(edit/subset, <<<Pull only certain rows from the input table to edit. E.g., "subset: age > 18". Rows that do not match your condition are ignored and will not appear in the output table.>>>)
+TeaKEY(edit/output table, <<<Where the fill-ins will be written. You'll still need {\tt checkOutImpute} to produce a completed table. The default is named {\tt filled}.>>>)
+TeaKey(edit/autofill, <<<Write the edits directly to the input table, rather than to an output table. Including this key and setting it to any value except "no" will turn on this option.>>>)
  */
 void edit(char **idatatab, int *autofill){
     run_all_tags("edit", idatatab, autofill);

@@ -65,6 +65,14 @@ extern int verbose;
 void get_verbosity(int *out);
 void set_verbosity(int *in);
 
+typedef struct { //info primarily used for writing to the db.
+    char const *tabname;
+    int draw_number;
+    char const *id_col;
+    char const *id;
+    _Bool autofill;
+} tabinfo_s;
+
 //in discrete/consistency.c
 /** This function will either return a pass/fail vote as to whether an input record
 passes edits, or provide a score counting how often each field caused an edit to fail.
@@ -84,9 +92,10 @@ be nonzero.
 \return 0=passes all edits. If "failed fields", the count of failed fields. If "passfail", something nonzero if there are failed fields.
 */
 int consistency_check(char ***oext_values, char const * what_you_want, 
-			long int id, int **ofailed_fields, _Bool do_preedits);
+			          int **ofailed_fields, _Bool do_preedits, tabinfo_s);
 
-apop_data *checkData(apop_data *data, _Bool do_preedits);
+apop_data *checkData(apop_data *data, _Bool do_preedits, tabinfo_s);
+_Bool an_edit(char const *in_tab, char const *out_tab, char const *tag);
 
 //key-getting functions for the C side. Notice that get_text returns an apop_data set.
 apop_data * get_key_text(char const *part1, char const *part2);

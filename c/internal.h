@@ -42,16 +42,10 @@ int using_r; //r_init handles this. If zero, then it's a standalone C library.
 //impute/impute.c:
 apop_data * get_variables_to_impute(char *tag); 
 int do_impute(char **tag, char **idatatab, int *autofill);
+tabinfo_s setup_tabinfo(char const *configbase, char const *intab, char const *out_tab,
+                        bool autofill_in, char const *tag);
 
-typedef struct { //info primarily used for writing to the db.
-    char const *tabname;
-    int draw_number;
-    char const *id_col;
-    char const *id;
-    _Bool autofill;
-} tabinfo_s;
-
-static void setit(tabinfo_s, char const *final_value, char const *id_col);
+void setit(tabinfo_s, char const *final_value, char const *field_name);
 //static void setit(char const *tabname, int draw, char const *final_value, char const *id_col, char const *id, char const *field_name, bool autofill);
 
 typedef struct {

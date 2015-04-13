@@ -120,7 +120,7 @@ bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild){
     Tea_stopif(!OK, /*return false*/,
             0, "Trouble building predecessor table for %s.", Output(row));
 
-    if (!Match(SegType(row), "impute")) {
+    if (!Match(SegType(row), "impute") && !Match(SegType(row), "edit")) {
         if (Overwrite(row)[0]=='y' || *rebuild) {
             apop_table_exists(Output(row), 'd');
             *rebuild=true;
@@ -130,6 +130,9 @@ bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild){
     }
 
     *active_tab = Output(row);
+    Tea_stopif(Match(SegType(row), "edit"),
+                return an_edit(Input(row), Output(row), Tag(row)),
+                0, "Doing edits for %s.", Input(row));
     Tea_stopif(Match(SegType(row), "input"),
                 return text_in_by_tag(Tag(row)),
                 0, "Doing input for %s.", Output(row));

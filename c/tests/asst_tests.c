@@ -16,7 +16,7 @@ char *db_dummy;
 
 void test_consistency(){
     apop_data *d = apop_query_to_text("select * from d");
-    apop_data *out = checkData(d, 0);
+    apop_data *out = checkData(d, 0, (tabinfo_s){});
     for (int i=0; i< d->textsize[0]; i++){
         int fail_ct = apop_sum(Apop_rv(out, i));
         assert(((d->text[i][0][0]=='2' || (d->text[i][0][0]=='1' && d->text[i][1][0]=='2')) 
@@ -194,7 +194,7 @@ void just_like_the_R_test(int autofill){
     if (!autofill) check_out_impute(&d, &checkout, &zero, NULL, NULL);
 
     //this is not just like the R test:
-    checkData(apop_query_to_text("select * from %s", checkout), 0);
+    checkData(apop_query_to_text("select * from %s", checkout), 0, (tabinfo_s){});
     apop_db_close();
     foreach(s, "spec", "t.db", "indata"){ remove(*s); }
 }

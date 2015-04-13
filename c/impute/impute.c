@@ -381,7 +381,7 @@ then sending it to consistency_check for an up-down vote.
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
 */
 static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
-                    char ***oext_values, int col_of_interest, bool has_edits){
+                    char ***oext_values, int col_of_interest, bool has_edits, tabinfo_s ti){
     double x[is->fitted_model->dsize];
     apop_draw(x, r, is->fitted_model);
     Tea_stopif(isnan(*x), return -1, 0, "I drew NaN from the fitted model. Something is wrong.");
@@ -411,11 +411,10 @@ static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
                 Asprintf(oext_values[is->var_posns[i]], "%g", x[i]);
 
     //just get a success/failure, but a smarter system would request the list of failed fields.
-    return consistency_check(oext_values, "passfail",
-                                 id_number, NULL, /*do_preedits=*/true);
+    return consistency_check(oext_values, "passfail", NULL, /*do_preedits=*/true, ti);
 }
 
-static void setit(tabinfo_s ti, char const *final_value, char const *field_name){
+void setit(tabinfo_s ti, char const *final_value, char const *field_name){
         char tick = final_value ? '\'': ' ';
         if (!ti.autofill)
              apop_query("insert into %s values(%i, %c%s%c, '%s', '%s');",
@@ -491,7 +490,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
                                 ? strdup(*oext_values[i]): NULL;
 
         int fail_count=0;
-        do fail_count = onedraw(r, is, id_number, oext_values, col_of_interest, has_edits);
+        do fail_count = onedraw(r, is, id_number, oext_values, col_of_interest, has_edits, ti);
         while (fail_count && tryctr++ < 100);
         Tea_stopif(last_chance && fail_count, 
                 apop_query("insert into tea_fails values(%li)", id_number)
@@ -539,9 +538,8 @@ double still_is_nan(apop_data *in){return in->names->row[0][strlen(*in->names->r
    
    */
 static void impute_a_variable(const char *datatab, impustruct *is, 
-        const int min_group_size, gsl_rng *r, const int draw_count, apop_data *category_matrix, 
-        const apop_data *fingerprint_vars, const char *id_col, char *filltab,
-        char *previous_filltab){
+        const int min_group_size, gsl_rng *r, const int draw_count, apop_data *category_matrix,
+        const apop_data *fingerprint_vars, tabinfo_s tabinfo, char *previous_filltab){
     static int model_id=-1;
     char *dt;
     char *dataxxx = (char*)datatab; //can't constify checkout, because of R
@@ -552,20 +550,20 @@ static void impute_a_variable(const char *datatab, impustruct *is,
     int innermax = previous_filltab ? 1 : draw_count;
 
     create_index(datatab, is->depvar);
-    create_index(datatab, id_col);
+    create_index(datatab, tabinfo.id_col);
 
     for (int outerdraw=0; outerdraw < outermax; outerdraw++){
         if (previous_filltab){
             Asprintf(&dt, "%s_copy", datatab);
             check_out_impute(&dataxxx, &dt, &outerdraw, NULL, &previous_filltab);
             create_index(dt, is->depvar);
-            create_index(dt, id_col);
+            create_index(dt, tabinfo.id_col);
         } else dt=strdup(datatab);
         begin_transaction();
 
         //Get the list of all missing values, possibly after the fill-ins change subsets.
         //Below, we'll get subsets depending on the categories
-        apop_data *nanvals = get_all_nanvals(*is, id_col, datatab);
+        apop_data *nanvals = get_all_nanvals(*is, tabinfo.id_col, datatab);
         if (!nanvals) continue;
 
         is->is_bounds_checkable = (ri_from_ext(is->depvar, "0") != -100); //-100=var not found.
@@ -576,7 +574,7 @@ static void impute_a_variable(const char *datatab, impustruct *is,
                 Apop_row(nanvals, i, row_i);
                 if (!still_is_nan(row_i)) continue;
                 get_nans_and_notnans(is, nanvals->names->row[i] /*ego_id*/, 
-                        dt, min_group_size, category_matrix, fingerprint_vars, id_col);
+                        dt, min_group_size, category_matrix, fingerprint_vars, tabinfo.id_col);
                 if (!is->isnan) goto bail; //probably a NaN-valued category.
                 if (!is->notnan || GSL_MAX((is->notnan)->textsize[0]
                             , (is->notnan)->matrix ? (is->notnan)->matrix->size1: 0) < min_group_size)
@@ -587,8 +585,6 @@ static void impute_a_variable(const char *datatab, impustruct *is,
                 prep_for_draw(is);
 
                 //info primarily used for writing to the db.
-                tabinfo_s tabinfo = {.tabname=is->autofill?datatab:filltab,
-                             .id_col=id_col, .autofill = is->autofill};
                 for (int innerdraw=0; innerdraw< innermax; innerdraw++){
                     tabinfo.draw_number = GSL_MAX(outerdraw, innerdraw);
                     make_a_draw(is, r, dt, tabinfo, nanvals,
@@ -667,7 +663,7 @@ apop_model *tea_get_model_by_name(char *name, impustruct *model){
         return out;
 }
 
-void prep_imputations(char *configbase, char *id_col, gsl_rng **r){
+void prep_imputations(char *configbase, gsl_rng **r){
     int seed = get_key_float(configbase, "seed");
     *r = apop_rng_alloc((!isnan(seed) && seed>=0) ? seed : 35);
 
@@ -746,6 +742,38 @@ Raking: needs all the variables, in numeric format
     return model;
 }
 
+/* Both edits and imputes need to determine if autofill is on (via input from R or spec
+   key), if not set up a filltab, get the id column. Shared with an_edit() in discrete/consistency.c.
+ */
+tabinfo_s setup_tabinfo(char const *configbase, char const *in_tab, char const *out_tab,
+                                                        bool autofill, char const *tag){
+
+    char *afkey = get_key_word_tagged(configbase, "autofill", tag);
+    autofill = autofill || (afkey && afkey[0] != 'n');
+
+    char *id_col= get_key_word(NULL, "id");
+    if (!id_col) {
+        id_col=strdup("rowid");
+        if (verbose) printf("I'm using the rowid as the unique identifier for the "
+                    "index for the imputations/edits. This is not ideal; you may want "
+                    "to add an explicit Social Security number-type identifier.");
+    }
+
+    //I depend on this column order in a few other places, like check_out_impute_base.
+    if (!autofill && !apop_table_exists(out_tab)){
+        apop_query("create table %s ('draw', 'value', '%s', 'field');", out_tab, id_col);
+        create_index(out_tab, id_col);
+        create_index(out_tab, "field");
+        create_index(out_tab, "draw");
+    }
+
+    sprintf(apop_opts.db_name_column, "%s", id_col); //caller is expected to store/restore the original.
+
+    return (tabinfo_s) {.tabname=autofill?in_tab:out_tab,
+                        .id_col = id_col,
+                        .autofill=autofill};
+}
+
 int impute_is_prepped; //restarts with new read_specs.
 char *configbase = "impute";
 
@@ -757,6 +785,8 @@ char *configbase = "impute";
   TeaKey(impute/autofill, <<<Write the imputations directly to the input table, rather than to an output table. Of course, this makes sense for only one imputation, so the draw count will be set to one. Including this key and setting it to any value except "no" will turn on this option.>>>)
   TeaKEY(impute/earlier output table, <<<If this imputation depends on a previous one, then give the fill-in table from the previous output here.>>>)
   TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
+  TeaKEY(impute/categories, <<<Denotes the categorized set of variables by which to impute your output vars.>>>)
+   TeaKEY(impute/min group size, <<<Specifies the minimum number of known inputs that must be present in order to perform an imputation on a set of data points.>>>)
  */
 int do_impute(char **tag, char **idatatab, int *autofill){ 
     Tea_stopif(get_key_word("impute", "method") == NULL, return false, 0, "You need to specify the method by which you would like to impute your variables. Recall that method is a subkey of the impute key.");
@@ -769,59 +799,40 @@ int do_impute(char **tag, char **idatatab, int *autofill){
     Tea_stopif(!apop_table_exists(*idatatab), return false-1, 0, "'%s/input table' is %s, but I can't "
                      "find that table in the db.", configbase, *idatatab);
 
-    char *af = get_key_word_tagged(configbase, "autofill", *tag);
-    *autofill = *autofill || (af && !strcmp(af, "no"));
-
-/* TeaKEY(impute/categories, <<<Denotes the categorized set of variables by which to impute your output vars.>>>)
- */
-    apop_data *category_matrix = get_key_text_tagged(configbase, "categories", *tag);
-
-/* TeaKEY(impute/min group size, <<<Specifies the minimum number of known inputs that must be present in order to perform an imputation on a set of data points.>>>)
- */
-    float min_group_size = get_key_float_tagged(configbase, "min group size", *tag);
-    if (isnan(min_group_size)) min_group_size = 1;
-
-    float draw_count = *autofill ? 1 : get_key_float_tagged(configbase, "draw count", *tag);
-    if (isnan(draw_count) || !draw_count) draw_count = 1;
-
-    char *weight_col = get_key_word_tagged(configbase, "weights", *tag);
     char *out_tab = in_out_get(*tag, 'o');
-
     char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
     if (!out_tab || (!*out_tab && previous_fill_tab)) out_tab = previous_fill_tab;
     if (!out_tab || !*out_tab) out_tab = "filled";
 
-    char *id_col= get_key_word(NULL, "id");
-    if (!id_col) {
-        id_col=strdup("rowid");
-        if (verbose) printf("I'm using the rowid as the unique identifier for the "
-                    "index for the imputations. This is not ideal; you may want "
-                    "to add an explicit Social Security number-type identifier.");
-    }
     char *tmp_db_name_col = strdup(apop_opts.db_name_column);
-    sprintf(apop_opts.db_name_column, "%s", id_col);
+    tabinfo_s tabinfo=setup_tabinfo(configbase, *idatatab, out_tab, *autofill, *tag);
+
+    apop_data *category_matrix = get_key_text_tagged(configbase, "categories", *tag);
+
+    float min_group_size = get_key_float_tagged(configbase, "min group size", *tag);
+    if (isnan(min_group_size)) min_group_size = 1;
+
+    float draw_count = tabinfo.autofill ? 1 : get_key_float_tagged(configbase, "draw count", *tag);
+    if (isnan(draw_count) || !draw_count) draw_count = 1;
+
+    char *weight_col = get_key_word_tagged(configbase, "weights", *tag);
 
     index_cats(*idatatab, category_matrix);
 
     static gsl_rng *r;
-    if (!impute_is_prepped++) prep_imputations(configbase, id_col, &r);
+    if (!impute_is_prepped++) prep_imputations(configbase, &r);
     //I depend on this column order in a few other places, like check_out_impute_base.
-    if (!*autofill && !apop_table_exists(out_tab))
-        apop_query("create table %s ('draw', 'value', '%s', 'field');", out_tab,id_col);
-    create_index(out_tab, id_col);
-    create_index(out_tab, "field");
-    create_index(out_tab, "draw");
+    if (!tabinfo.autofill && !apop_table_exists(out_tab))
+        apop_query("create table %s ('draw', 'value', '%s', 'field');", out_tab,tabinfo.id_col);
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
 
-    impustruct model = read_model_info(configbase, *tag, id_col);
+    impustruct model = read_model_info(configbase, *tag, tabinfo.id_col);
     model.var_posns = (int[]){get_ordered_posn(model.depvar), -1};
     model.autofill = *autofill;
     Tea_stopif(model.error, return false, 0, "Trouble reading in model info.");
 
     if (model.is_em) {
         apop_data *catlist=NULL;
-        tabinfo_s tabinfo={.tabname=*autofill? *idatatab : out_tab,
-                           .id_col=id_col, .autofill=*autofill};
         if (category_matrix){
             char *cats = apop_text_paste(category_matrix, .between=", ");
             catlist = apop_query_to_text("select distinct %s from %s", cats, *idatatab);
@@ -845,8 +856,7 @@ int do_impute(char **tag, char **idatatab, int *autofill){
         }
     }
     else impute_a_variable(*idatatab, &model, min_group_size, 
-                r, draw_count, category_matrix, fingerprint_vars, id_col, out_tab,
-                previous_fill_tab);
+                r, draw_count, category_matrix, fingerprint_vars, tabinfo, previous_fill_tab);
     apop_data_free(fingerprint_vars);
     apop_data_free(category_matrix);
     sprintf(apop_opts.db_name_column, "%s", tmp_db_name_col);
