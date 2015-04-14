@@ -10,7 +10,7 @@ all:  pkg
 	#cp tea*.tar.gz ~/.
 	#rm -f tea*.tar.gz
 
-test:  pkg
+check:  pkg
 	#R_LIBS=$(R_LIBS) R CMD check tea
 	cd $(Pkg_dir)/..; R_LIBS=$(R_LIBS) R CMD check tea
 	cd $(Pkg_dir)/..; R_LIBS=$(R_LIBS) R CMD build tea | sed '/-fpic/d'

@@ -54,18 +54,15 @@ static apop_data *get_named_tab(char const *varname){
    returned -1 means variable found, but value wasn't.
  */
 int ri_from_ext(char const *varname, char const * ext_val){
-    Tea_stopif(!ext_val, return -1, 0, "You asked about an actual NULL.");
-    if (!strcmp(ext_val, "NULL")) ext_val = apop_opts.nan_string;
     apop_data *this = get_named_tab(varname);
     if (!this) return -100;
+    if (!ext_val ||  !strcmp(ext_val, apop_opts.nan_string))
+        return *this->textsize? *this->textsize : this->matrix->size1; //setup in pepedits adds NaN as the last value.
+
     if (this->matrix && this->matrix->size1){
-		for (int i=0; i< this->matrix->size1; i++){
-					double x = apop_data_get(this, i);
-					if ((isnan(x) && (!strcmp(ext_val, "nan") ||
-							!strcmp(ext_val, apop_opts.nan_string)))
-							|| atof(ext_val) == x)
-						return i+1;
-				}
+		for (int i=0; i< this->matrix->size1; i++)
+            if (atof(ext_val) == apop_data_get(this, i))
+                return i+1;
     } else {
         for (int i=0; i< *this->textsize; i++)
             if (!strcmp(ext_val, *this->text[i])) return i+1;

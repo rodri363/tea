@@ -298,7 +298,8 @@ char add_var_no_edit(char const *var, int is_recode, char type){
     //we used to have costs, but I removed them after revison b8a03fe3740eb6c07c .
 	total_var_ct++;
 	used_vars = realloc(used_vars, sizeof(used_var_t)*(total_var_ct+1));
-	used_vars[total_var_ct-1] = (used_var_t) {.name=strdup(var), .weight=1, .last_query=-1, .type=type};
+	used_vars[total_var_ct-1] = (used_var_t) {.name=strdup(var), .index=total_var_ct-1,
+                                             .weight=1, .last_query=-1, .type=type};
 	used_vars[total_var_ct] = (used_var_t) {};//null sentinel.
     return 'c';
 }
@@ -471,6 +472,7 @@ void moreblob(char **out, char* so_far, char *more){
                 if (!already_used){
                     el->vars_used = realloc(el->vars_used, sizeof(used_var_t)*++el->var_ct);
                     el->vars_used[el->var_ct-1] = used_vars[i];
+                    used_vars[i].use_count++;
                 }
             }
 

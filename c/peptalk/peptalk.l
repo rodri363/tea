@@ -13,7 +13,7 @@ appropriate token sent back.
 
 There's a hack to add an extra \n at the end of the file, which makes parsing easier.
 
-That's all. The real work happens in editlang.y, which will make use of these tokens.
+That's all. The real work happens in peptalk.y, which will make use of these tokens.
 */
 #include "tea.h"
 #define YYSTYPE char*

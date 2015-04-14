@@ -1,5 +1,5 @@
 This is a short tour of Tea's internals. I assume you have already read the tutorial
-and have a basic idea of what the user experiences.
+[ http://b-k.github.io/tea-tutorial ] and have a basic idea of what the user experiences.
 
 Table of contents:
 
@@ -35,7 +35,7 @@ the second-stage {package base}/pkg/tea directory, which is considered to be dis
 to be re-generated whenever desired.
 
 Call
-make test
+make check
 to run the unit tests and R's package lint.
 
 
@@ -48,7 +48,7 @@ read for a simple survey processing problem. It's based on {pkg base}/doc/tea.te
 which is not particularly well written or complete; please edit.
 
 --The demo has largely been abandoned in favor of the demos at
-http://b-k.github.in/tea-tutorial .
+http://b-k.github.io/tea-tutorial .
 
 
 --------------The files
@@ -99,7 +99,7 @@ discrete/name_conversions.c:
     Users can declare whatever junk they want for the values of their variables: state
     names are text (AK, AL, AZ...WY), race takes on somewhat haphazard values like 101,
     102, 201, 203,..., and so on. I will refer to these as user-defined (ud) or external
-    field values.
+    (ext) field values.
 
     name_conversions.c maintains a structure holding conversions between external values and
     row indices, which start at zero and are sequential.
@@ -110,9 +110,8 @@ discrete/name_conversions.c:
     This file is pretty well encapsulated; you should be able to just use the interface
     functions and not worry about the data structure (it's a list of apop_data*s).
 
-discrete/r_check.c, PEPedits.c: 
-    both of these are bridges between the consistency checking and R. Gotta work out why
-    we have two.
+PEPedits.c: 
+    Bridge between the consistency checking and R's somewhat orphaned CheckDF.
 
 impute/impute.c
 impute/impute_variance.c
@@ -141,7 +140,7 @@ tests/asst_tests.c
 --------------Some important data structures:
 
 keys: 
-    a database table with a reduced version of the spec file. As per the tutorial,
+    A database table with a reduced version of the spec file. As per the tutorial,
     subsections of the spec get reduced into single lines here in the keys table.
     The procedure is detailed below.
 
@@ -158,7 +157,7 @@ keys:
     Notice that get_key_word returns a single string; get_key_text returns a list.
 
 name conversions:
-    as above, there is a conversion table between
+    As above, there is a conversion table between
     ri=rowid=a numeric value
     and
     ext=ud=the external, user-defined numeric or text value.
@@ -175,12 +174,11 @@ used_vars:
     the global list of variables declared. It includes both real and
     categorical/integer values, which the name_conversions may not.
 
-    The part that's really interesting about the used_vars structure is that it
-    has a type marker, which is where you can look to check whether a variable is real,
-    int, or char.
+    The used_vars structure has a type marker, which is where you can look to check
+    whether a variable is real, int, or char.
 
     It would be desirable and not difficult to merge the variable info in used_vars
-    into the name_conversions struct/interface.
+    with the name_conversions struct/interface.
 
 The edits: edit_list, edit_grid, total_var_ct
     The edits take on several forms, which are organized into two data structures,
@@ -257,12 +255,32 @@ check_a_record is where the real action happens. It is a for loop over all of th
     * If an edit is real-valued, set up a test table in the database and a query of the
         form "select count(*) from tea_test where (check1) or (check2) or ...". If the count isn't
         zero, then one of the edit checks failed.
-    * There's something in there to log which edit checks failed. It's currently commented
-        out, and was never implemented for real-valued edits.
     * To do: What if an edit has only real-valued edits? Then we could bypass a lot of the work. 
+    * Promised NaNs: if a field is null because we will be imputing it later, then there's
+        no point checking the edits related to that field. We thus have to distinguish
+        between bona fide NULLs (which need to hit on edits like "age is NULL => age=22")
+        and promises to be fulfilled later.
 
-There are also features for finding alternatives that are valid (via a recursive search
-over all possible values). We haven't used this feature in a while, however.
+    * There are three things to do on a failure:
+        * Apply a preedit. To prevent infinite loops, once a preedit is applied, do not
+            reapply it to the record. After a preedit is applied, we have to start
+            over on the edit check.
+        * Blank out a field. If you're out of preedits, this is all that can be done.
+            * A field that has 100 edits, but fails six, seems not as guilty as a field
+                that has three edits and fails all three. At init (in peptalk.y), we keep a
+                tally of how many edits each field enters, and give a base score of
+                (weight/edcount).
+            * Before blanking, count how often each field fails for the given record. The
+                field's total score is (failcount)*(weight/edcount).
+            * For each failed edit, blank the field with the worst score.
+            * If there's something that has already been blanked for this failed edit,
+                then don't blank further.
+            * This is a greedy algorithm that will typically, but not always, find the
+                least number of blankings to cover all failed edits.
+        * Just count the number of failures and their location.
+            * In generating all of the above, there are several structures that record
+                exactly where the failures are (e.g., fail_list), many of which are
+                not used for reporting. This is a good place for future extension.
 
 The setit function is where any change to the data due to editing or imputation gets
 written. As per the tutorial, there are two options: autofill the change to the original

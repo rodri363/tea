@@ -21,7 +21,7 @@ void R_init_tea(DllInfo *info){
 
 SEXP RCheckData(SEXP df, SEXP do_preedits){
     apop_data *d  =rapop_ad_from_df(df);
-    apop_data *outd = checkData(d, *INTEGER(do_preedits), (tabinfo_s){});
+    apop_data *outd = checkData(d, *INTEGER(do_preedits), 0, (tabinfo_s){});
     SEXP out = rapop_df_from_ad(outd);
     apop_data_free(d);
     apop_data_free(outd);
