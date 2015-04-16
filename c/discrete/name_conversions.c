@@ -56,7 +56,7 @@ static apop_data *get_named_tab(char const *varname){
 int ri_from_ext(char const *varname, char const * ext_val){
     apop_data *this = get_named_tab(varname);
     if (!this) return -100;
-    if (!ext_val ||  !strcmp(ext_val, apop_opts.nan_string))
+    if (!ext_val ||  !strcasecmp(ext_val, apop_opts.nan_string))
         return *this->textsize? *this->textsize : this->matrix->size1; //setup in pepedits adds NaN as the last value.
 
     if (this->matrix && this->matrix->size1){
@@ -65,7 +65,7 @@ int ri_from_ext(char const *varname, char const * ext_val){
                 return i+1;
     } else {
         for (int i=0; i< *this->textsize; i++)
-            if (!strcmp(ext_val, *this->text[i])) return i+1;
+            if (!strcasecmp(ext_val, *this->text[i])) return i+1;
     }
     return -1;
 }

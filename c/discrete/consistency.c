@@ -156,7 +156,6 @@ static int check_a_record_sql(char *** oext_values, int **ofailures,
             out += apop_query_to_float("%s", q);
         free(q);
     } else {
-        bool pre_edits_changed_something = false;
         for (int i=0; i< edit_grid->vector->size; i++){
             if (preedit_to_run==i) break; //discrete preedit; no earlier sql preedit found.
 

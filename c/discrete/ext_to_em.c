@@ -11,7 +11,7 @@ int negone = -1;
 int get_ordered_posn(char const*in){
     if (!used_vars) return -2;
     for (int out=0; out<total_var_ct; out++)
-        if (!strcmp(in, used_vars[out].name)) return out;
+        if (!strcasecmp(in, used_vars[out].name)) return out;
     return -1;
 }
 
@@ -32,7 +32,7 @@ void order_things(char * const * record_in, char *const *record_names, int recor
         int posn = get_ordered_posn(record_names[i]);
         if (posn >=0) //else, not needed for editing.
             *oext_vals[posn] = 
-                    (!strcmp(record_in[i], apop_opts.nan_string))
+                    (!strcasecmp(record_in[i], apop_opts.nan_string))
                             ? NULL
                             : record_in[i];
     }
@@ -43,7 +43,7 @@ void order_things_int(int * ints_in, char *const *record_names, int record_size,
         oint_vals[j] = &negone;
     for (int i=0; i< record_size; i++)
         for (int j=0; j< total_var_ct; j++)
-            if (!strcmp(used_vars[j].name, record_names[i]) ){ //&& used_vars[j].type != 'r'){
+            if (!strcasecmp(used_vars[j].name, record_names[i]) ){ //&& used_vars[j].type != 'r'){
                 oint_vals[j] = &ints_in[i];
                 break;
             }
