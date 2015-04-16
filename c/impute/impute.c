@@ -3,7 +3,6 @@
 #include <rapophenia.h>
 #include <stdbool.h>
 #include "internal.h"
-extern char *datatab;
 void qxprintf(char **q, char *format, ...); //bridge.c
 char *process_string(char *inquery, char **typestring); //parse_sql.c
 
@@ -563,10 +562,10 @@ static void impute_a_variable(const char *datatab, impustruct *is,
 
         //Get the list of all missing values, possibly after the fill-ins change subsets.
         //Below, we'll get subsets depending on the categories
-        apop_data *nanvals = get_all_nanvals(*is, tabinfo.id_col, datatab);
+        apop_data *nanvals = get_all_nanvals(*is, tabinfo.id_col, dt);
         if (!nanvals) continue;
 
-        is->is_bounds_checkable = (ri_from_ext(is->depvar, "0") != -100); //-100=var not found.
+        is->is_bounds_checkable = (ri_from_ext(is->depvar, "0") != -100); //-100=not in declared fields
 
         bool still_has_missings=true, hit_zero=false;
         do {

@@ -38,11 +38,15 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
                                               , id_column, filltab, *imputation_number);
     Tea_stopif(!fills || fills->error, return, 0, "Expected fill-in table "
                 "%s, but couldn't query it.", filltab);
-    for(int i=0; i< *fills->textsize; i++)
-        apop_query("update %s set %s = '%s' "
+    for(int i=0; i< *fills->textsize; i++){
+        _Bool is_null = !strcmp(fills->text[i][1], apop_opts.nan_string);
+        char tick = is_null ? ' ' : '\'';
+        apop_query("update %s set %s = %c%s%c "
                    "where %s = %s", 
-                      dest, fills->text[i][0], fills->text[i][1], 
+                      dest, fills->text[i][0], 
+                      tick, is_null ? "NULL" : fills->text[i][1], tick,
                       id_column, fills->names->row[i]);
+    }
     commit_transaction();
     apop_data_free(fills);
     free(id_column);

@@ -54,6 +54,7 @@ void in_out_row_add(char const *tag){
     apop_text_add(in_out_tab, ts, 4,
             (overwrite && (overwrite[0]=='y' || overwrite[0]=='Y'))
             || (!overwrite && Match(tagbase, "impute"))
+            || (!overwrite && Match(tagbase, "edit"))
                 ? "y" : "n");
 
     apop_data_free(rows); free(in); free(last_out);
