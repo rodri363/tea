@@ -11,7 +11,3 @@ library(devtools)
 install_github("b-k/Rapophenia", ref="pkg")
 install_github("rodri363/tea", ref="pkg")
 ```
-
-## Status
-
-Beta. We especially need to do more crash-preventing error checking on inputs.
