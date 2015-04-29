@@ -35,14 +35,8 @@ struct { float lwbd[maxcats][maxflds][maxflds]; float upbd[maxcats][maxflds][max
          float bm[maxflds][maxflds]; float tm[maxflds][maxflds];
        } bnds;
 
-/*struct { double basitm[maxflds];
-         int nblank; int nf; int numdel; int numsic;
-         int cntdel[maxflds]; int frcomp[NEDIT][maxcats];
-       } commed;
-*/
 
-
-int speer_(void)
+void speer_(void)
 /******************************************************/ 
 /**** THIS IS THE DRIVER PORTION OF THE SPEER EDIT ****/
 { 
@@ -50,7 +44,7 @@ int speer_(void)
   float wgt;
   char nam[maxfldlen];
 
-  extern int edchek_(void), locate_(void), impsub_(void), PreChex(void);
+  extern void edchek_(void), locate_(void), impsub_(void), PreChex(void);
 
 /* TeaKEY( SPEERparams/BFLD, <<< BFLD = # of basic items >>>)
    TeaKEY( SPEERparams/NEDFF, <<< NEDFF = # of explicit ratios per category >>>)
@@ -88,13 +82,11 @@ int speer_(void)
   
   /* Calcualte missing/deleted field(s)' imputation range(s) */
   if (nf > 0 || nblank > 0) { impsub_(); }
-
-  return 0;
 }
 
 
 
-int edchek_(void)
+void edchek_(void)
 /******************************************************/ 
 /* *** DETERMINE WHICH FIELDS FAIL EDIT RATIOS AND  **** */
 /* ***  FLAG THOSE FIELDS  **** */
@@ -139,13 +131,11 @@ int edchek_(void)
     ++nblank;
     bblank[nblank] = BFLD;
   }
-
-  return 0;
 }
 
 
 
-int impsub_(void)
+void impsub_(void)
 /******************************************************/ 
 /* *** CALCULATE A MISSING/DELETED FIELD'S IMPUTATION RANGE AND **** */
 /* *** IMPUTE A VALUE USING THAT FIELD'S IMPUTATION HIERARCHY.  **** */
@@ -175,7 +165,7 @@ int impsub_(void)
 		   }
 
            /* *** IF IMPUTATION RANGE IS NOT AVAILABLE, EXIT LOOP **** */
-		   if (blow >= bup) { goto L800; }
+		   if (blow >= bup) break;
 	    }
 
 /* ****************************************** */
@@ -192,15 +182,12 @@ int impsub_(void)
 /*           GO TO 800 */
 /*         ENDIF */
     }
-    L800:;
   }
-
-  return 0;
 }
 
 
 
-int locate_(void)
+void locate_(void)
 /******************************************************/ 
 /*  LOCATE BASIC ITEMS TO BE DELETED AND FLAG THEM.   */
 {
@@ -216,51 +203,46 @@ int locate_(void)
   numdel = 0;
   narcs = nf;
 
-  /*****  FIX ME:  have to find a better way than looping back to L100:  *****/
-  /*****           perhaps a for ()                                      *****/
-L100:
+    do {
+      /* ZERO OUT BASIC ITEM FAILURE COUNTERS */
+      for (i = 1; i <= 9; ++i) {
+        bdeg[i] = 0;
+        wdeg[i] = 0.0;
+      }
 
-  /* ZERO OUT BASIC ITEM FAILURE COUNTERS */
-  for (i = 1; i <= 9; ++i) {
-	bdeg[i] = 0;
-	wdeg[i] = (double)0.0;
-  }
+      /* COUNT NO. OF TIMES A BASIC ITEM IS INVOLVED IN A RATIO FAILURE */
+      tmp = nf;
+      for (i = 1; i <= tmp; ++i)
+        for (j = 1; j <= 2; ++j)
+            ++bdeg[ frcomp[i][j] ];
 
-  /* COUNT NO. OF TIMES A BASIC ITEM IS INVOLVED IN A RATIO FAILURE */
-  tmp = nf;
-  for (i = 1; i <= tmp; ++i) {
-	for (j = 1; j <= 2; ++j) {
-	    ++bdeg[ frcomp[i][j] ];
-	}
-  }
+      /* CALCULATE EACH WEIGHTED DEGREE              */
+      /* DETERMINE WHICH BASIC ITEM HAS LARGEST WDEG */
+      wmax = 0.0;
+      for (i = 1; i <= BFLD; ++i) {
+        wdeg[i] = bwgt[i] * bdeg[i];
+        if (wdeg[i] > 0.0  &&  wdeg[i] >= wmax) {
+            wmax = wdeg[i];
+            remoov = i;
+        }
+      }
 
-  /* CALCULATE EACH WEIGHTED DEGREE              */
-  /* DETERMINE WHICH BASIC ITEM HAS LARGEST WDEG */
-  wmax = (double)0.0;
-  for (i = 1; i <= BFLD; ++i) {
-	wdeg[i] = bwgt[i] * bdeg[i];
-	if (wdeg[i] > (double)0.0  &&  wdeg[i] >= wmax) {
-	    wmax = wdeg[i];
-	    remoov = i;
-	}
-  }
+      /* FLAG THE BASIC ITEM TO BE DELETED AND REMOVE ALL FAILURE */
+      /* RATIOS ATTACHED TO IT.                                   */
+      ++numdel;
+      bdel[numdel] = remoov;
+      /* tmp = comed3_1.nf; */
+      for (i = 1; i <= nf; ++i) {
+        if (frcomp[i][1] == remoov  ||  frcomp[i][2] == remoov) {
+            frcomp[i][1] = 0;
+            frcomp[i][2] = 0;
+            --narcs;
+        }
+      }
 
-  /* FLAG THE BASIC ITEM TO BE DELETED AND REMOVE ALL FAILURE */
-  /* RATIOS ATTACHED TO IT.                                   */
-  ++numdel;
-  bdel[numdel] = remoov;
-  /* tmp = comed3_1.nf; */
-  for (i = 1; i <= nf; ++i) {
-    if (frcomp[i][1] == remoov  ||  frcomp[i][2] == remoov) {
-        frcomp[i][1] = 0;
-	    frcomp[i][2] = 0;
-	    --narcs;
-	}
-  }
-
-  /* CONTINUE TO DELETE FIELDS                    */
-  /* UNTIL THEIR ARE NO MORE FAILURE RATIOS LEFT. */
-  if (narcs > 0) { goto L100; }
+      /* CONTINUE TO DELETE FIELDS                    */
+      /* UNTIL THEIR ARE NO MORE FAILURE RATIOS LEFT. */
+    } while (narcs > 0);
 
   /* WHEN ALL ITEMS HAVE BEEN SUCCESSFULLY BEEN FLAGGED FOR  */
   /* DELETION, DELETE THEM AND COUNT THE OCCURENCE FOR EACH. */
@@ -269,26 +251,22 @@ L100:
 	++cntdel[bdel[i]];
 	basitm[bdel[i]] = (double)-1.0;
   }
-
-  return 0;
 }
 
 
 
-int PreChex(void) {
+void PreChex(void) {
 /******************************************************/ 
 /* Potential pre-processing fatal problems. */
   /* Stop program if maximum # of fields is exceded. */
   /*   Just increase the value of maxflds variable.  */
-  Tea_stopif( BFLD > maxflds, return 0, -5,
+  Tea_stopif( BFLD > maxflds, return, -5,
         "**** FATAL ERROR in SPEER:  Maximum number of fields (%d) exceded. ****\n",
  	    maxflds ); 
 
   /* Stop program if max length of field names is exceded. */
   /*   Just increase the value of maxfldlen variable.      */
-  Tea_stopif( namlen > maxfldlen, return 0, -5,
+  Tea_stopif( namlen > maxfldlen, return, -5,
         "**** FATAL ERROR in SPEER:  Maximum length of field name (%d) exceded. ****\n",
  	    maxfldlen ); 
-
-  return 0;
 }

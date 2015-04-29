@@ -90,6 +90,7 @@ void in_out_recode_fix(){
     gsl_vector_set_all(in_out_tab->vector, 0);
 }
 
+//find the output table matching a given input table
 static int find_in_tab(char const *target, int col){
     for (int i=0; i< *in_out_tab->textsize; i++)
         if (Match(in_out_tab->text[i][col], target)) return i;

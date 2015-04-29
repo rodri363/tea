@@ -412,7 +412,8 @@ int consistency_check(char ***oext_values, char const *what_you_want,
         fail_list = NULL;
         int preed_to_run = -1;
         fill_a_record(record, width, oext_values, tabinfo.id);
-        fail_count = check_a_record_discrete(record, ofailed_fields,
+        //fail_count = check_a_record_speer( );
+        fail_count += check_a_record_discrete(record, ofailed_fields,
                                       &has_sql_edits, &preed_to_run, last_run_preed, promised_nans, &fail_list);
         if (pf && fail_count && !do_preedits)
             return 1;
