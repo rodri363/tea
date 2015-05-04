@@ -161,3 +161,15 @@ bool run_all_tags(char *type, char **active_tab, void* aux_info){
                 "Trouble doing %s segment with tag '%s'.", type, Tag(i));}
     return true;
 }
+
+void build_one_table(char **tab){ //char ** to be R-friendly
+    Tea_stopif(!tab || !*tab, return, 0, "No input table given");
+    Tea_stopif(!in_out_tab, return, 0, "No table generation info. Have you run readSpec?");
+    int row=-1;
+    for (int i=0; i< *in_out_tab->textsize; i++)
+        if (!strcmp(Output(i), *tab)) {row=i; break;}
+    Tea_stopif(row==-1, return, 0, "Could not find %s in the list of output tables.", *tab);
+
+    char *active_tab=NULL;
+    run_one_tag(row, &active_tab, NULL, (bool[]){true});
+}

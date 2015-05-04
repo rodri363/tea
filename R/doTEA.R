@@ -1,3 +1,7 @@
+#' Build the requested table, including any requisite tables that led up to this table.
+doTable <- function(input_table=teaenv$active_tab){
+    .C("build_one_table", as.character(input_table))
+}
 
 #' The preedits are reduced to a list of queries. We can apply them at any time to any
 #' table to make sure that they are still clean.
