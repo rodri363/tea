@@ -95,7 +95,7 @@ int consistency_check(char ***oext_values, char const * what_you_want,
 			          int **ofailed_fields, _Bool do_preedits, _Bool clear_failures, tabinfo_s);
 
 apop_data *checkData(apop_data *data, _Bool do_preedits, _Bool clear_failures, tabinfo_s);
-_Bool an_edit(char const *in_tab, char const *out_tab, char const *tag);
+_Bool an_edit(char const *in_tab, char const *tag);
 
 //key-getting functions for the C side. Notice that get_text returns an apop_data set.
 apop_data * get_key_text(char const *part1, char const *part2);

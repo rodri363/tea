@@ -16,7 +16,7 @@ impute {
     draw count: 20000
     weights:weights
     input table: t
-    output table: i
+    fill table: i
     vars: y1, y2
     method: rake
 }

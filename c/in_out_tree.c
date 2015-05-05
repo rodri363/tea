@@ -9,7 +9,9 @@ The table could thus be expressed as a set of linked lists, but that much struct
 #define SegType(rr) in_out_tab->text[rr][1]     //1=input, recode, join, ...
 #define Input(rr) in_out_tab->text[rr][2]       //2=input table name
 #define Output(rr) in_out_tab->text[rr][3]      //3=output table name
-#define Overwrite(rr) in_out_tab->text[rr][4]   //4='y' if overwrite
+#define Fillin(rr) in_out_tab->text[rr][4]        //4=fill tab input
+#define Fillout(rr) in_out_tab->text[rr][5]        //5=fill tab output
+#define Overwrite(rr) in_out_tab->text[rr][6]   //6='y' if overwrite
 #define Match(L, R) (!strcasecmp((L), (R))) //got sick of typing this so often.
 #include "internal.h"
 
@@ -26,7 +28,7 @@ void in_out_row_add(char const *tag){
     for (char *i=tagbase; *i; i++) if (*i=='/') *i='\0';
 
     int ts = in_out_tab ? *in_out_tab->textsize : 0;
-    in_out_tab = apop_text_alloc(in_out_tab, ts+1, 5);
+    in_out_tab = apop_text_alloc(in_out_tab, ts+1, 7);
 
     char *in = get_key_word_tagged(tagbase, "input table", tag);
     bool redo_join_tag = false;
@@ -45,20 +47,30 @@ void in_out_row_add(char const *tag){
     if (!out && !Match(tagbase, "impute") && !Match(tagbase, "input"))
         out = in ? strdup(in): NULL;
 
+    char *infill = get_key_word_tagged(tagbase, "input fill table", tag);
+    char *outfill = get_key_word_tagged(tagbase, "fill table", tag);
+    if (infill && !outfill) outfill = strdup(infill);
+    if (!outfill && (Match(tagbase, "impute") || Match(tagbase, "edit")))
+            outfill = strdup("filled");
+
     apop_text_add(in_out_tab, ts, 0, tag);
     apop_text_add(in_out_tab, ts, 1, tagbase);
     apop_text_add(in_out_tab, ts, 2, in);
-    if (out) apop_text_add(in_out_tab, ts, 3, out);
+    if (out)     apop_text_add(in_out_tab, ts, 3, out);
+    if (infill)  apop_text_add(in_out_tab, ts, 4, infill);
+    if (outfill) apop_text_add(in_out_tab, ts, 5, outfill);
 
     char *overwrite = get_key_word_tagged(tagbase, "overwrite", tag);
-    apop_text_add(in_out_tab, ts, 4,
+    apop_text_add(in_out_tab, ts, 6,
             (overwrite && (overwrite[0]=='y' || overwrite[0]=='Y'))
             || (!overwrite && Match(tagbase, "impute"))
             || (!overwrite && Match(tagbase, "edit"))
                 ? "y" : "n");
 
-    apop_data_free(rows); free(in); free(last_out);
-    last_out = out;
+    apop_data_free(rows);
+    last_out = out ? strdup(out): NULL;
+    #define F(x) if(x) free(x);
+    F(in) F(out) F(infill) F(outfill)
     if (redo_join_tag) in_out_row_add(tag);
 } 
 
@@ -97,16 +109,24 @@ static int find_in_tab(char const *target, int col){
     return -1;
 }
 
+//'i'=input, 'o'=output 'f'=input fill else=output fill
 char *in_out_get(char const *tag, char in_or_out){
     int row = find_in_tab(tag, 0);
-    return row < 0 ? NULL : in_out_tab->text[row][in_or_out=='i'? 2 : 3];
+    return row < 0 ? NULL : in_out_tab->text[row][
+                      in_or_out=='i'? 2 
+                    : in_or_out=='o'? 3 
+                    : in_or_out=='f'? 4 
+                    : 5];
 }
 
 bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild){
     int prev = find_in_tab(Input(row), 3);
+    int prev_fill = find_in_tab(Input(row), 5);
+    int fprev = find_in_tab(Fillin(row), 3);
+    int fprev_fill = find_in_tab(Fillin(row), 5);
     bool OK = true, use_this_join=false;
 
-    bool r2=false;
+    bool r2=false, r3=false, r4=false, r5=false;
     if (row+1 < *in_out_tab->textsize && Match(SegType(row), "join")
             && Match(SegType(row+1), "join") && Match(Tag(row+1), Tag(row))){
         OK = run_one_tag(row+1, active_tab, run_one_tag, &r2);
@@ -117,8 +137,11 @@ bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild){
     }
 
     r2 = false;
-    if (prev>=0 && prev < row) OK = run_one_tag(prev, active_tab, aux_info, &r2);
-    *rebuild = *rebuild || r2;
+    if (prev>=0 && prev < row)             OK = run_one_tag(prev, active_tab, aux_info, &r2);
+    if (prev_fill>=0 && prev_fill < row)   OK = run_one_tag(prev_fill, active_tab, aux_info, &r3);
+    if (fprev>=0 && fprev < row)           OK = run_one_tag(fprev, active_tab, aux_info, &r4);
+    if (fprev_fill>=0 && fprev_fill < row) OK = run_one_tag(fprev_fill, active_tab, aux_info, &r5);
+    *rebuild = *rebuild || r2 || r3 || r4 || r5;
     Tea_stopif(!OK, /*return false*/,
             0, "Trouble building predecessor table for %s.", Output(row));
 
@@ -133,7 +156,7 @@ bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild){
 
     *active_tab = Output(row);
     Tea_stopif(Match(SegType(row), "edit"),
-                return an_edit(Input(row), Output(row), Tag(row)),
+                return an_edit(Input(row), Tag(row)),
                 0, "Doing edits for %s.", Input(row));
     Tea_stopif(Match(SegType(row), "input"),
                 return text_in_by_tag(Tag(row)),

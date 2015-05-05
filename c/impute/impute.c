@@ -118,7 +118,7 @@ static void verify(impustruct is){
         apop_opts.verbose=v;
     }
     Tea_stopif(!is.isnan, return, 2, "%s had no missing values. This sometimes happens when the fields used for sub-classes "
-            "still has missing values. Perhaps do an imputation for these fields and add an 'earlier output table' line to "
+            "still has missing values. Perhaps do an imputation for these fields and add an 'earlier fill table' line to "
             "this segment of the spec.", is.depvar);
 
     if (is.isnan && is.isnan->names->rowct){
@@ -744,8 +744,7 @@ Raking: needs all the variables, in numeric format
 /* Both edits and imputes need to determine if autofill is on (via input from R or spec
    key), if not set up a filltab, get the id column. Shared with an_edit() in discrete/consistency.c.
  */
-tabinfo_s setup_tabinfo(char const *configbase, char const *in_tab, char const *out_tab,
-                                                        bool autofill, char const *tag){
+tabinfo_s setup_tabinfo(char const *configbase, char const *in_tab, bool autofill, char const *tag){
 
     char *afkey = get_key_word_tagged(configbase, "autofill", tag);
     autofill = autofill || (afkey && afkey[0] != 'n');
@@ -758,6 +757,7 @@ tabinfo_s setup_tabinfo(char const *configbase, char const *in_tab, char const *
                     "to add an explicit Social Security number-type identifier.");
     }
 
+    char *out_tab = in_out_get(tag, 'g');
     //I depend on this column order in a few other places, like check_out_impute_base.
     if (!autofill && !apop_table_exists(out_tab)){
         apop_query("create table %s ('draw' int, 'value', '%s', 'field');", out_tab, id_col);
@@ -780,9 +780,9 @@ char *configbase = "impute";
   Optional; if missing, then I rely on the sytem having an active table already recorded. So if you've already called {\tt doInput()} in R, for example, I can pick up that the output from that routine (which may be a view, not the table itself) is the input to this one.>>>)
   TeaKEY(impute/seed, <<<The RNG seed>>>)
   TeaKEY(impute/draw count, <<<How many multiple imputations should we do? Default: 1.>>>)
-  TeaKEY(impute/output table, <<<Where the fill-ins will be written. You'll still need {\tt checkOutImpute} to produce a completed table. If you give me a value for {\tt impute/eariler output table}, that will be the default output table; if not, the default is named {\tt filled}.>>>)
-  TeaKey(impute/autofill, <<<Write the imputations directly to the input table, rather than to an output table. Of course, this makes sense for only one imputation, so the draw count will be set to one. Including this key and setting it to any value except "no" will turn on this option.>>>)
-  TeaKEY(impute/earlier output table, <<<If this imputation depends on a previous one, then give the fill-in table from the previous output here.>>>)
+  TeaKEY(impute/fill table, <<<Where the fill-ins will be written. You'll still need {\tt checkOutImpute} to produce a completed table. If you give me a value for {\tt impute/input fill table}, that will be the default fill table; if not, the default is named {\tt filled}.>>>)
+  TeaKey(impute/autofill, <<<Write the imputations directly to the input table, rather than to a fill table. Of course, this makes sense for only one imputation, so the draw count will be set to one. Including this key and setting it to any value except "no" will turn on this option.>>>)
+  TeaKEY(impute/input fill table, <<<If this imputation depends on a previous one, then give the fill-in table from the previous output here.>>>)
   TeaKEY(impute/margin table, <<<Raking only: if you need to fit the model's margins to out-of-sample data, specify that data set here.>>>)
   TeaKEY(impute/categories, <<<Denotes the categorized set of variables by which to impute your output vars.>>>)
    TeaKEY(impute/min group size, <<<Specifies the minimum number of known inputs that must be present in order to perform an imputation on a set of data points.>>>)
@@ -798,13 +798,10 @@ int do_impute(char **tag, char **idatatab, int *autofill){
     Tea_stopif(!apop_table_exists(*idatatab), return false-1, 0, "'%s/input table' is %s, but I can't "
                      "find that table in the db.", configbase, *idatatab);
 
-    char *out_tab = in_out_get(*tag, 'o');
-    char *previous_fill_tab = get_key_word_tagged(configbase, "earlier output table", *tag);
-    if (!out_tab || (!*out_tab && previous_fill_tab)) out_tab = previous_fill_tab;
-    if (!out_tab || !*out_tab) out_tab = "filled";
+    char *previous_fill_tab =  in_out_get(*tag, 'f');
 
     char *tmp_db_name_col = strdup(apop_opts.db_name_column);
-    tabinfo_s tabinfo=setup_tabinfo(configbase, *idatatab, out_tab, *autofill, *tag);
+    tabinfo_s tabinfo=setup_tabinfo(configbase, *idatatab, *autofill, *tag);
 
     apop_data *category_matrix = get_key_text_tagged(configbase, "categories", *tag);
 
@@ -820,9 +817,6 @@ int do_impute(char **tag, char **idatatab, int *autofill){
 
     static gsl_rng *r;
     if (!impute_is_prepped++) prep_imputations(configbase, &r);
-    //I depend on this column order in a few other places, like check_out_impute_base.
-    if (!tabinfo.autofill && !apop_table_exists(out_tab))
-        apop_query("create table %s ('draw', 'value', '%s', 'field');", out_tab,tabinfo.id_col);
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
 
     impustruct model = read_model_info(configbase, *tag, tabinfo.id_col);
