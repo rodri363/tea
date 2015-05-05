@@ -760,7 +760,7 @@ tabinfo_s setup_tabinfo(char const *configbase, char const *in_tab, char const *
 
     //I depend on this column order in a few other places, like check_out_impute_base.
     if (!autofill && !apop_table_exists(out_tab)){
-        apop_query("create table %s ('draw', 'value', '%s', 'field');", out_tab, id_col);
+        apop_query("create table %s ('draw' int, 'value', '%s', 'field');", out_tab, id_col);
         create_index(out_tab, id_col);
         create_index(out_tab, "field");
         create_index(out_tab, "draw");

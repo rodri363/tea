@@ -492,7 +492,7 @@ bool an_edit(char const *in_tab, char const *out_tab, char const *tag){
     bool out=true;
     char *tmp_db_name_col = strdup(apop_opts.db_name_column);
     tabinfo_s ti = setup_tabinfo("edit", in_tab, out_tab, /*autofill in=*/false, tag);
-    ti.draw_number = 0; //effectively unused for edits.
+    ti.draw_number = -1;
 
     char *do_preedits = get_key_word_tagged("edit", "do preedits", tag);
     char *clear_failures = get_key_word_tagged("edit", "clear failures", tag);
