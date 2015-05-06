@@ -218,20 +218,30 @@ static void model_est(impustruct *is, int *model_id){
     if (!strcmp(is->base_model->name, "Ordinary Least Squares"))
         is->fitted_model->draw=lil_ols_draw;
     if (verbose) apop_model_print(is->fitted_model, NULL);
+
+    //if NaN params, throw it back and try a bigger data set
+    apop_data *isfmp = is->fitted_model->parameters; 
+    if (isfmp && ((isfmp->vector && isnan(apop_sum(isfmp->vector)))
+                   || (isfmp->matrix && isnan(apop_matrix_sum(isfmp->matrix))))
+         ) {
+        apop_model_free(is->fitted_model); 
+        is->fitted_model = NULL;
+        return;
+    }
+
     (*model_id)++;
     apop_query("insert into model_log values(%i, 'type', '%s');", *model_id, is->fitted_model->name);
-    if (is->fitted_model->parameters && is->fitted_model->parameters->vector) //others are hot-deck or kde-type
-        for (int i=0; i< is->fitted_model->parameters->vector->size; i++){
+    if (isfmp && isfmp->vector) //others are hot-deck or kde-type
+        for (int i=0; i< isfmp->vector->size; i++){
             char *param_name = NULL;
-            if (is->fitted_model->parameters->names->rowct > i)
-                param_name = is->fitted_model->parameters->names->row[i];
+            if (isfmp->names->rowct > i)
+                param_name = isfmp->names->row[i];
             else {
                 free(param_name);
                 Asprintf(&param_name, "param %i", i);
             }
             apop_query("insert into model_log values(%i, '%s', %g);",
-                    *model_id, param_name,
-                    is->fitted_model->parameters->vector->data[i]);
+                    *model_id, param_name, isfmp->vector->data[i]);
         }
     apop_query("insert into model_log values(%i, 'subuniverse size', %i);"
                     , *model_id, (int) (is->fitted_model->data->matrix 
@@ -317,6 +327,7 @@ static char *get_edit_associates(char const*depvar, int depvar_posn, char const*
                                     long int id_number, bool *has_edits){
     *has_edits = false;
     if (!edit_list) return NULL;
+    if (depvar_posn == -1) return NULL; //not in the list of declared fields.
     used_var_t *this = used_vars+depvar_posn;
 
     if (!this->edit_associates){
@@ -581,6 +592,7 @@ static void impute_a_variable(const char *datatab, impustruct *is,
                 is->is_hotdeck = (is->base_model->estimate == apop_multinomial->estimate 
                                         ||is->base_model->estimate ==apop_pmf->estimate);
                 model_est(is, &model_id); //notnan may be pmf_compressed here.
+                if (!is->fitted_model) goto bail;
                 prep_for_draw(is);
 
                 //info primarily used for writing to the db.
@@ -820,7 +832,9 @@ int do_impute(char **tag, char **idatatab, int *autofill){
     apop_data *fingerprint_vars = get_key_text("fingerprint", "key");
 
     impustruct model = read_model_info(configbase, *tag, tabinfo.id_col);
-    model.var_posns = (int[]){get_ordered_posn(model.depvar), -1};
+    int posn = get_ordered_posn(model.depvar);
+    Tea_stopif(posn==-1, return false, 0, "%s was not declared in the fields{} section. Doing no imputation on it.", model.depvar);
+    model.var_posns = (int[]){posn, -1};
     model.autofill = *autofill;
     Tea_stopif(model.error, return false, 0, "Trouble reading in model info.");
 
