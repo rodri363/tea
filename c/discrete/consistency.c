@@ -210,8 +210,8 @@ static void report_failure(int i, int const *rowfailures, llist **fail_list){
         printf("Because:\n");
         for (int m=0; m< total_var_ct; m++)
             if (rowfailures[m])
-                printf("\t%s = %s\n", used_vars[m].name,
-                  ext_from_ri(used_vars[m].name, rowfailures[m]));
+                printf("\t(%s: %i fails)\n", used_vars[m].name, rowfailures[m]);
+                  //ext_from_ri(used_vars[m].name, rowfailures[m]));
         printf("\n");
     }
 }

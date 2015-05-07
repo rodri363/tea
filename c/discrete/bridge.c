@@ -136,9 +136,8 @@ void db_to_em(void){
             //along the row, then we'll use the sql-based edit system to make it work. 
             //Also, the DISCRETE system is ill-suited for handling "if var is null"
             //conditions. The reader is welcome to modify it to suit; meanwhile use SQL.
-            bool has_nulls_needs_sql = strcasestr(edit_list[current_explicit].clause, "null");
             for (int i=0; i< edit_list[current_explicit].var_ct; i++)
-                if (has_nulls_needs_sql || edit_list[current_explicit].vars_used[i].type =='r'){
+                if (edit_list[current_explicit].vars_used[i].type =='r'){
                     apop_text_alloc(edit_grid, edit_grid->textsize[0]+1, GSL_MAX(1, edit_grid->textsize[1]));
                     apop_text_add(edit_grid, edit_grid->textsize[0]-1, 0, edit_list[current_explicit].clause);
                     next_phase='s';
