@@ -319,8 +319,6 @@ static void fill_a_record(int *record, int record_width, char ** const restrict 
             continue; //not part of the edits at all.
         int ri_position = ri_from_ext(used_vars[i].name, *oext_values[i]);
         if (ri_position == -100) continue;  //This variable wasn't declared ==> can't be in an edit.
-        for(int  kk = find_b[rctr]-1; kk< find_e[rctr]; kk++)
-            record[kk] = 0;
         Tea_stopif(ri_position == -1 , return, 0, "I couldn't find the value %s in your "
                 "declarations for the variable %s. Please remove the error from the data or "
                 "add that value to the declaration, then restart the program so I can rebuild "
@@ -329,6 +327,8 @@ static void fill_a_record(int *record, int record_width, char ** const restrict 
         Tea_stopif(bit >= record_width || bit < 0, return, 0,
                     "About to shift position %i in a record, but there "
                     "are only %i entries.", bit, record_width);
+        for (int kk = find_b[rctr]-1; kk< find_e[rctr]; kk++)
+            record[kk] = 0;
         record[bit] = 1;
         rctr++;
     }

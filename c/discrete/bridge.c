@@ -67,9 +67,12 @@ Each query produces a (apop_data) table of not-OK values, in the
  */
 
 static int pull_index(char const *in_name){
-    for (int i =0; used_vars[i].name; i++)
+    int intct=0;
+    for (int i =0; used_vars[i].name; i++){
         if (!strcasecmp(used_vars[i].name, in_name))
-            return i;
+            return intct;
+        if (used_vars[i].type!='r') intct++; //reals don't enter the edit grid.
+    }
     return -1;
 }
 
@@ -114,7 +117,7 @@ void db_to_em(void){
     int current_col = 0;
     int current_explicit = 0;
     static char next_phase = 's';
-    int em_i = 0, field; 
+    int em_i = 0; 
 	char *ud_val;
     apop_data *d=NULL;
 
@@ -172,7 +175,7 @@ void db_to_em(void){
                 }
                 continue;
             } //else:
-            field = pull_index(d->names->text[current_col]);
+            int field = pull_index(d->names->text[current_col]);
             current_col++;
             if (current_col == d->textsize[1]){
                 next_phase = 'e'; 
@@ -184,7 +187,7 @@ void db_to_em(void){
               gsl_matrix_set(edit_grid->matrix, em_i-1, kk, 0);
         }
         if (next_phase == 'e'){ //Else, an edit.
-            field = pull_index(d->names->text[current_col]);
+            int field = pull_index(d->names->text[current_col]);
             ud_val = d->text[current_row][current_col];
             if (verbose) printf("Add edit.\tfield %i\t val %s\n", field, ud_val);
             gsl_matrix_set(edit_grid->matrix, em_i-1,find_b[field]-1+atoi(ud_val)-1, 1);
@@ -350,6 +353,14 @@ void start_over(){ //Reset everything in case this wasn't the first call
 }
 
 void setup_findxbe(){
+    //first, compress the optionct, which currently has zeros for real vars.
+    int last_nonzero =-1;
+    for (int i=0; i< total_var_ct; i++)
+        if (used_vars[i].type!='r')
+            optionct[++last_nonzero] = optionct[i];
+    for (int i=++last_nonzero; i<total_var_ct; i++)
+            optionct[i] = 0;
+
     find_b = malloc(sizeof(int)*total_var_ct);
     find_e = malloc(sizeof(int)*total_var_ct);
     find_b[0] = 1;
