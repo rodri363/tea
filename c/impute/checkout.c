@@ -42,7 +42,7 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
         _Bool is_null = !strcmp(fills->text[i][1], apop_opts.nan_string);
         char tick = is_null ? ' ' : '\'';
         apop_query("update %s set %s = %c%s%c "
-                   "where %s = %s", 
+                   "where cast(%s as numeric) = %s", 
                       dest, fills->text[i][0], 
                       tick, is_null ? "NULL" : fills->text[i][1], tick,
                       id_column, fills->names->row[i]);
