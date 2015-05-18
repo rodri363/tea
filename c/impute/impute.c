@@ -352,7 +352,7 @@ static char *get_edit_associates(char const*depvar, int depvar_posn, char const*
     } else //don't have to rebuild the edit_associates list, but do have to check has_edits
         for (edit_t *this_ed=edit_list; !*has_edits && this_ed && this_ed->clause; this_ed++)
             for(int i=0; !*has_edits && i< this_ed->var_ct; i++)
-                if (strcasecmp(depvar, this_ed->vars_used[i].name)) 
+                if (!strcasecmp(depvar, this_ed->vars_used[i].name))
                     *has_edits = true;
 
     if (!*this->edit_associates->textsize) return NULL;
@@ -504,9 +504,9 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
         while (fail_count && tryctr++ < 100);
         Tea_stopif(last_chance && fail_count, 
                 apop_query("insert into tea_fails values(%s)", id)
-                , 0, "I just made a hundred attempts to find an imputed value "
-            "that passes checks, and couldn't. Something's wrong that a "
-            "computer can't fix.\nI'm at id %s.", id);
+                , 0, "ID %s: I just made a hundred attempts to find an imputed "
+            "value that passes checks, and couldn't. Something's wrong that a "
+            "computer can't fix.", id);
 
         if (!fail_count){
             ti.id = is->isnan->names->row[rowindex];
