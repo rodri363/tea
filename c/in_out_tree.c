@@ -50,8 +50,12 @@ void in_out_row_add(char const *tag){
     char *infill = get_key_word_tagged(tagbase, "input fill table", tag);
     char *outfill = get_key_word_tagged(tagbase, "fill table", tag);
     if (infill && !outfill) outfill = strdup(infill);
-    if (!outfill && (Match(tagbase, "impute") || Match(tagbase, "edit")))
-            outfill = strdup("filled");
+
+    char *autofill = get_key_word_tagged(tagbase, "autofill", tag);
+    if (autofill && autofill[0]!='n')
+        outfill = strdup("AUTOFILL");
+    else if(!outfill && (Match(tagbase, "impute") || Match(tagbase, "edit")))
+        outfill = strdup("filled");
 
     apop_text_add(in_out_tab, ts, 0, tag);
     apop_text_add(in_out_tab, ts, 1, tagbase);
@@ -155,17 +159,20 @@ bool run_one_tag(int row, char **active_tab, void *aux_info, bool *rebuild){
     }
 
     *active_tab = Output(row);
+    char *wtf = NULL;
+    if (Match(Fillout(row), "AUTOFILL")) {Asprintf(&wtf, "Writing changes to input table.");}
+    else if (Fillout(row)[0])            {Asprintf(&wtf, "Writing to fill table %s.", Fillout(row));}
+
     Tea_stopif(Match(SegType(row), "edit"),
                 return an_edit(Input(row), Tag(row)),
-                0, "Doing edits for %s.", Input(row));
+                0, "Doing edits for %s. %s", Input(row), XN(wtf));
     Tea_stopif(Match(SegType(row), "input"),
                 return text_in_by_tag(Tag(row)),
                 0, "Doing input for %s.", Output(row));
     Tea_stopif(Match(SegType(row), "impute"),
                 return do_impute(in_out_tab->text[row], active_tab, aux_info),
-                0, "Doing imputations for %s%s%s."
-                , Input(row), Output(row) ? "; writing to fill table ":""
-                , Output(row));
+                0, "Doing imputations for %s. %s"
+                , Input(row), XN(wtf));
     Tea_stopif(Match(SegType(row), "join") && use_this_join,
                 return join_tables(Tag(row)),
                 0, "Joining tables to produce %s.", Output(row));

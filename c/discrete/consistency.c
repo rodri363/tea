@@ -199,23 +199,6 @@ static int entering (int const row, int const rec){
     return 0;
 }
 
-static void report_failure(int i, int const *rowfailures, llist **fail_list){
-    *fail_list = add_fail_node(i, *fail_list);
-
-    if (verbose){
-        printf("Failed edits:\n");
-        for (int m=0; m< edit_grid->textsize[1]; m++)
-            if (strlen(edit_grid->text[i][m]))
-                printf("\t%s\n", edit_grid->text[i][m]);
-        printf("Because:\n");
-        for (int m=0; m< total_var_ct; m++)
-            if (rowfailures[m])
-                printf("\t(%s: %i fails)\n", used_vars[m].name, rowfailures[m]);
-                  //ext_from_ri(used_vars[m].name, rowfailures[m]));
-        printf("\n");
-    }
-}
-
 /** Check each edit for a failure, meaning every T in the record matches a T in the edit (i.e.
   a row in the em matrix).
 
@@ -274,7 +257,7 @@ static int check_a_record_discrete(int const * restrict row,  int **failures,
                 }
                 if (gsl_matrix_get(edit_grid->matrix, i, j)) {
                     if (entering(i, rec)){
-                        rowfailures[rec]= j-find_b[rec]+2;//use the record value as a marker.
+                        rowfailures[rec]= 1;
                         has_actual_failed_fields++;
                     }
                 } else {
@@ -290,8 +273,8 @@ static int check_a_record_discrete(int const * restrict row,  int **failures,
             out = 1;
             if (failures){
                 for(int k= 0; k < total_var_ct; k++)
-                    *failures[k] += !!rowfailures[k]; //adds one or zero.
-                report_failure(i, rowfailures, fail_list);
+                    *failures[k] += rowfailures[k];
+                *fail_list = add_fail_node(i, *fail_list);
             }
             if (has_preed && i > last_run_preedit){ //making fwd progress on preedits
                 *preedit_to_run = i; //don't run it until you know no SQL preedits precede this.

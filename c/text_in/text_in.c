@@ -4,13 +4,22 @@ int file_read = 0;
 char * gnu_c_basename(char *);
 
 apop_data *make_type_table(){
-    //apop_data *types = get_key_text("input", "types");
+    //we eliminate so many bugs by forcing id to be numeric.
+    char *id = get_key_word("id", NULL);
+
     apop_data *types = apop_text_alloc(NULL, 1, 2);
     for (int i=0; used_vars && used_vars[i].name; i++){
+        if (id && !strcmp(used_vars[i].name, id)) continue; //add it at the end.
         apop_text_alloc(types, types->textsize[0]+1, 2);
         apop_text_add(types, types->textsize[0]-2, 0, used_vars[i].name);
         apop_text_add(types, types->textsize[0]-2, 1, 
         used_vars[i].type=='r' || used_vars[i].type=='i' ? "numeric" : "text");
+    }
+    //set the id column to numeric
+    if (id){
+        apop_text_alloc(types, types->textsize[0]+1, 2);
+        apop_text_add(types, types->textsize[0]-2, 0, id);
+        apop_text_add(types, types->textsize[0]-2, 1, "numeric");
     }
     //set the default type at the end of the table to character
     apop_text_add(types, types->textsize[0]-1, 0, ".*");

@@ -427,10 +427,10 @@ static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
 void setit(tabinfo_s ti, char const *final_value, char const *field_name){
         char tick = final_value ? '\'': ' ';
         if (!ti.autofill)
-             apop_query("insert into %s values(%i, %c%s%c, '%s', '%s');",
-                       ti.tabname, ti.draw_number, tick, XN(final_value), tick, ti.id, field_name);
-        else apop_query("update %s set %s = %c%s%c where  %s='%s';",
-                       ti.tabname, field_name, tick, XN(final_value), tick, ti.id_col, ti.id);
+             apop_query("insert into %s values(%i, %c%s%c, %s, '%s');",
+                       ti.tabname, ti.draw_number, tick, final_value?final_value:"NULL", tick, ti.id, field_name);
+        else apop_query("update %s set %s = %c%s%c where  %s+0.0=%s;",
+                       ti.tabname, field_name, tick, final_value?final_value:"NULL", tick, ti.id_col, ti.id);
 }
 
 bool strings_dont_match(char const *a, char const *b){ return (a && !b) || (!a && b) || strcmp(a, b); }
@@ -556,14 +556,14 @@ static void impute_a_variable(const char *datatab, impustruct *is,
 
     //if there is a previous fill tab, then we need to do a re-estimation
     //of the model every time. If not, then we do one est & many draws.
-    int outermax = previous_filltab ? draw_count : 1;
-    int innermax = previous_filltab ? 1 : draw_count;
+    int outermax = previous_filltab[0] ? draw_count : 1;
+    int innermax = previous_filltab[0] ? 1 : draw_count;
 
     create_index(datatab, is->depvar);
     create_index(datatab, tabinfo.id_col);
 
     for (int outerdraw=0; outerdraw < outermax; outerdraw++){
-        if (previous_filltab){
+        if (previous_filltab[0]){
             Asprintf(&dt, "%s_copy", datatab);
             check_out_impute(&dataxxx, &dt, &outerdraw, NULL, &previous_filltab);
             create_index(dt, is->depvar);
@@ -621,7 +621,7 @@ static void impute_a_variable(const char *datatab, impustruct *is,
                 index_cats(dt, category_matrix);
             }
         } while (!hit_zero); //primary means of exit is "if (!still_has_missings) break;" above.
-        if (previous_filltab) apop_table_exists(dt, 'd');
+        if (previous_filltab[0]) apop_table_exists(dt, 'd');
         commit_transaction();
         if (still_has_missings && hit_zero) printf("Even with no constraints, I still "
                              "couldn't find enough data to model the data set.");
