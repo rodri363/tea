@@ -324,7 +324,7 @@ static apop_data *get_all_nanvals(impustruct is, const char *id_col, const char 
 }
 
 static char *get_edit_associates(char const*depvar, int depvar_posn, char const*dt, char const*id_col,
-                                    long int id_number, bool *has_edits){
+                                    char const *id, bool *has_edits){
     *has_edits = false;
     if (!edit_list) return NULL;
     if (depvar_posn == -1) return NULL; //not in the list of declared fields.
@@ -357,7 +357,7 @@ static char *get_edit_associates(char const*depvar, int depvar_posn, char const*
 
     if (!*this->edit_associates->textsize) return NULL;
     char *tail;
-    Asprintf(&tail, " from %s where %s=%li", dt, id_col, id_number);
+    Asprintf(&tail, " from %s where %s+0.0=%s", dt, id_col, id);
     char *out = apop_text_paste(this->edit_associates, .between=", ",  .before="select ", .after=tail);
     free(tail);
     return out;
@@ -390,7 +390,7 @@ then sending it to consistency_check for an up-down vote.
 
 The parent function, make_a_draw, then either writes the imputation to the db or tries this fn again.
 */
-static int onedraw(gsl_rng *r, impustruct *is, long int id_number,
+static int onedraw(gsl_rng *r, impustruct *is,
                     char ***oext_values, int col_of_interest, bool has_edits, tabinfo_s ti){
     double x[is->fitted_model->dsize];
     apop_draw(x, r, is->fitted_model);
@@ -472,14 +472,14 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
         if (!is->is_em && mark_an_id(name, nanvals->names->row, nanvals->names->rowct, 0)=='m')
             continue;
         int tryctr=0;
-        long int id_number = atol(is->isnan->names->row[rowindex]);
+        char *id = is->isnan->names->row[rowindex];
         bool has_edits;
 
          char *pre_preedit[total_var_ct];
 
         if (is->depvar){
             apop_data *drecord = NULL;
-            char *associated_query = get_edit_associates(is->depvar, col_of_interest, dt, ti.id_col, id_number, &has_edits);
+            char *associated_query = get_edit_associates(is->depvar, col_of_interest, dt, ti.id_col, id, &has_edits);
             if (has_edits && associated_query) drecord = apop_query_to_text(associated_query);
             Tea_stopif(has_edits && associated_query && !*drecord->textsize, return, 0,
                         "Trouble querying for fields associated with %s", is->depvar);
@@ -500,13 +500,13 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
                                 ? strdup(*oext_values[i]): NULL;
 
         int fail_count=0;
-        do fail_count = onedraw(r, is, id_number, oext_values, col_of_interest, has_edits, ti);
+        do fail_count = onedraw(r, is, oext_values, col_of_interest, has_edits, ti);
         while (fail_count && tryctr++ < 100);
         Tea_stopif(last_chance && fail_count, 
-                apop_query("insert into tea_fails values(%li)", id_number)
+                apop_query("insert into tea_fails values(%s)", id)
                 , 0, "I just made a hundred attempts to find an imputed value "
             "that passes checks, and couldn't. Something's wrong that a "
-            "computer can't fix.\nI'm at id %li.", id_number);
+            "computer can't fix.\nI'm at id %s.", id);
 
         if (!fail_count){
             ti.id = is->isnan->names->row[rowindex];
@@ -514,7 +514,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
                 char * final_value = *oext_values[col_of_interest];
                 Tea_stopif(!final_value || isnan(atof(final_value)), goto cutout, 0,
                          "I drew a blank from the imputed column "
-                         "when I shouldn't have for record %li.", id_number);
+                         "when I shouldn't have for record %s.", id);
                 setit(ti, final_value, is->depvar);
             }
             else for (int i=0; i< total_var_ct; i++){
