@@ -1,3 +1,7 @@
+#' Build the requested table, including any requisite tables that led up to this table.
+doTable <- function(input_table=teaenv$active_tab){
+    .C("build_one_table", as.character(input_table))
+}
 
 #' The preedits are reduced to a list of queries. We can apply them at any time to any
 #' table to make sure that they are still clean.
@@ -68,7 +72,7 @@ input_table=NULL){
 	teaenv$overlay="vflags"
 }
 
-doMImpute <- function(tag=NULL){ 
+doMImpute <- function(tag=NULL, autofill=0){ 
 #    rmodel <- TEAGetKey("impute", "%%/Rmodel", tag)
 #    mod <- NULL
 #    if (!is.null(rmodel)){
@@ -77,13 +81,17 @@ doMImpute <- function(tag=NULL){
 #    }
 #    dbname <- dbGetInfo(teaenv$con)$dbname
     dbDisconnect(teaenv$con)
-    autofill <- 0
     active_tab <- "ignored on input; for output"
     if (!is.null(tag))
         warning("Imputing certain tags is currently not implemented (and not documented). Imputing all tags")
     .C("impute", as.character(active_tab), as.integer(autofill)) 
     teaenv$con <- dbConnect(dbDriver("SQLite"),teaenv$dbname)
 	teaenv$active_tab <- active_tab #active_tab may have changed
+}
+
+doEdit <- function(autofill=0){
+    active_tab <- "ignored on input; for output"
+    .C("edit", as.character(active_tab), as.integer(autofill))
 }
 
 teaenv <- new.env()

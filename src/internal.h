@@ -5,8 +5,8 @@
 
 typedef struct{
     char *name;
-    double weight;
-    int last_query;
+    double weight, score;
+    int last_query, index, use_count;
     char type;
     apop_data *edit_associates; //vars that appear in an edit alongside this one.
 } used_var_t;
@@ -42,6 +42,10 @@ int using_r; //r_init handles this. If zero, then it's a standalone C library.
 //impute/impute.c:
 apop_data * get_variables_to_impute(char *tag); 
 int do_impute(char **tag, char **idatatab, int *autofill);
+tabinfo_s setup_tabinfo(char const *configbase, char const *intab, bool autofill_in, char const *tag);
+
+void setit(tabinfo_s, char const *final_value, char const *field_name);
+//static void setit(char const *tabname, int draw, char const *final_value, char const *id_col, char const *id, char const *field_name, bool autofill);
 
 typedef struct {
 	apop_model *base_model, *fitted_model;
@@ -53,15 +57,15 @@ typedef struct {
     bool is_bounds_checkable, is_hotdeck, textdep, is_em, is_regression, allow_near_misses, autofill;
 } impustruct;
 
-void make_a_draw(impustruct *is, gsl_rng *r, char const* id_col, char const *dt,
-                                int draw, apop_data *nanvals, char const *filltab, bool last_chance);
+void make_a_draw(impustruct *is, gsl_rng *r, char const *dt, tabinfo_s ti, apop_data *nanvals, bool last_chance);
+char * check_out(char *datatab, char *previous_filltab, int drawct, impustruct is, tabinfo_s tabinfo);
 
 //impute/em.c
 void em_to_completion(char const *datatab,
         impustruct is, int min_group_size, gsl_rng *r,
         int draw_count, char *catlist,
-        apop_data const *fingerprint_vars, char const *id_col,
-        char const *weight_col, char const *fill_tab, char const *margintab,
+        apop_data const *fingerprint_vars, tabinfo_s tabinfo,
+        char const *weight_col, char const *margintab,
         char *previous_filltab);
 
 int join_tables(char const* tag); //text_in/text_in.c
@@ -90,13 +94,9 @@ void test_check_out_impute();//in checkout.c
 
 //in discrete/ext_to_em.c, used for putting an arbitrary list of fields into
 //a certain order for the edit matrix.
-void order_things(char * const* record_in, char *const *record_names, int record_size, char **oext_vals);
+void order_things(char * const* record_in, char *const *record_names, int record_size, char ***oext_vals);
 void order_things_int(int * ints_in, char *const *record_names, int record_size, int **oint_vals);
 int get_ordered_posn(char const*in);
-
-//in discrete/consistency.c, version 2 of consistency_check
-int cc2(char * *oext_values, char const *const *what_you_want, 
-			long int const *id, int **ofailed_fields, _Bool do_preedits, int);
 
 //utils.c
 int create_index_base(char const *tab, char const**fields);

@@ -54,13 +54,27 @@ CheckBounds <- function(Vvar,kname,con){
 	return(as.integer(!(Vvar %in% Vset)))
 }
 
-CheckDF <- function(df){
-	return(as.data.frame(.Call("RCheckData",df)))
+#' Check a data frame for failed edits.
+#' If an edit has an associated action (e.g., the "sex=F" part of sex=M and status="pregnant" => sex=F)
+#' then make these changes to the data iff do_preedits=1. If such a change is made,
+#' all edits are re-checked from the start, but all preedits up to and including the
+#' last one to be used will not be implemented (so on the future iterations, pregnant men
+#' will still be marked as an error, but will not be changed by this rule).
+
+#' @param df A data frame to be checked, probably generated via tea_table
+#' @param do_preedits 1=Apply preedits to change the data if an error is found;
+#'        0=only count errors; make no changes. Default=1.
+#' @return A data frame of the same shape as the input frame. Each cell has the
+#'         failure count for the corresponding input record/field. The count is
+#'         after the last preedit has been run, so if you want the cont of failures
+#'         in the raw data, use do_preedits=0.
+
+CheckDF <- function(df, do_preedits=1){
+	return(as.data.frame(.Call("RCheckData",df, as.integer(do_preedits))))
 }
 
 blankOne <- function(r, tabname, idcolname, id){
     m <- max(r) # greater than zero, because of the if statement in the caller below.
-#browser()
     blankme <- sample(names(r)[r[]==m], 1)
     print(paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
     dbGetQuery(teaenv$con, paste("update", tabname, "set", blankme, "=NULL where", idcolname, "=", id, sep=" "))
@@ -70,7 +84,7 @@ blankOne <- function(r, tabname, idcolname, id){
 #' pull the subset specified, and check each row.
 #' If a row fails, blank the element that fails the most edits (in case of ties,
 #' randomly draw among the most failed), then call the imputation routine on that row.
-EditTable <- function(tabname, where=NULL){
+EditTable <- function(tabname, where=NULL, do_preedits=1){
     if (!is.character(tabname)) {
         print("Give this function a name from the database.")
         return(NULL)
@@ -84,7 +98,10 @@ EditTable <- function(tabname, where=NULL){
     ctr <- 0 # Note also that the imputation makes 1,000 tries/record.
     while (fail == TRUE && ctr < 10) {
         fail <- FALSE
-        glitches <- as.data.frame(.Call("RCheckData",t))
+        t <- teaTable(tabname, where=where)
+        glitches <- as.data.frame(.Call("RCheckData",t, as.integer(do_preedits)))
+print(t)
+print(glitches)
 
         for (i in 1:nrow(glitches)){
             r <- glitches[i,]
@@ -93,13 +110,12 @@ EditTable <- function(tabname, where=NULL){
                 blankOne(r, tabname, idcolname, idcol[[1]][i])
             }        
         }
-
         if (fail){
             .C("impute", as.character(tabname), as.integer(autofill))
         }
         #These are rowids where we couldn't draw a consistent record
         hardFails <- teaTable("tea_fails")
-        fail <- hardFails
+        fail <- !is.null(hardFails)
         ctr <- ctr+1
     }
     if (ctr == 10) warning("Some rows couldn't be edited into consistency.")

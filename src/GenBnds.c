@@ -90,12 +90,10 @@ int genbnds_(void)
     CheckIncon();
 
     /* For each category, store implicit bounds in table:  SPEERimpl */
-    for (i = 1; i <= BFLD; ++i) {
-      for (j = 1; j <= BFLD; ++j) {
+    for (i = 1; i <= BFLD; ++i)
+      for (j = 1; j <= BFLD; ++j)
          apop_query("insert into SPEERimpl values( %d, %d, %d, '%s', '%s', %f, %f);",
 	            cat, i, j, bnames[i], bnames[j], bnds.lower[i][j], bnds.upper[i][j]);
-      }
-    }
   }
 
   /* Check for potential post-processing fatal problems. */
@@ -106,17 +104,11 @@ int genbnds_(void)
   return 0;
 }
 
-
-int CheckIncon(void)
-/******************************************************/ 
-/* *** CHECK FOR BOUNDS INCONSISTENCIES. **** */
-{
-  static int i, j;
-
+int CheckIncon(void) {
   /* CHECK FOR BOUNDS INCONSISTENCIES.  Tab/store any inconsistencies. */
-  for (i = 1; i <= BFLD; ++i) {
-	for (j = 1; j <= BFLD; ++j) {
-      if (i == j && bnds.lower[i][j] == bnds.upper[i][j]) { goto L200; }
+  for (int i = 1; i <= BFLD; ++i) {
+	for (int j = 1; j <= BFLD; ++j) {
+      if (i == j && bnds.lower[i][j] == bnds.upper[i][j]) continue;
 
       /* If inconsistencies exist, tab/store. */
       if( bnds.lower[i][j] >= bnds.upper[i][j] ) {
@@ -124,7 +116,6 @@ int CheckIncon(void)
          apop_query("insert into SPEERincon values( '%s', '%s', %f, %f);",
 		            bnames[i], bnames[j], bnds.lower[i][j], bnds.upper[i][j] );
 	  }
-      L200: ;
 	}
   }
   return 0;
@@ -155,10 +146,10 @@ int GenImplicits(void)
 /* *** MODIFY LOWER BOUNDS. **** */
   for (i = 1; i <= BFLD; ++i) {
 	for (j = 1; j <= BFLD; ++j) {
-	  if (bnds.upper[j][i] >= (double)99999.0) {
-	      temp = (double)0.0;
+	  if (bnds.upper[j][i] >= 99999.0) {
+	      temp = 0.0;
 	  } else {
-		  temp = (double)1.0 / bnds.upper[j][i];
+		  temp = 1.0 / bnds.upper[j][i];
 	  }
 	  if (temp > bnds.lower[i][j]) { bnds.lower[i][j] = temp; }
 	}

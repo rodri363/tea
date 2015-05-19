@@ -72,37 +72,36 @@ Gramática
    40         | NUMBER
    41         | DTEXT
    42         | '*'
-   43         | '$' NUMBER
-   44         | error
+   43         | error
 
-   45 blob: blob blob_elmt
-   46     | blob_elmt
-   47     | error
+   44 blob: blob blob_elmt
+   45     | blob_elmt
+   46     | error
 
-   48 blob_elmt: TEXT
-   49          | NUMBER
-   50          | ','
-   51          | '*'
-   52          | '-'
-   53          | '$'
-   54          | SPACE
+   47 blob_elmt: TEXT
+   48          | NUMBER
+   49          | ','
+   50          | '*'
+   51          | '-'
+   52          | '$'
+   53          | SPACE
 
 
 Terminales con las reglas donde aparecen
 
 $end (0) 0
-'$' (36) 43 53
-'*' (42) 42 51
-',' (44) 37 50
-'-' (45) 39 52
+'$' (36) 52
+'*' (42) 42 50
+',' (44) 37 49
+'-' (45) 39 51
 ':' (58) 9 31
-error (256) 8 18 44 47
-SPACE (258) 6 32 38 54
-NUMBER (259) 39 40 43 49
+error (256) 8 18 43 46
+SPACE (258) 6 32 38 53
+NUMBER (259) 39 40 48
 DTEXT (260) 25 27 30 41
 THEN (261) 22
 EOL (262) 5 17 22 25 27 30
-TEXT (263) 48
+TEXT (263) 47
 OPENKEY (264) 11
 CLOSEKEY (265) 11
 TYPE (266) 25 27
@@ -152,11 +151,11 @@ optionalweight (36)
 numlist (37)
     en la izquierda: 36 37 38, en la derecha: 25 30 37 38
 num_item (38)
-    en la izquierda: 39 40 41 42 43 44, en la derecha: 36 37
+    en la izquierda: 39 40 41 42 43, en la derecha: 36 37
 blob (39)
-    en la izquierda: 45 46 47, en la derecha: 9 11 19 22 45
+    en la izquierda: 44 45 46, en la derecha: 9 11 19 22 44
 blob_elmt (40)
-    en la izquierda: 48 49 50 51 52 53 54, en la derecha: 45 46
+    en la izquierda: 47 48 49 50 51 52 53, en la derecha: 44 45
 
 
 Estado 0
@@ -186,56 +185,56 @@ Estado 0
 Estado 1
 
     8 item: error .
-   47 blob: error .
+   46 blob: error .
 
     SPACE     reduce usando la regla 8 (item)
-    SPACE     [reduce usando la regla 47 (blob)]
+    SPACE     [reduce usando la regla 46 (blob)]
     NUMBER    reduce usando la regla 8 (item)
-    NUMBER    [reduce usando la regla 47 (blob)]
+    NUMBER    [reduce usando la regla 46 (blob)]
     TEXT      reduce usando la regla 8 (item)
-    TEXT      [reduce usando la regla 47 (blob)]
+    TEXT      [reduce usando la regla 46 (blob)]
     ','       reduce usando la regla 8 (item)
-    ','       [reduce usando la regla 47 (blob)]
-    ':'       reduce usando la regla 47 (blob)
-    OPENKEY   reduce usando la regla 47 (blob)
+    ','       [reduce usando la regla 46 (blob)]
+    ':'       reduce usando la regla 46 (blob)
+    OPENKEY   reduce usando la regla 46 (blob)
     '$'       reduce usando la regla 8 (item)
-    '$'       [reduce usando la regla 47 (blob)]
+    '$'       [reduce usando la regla 46 (blob)]
     '-'       reduce usando la regla 8 (item)
-    '-'       [reduce usando la regla 47 (blob)]
+    '-'       [reduce usando la regla 46 (blob)]
     '*'       reduce usando la regla 8 (item)
-    '*'       [reduce usando la regla 47 (blob)]
+    '*'       [reduce usando la regla 46 (blob)]
     $default  reduce usando la regla 8 (item)
 
 
 Estado 2
 
     6 item: SPACE .
-   54 blob_elmt: SPACE .
+   53 blob_elmt: SPACE .
 
     SPACE     reduce usando la regla 6 (item)
-    SPACE     [reduce usando la regla 54 (blob_elmt)]
+    SPACE     [reduce usando la regla 53 (blob_elmt)]
     NUMBER    reduce usando la regla 6 (item)
-    NUMBER    [reduce usando la regla 54 (blob_elmt)]
+    NUMBER    [reduce usando la regla 53 (blob_elmt)]
     TEXT      reduce usando la regla 6 (item)
-    TEXT      [reduce usando la regla 54 (blob_elmt)]
+    TEXT      [reduce usando la regla 53 (blob_elmt)]
     ','       reduce usando la regla 6 (item)
-    ','       [reduce usando la regla 54 (blob_elmt)]
-    ':'       reduce usando la regla 54 (blob_elmt)
-    OPENKEY   reduce usando la regla 54 (blob_elmt)
+    ','       [reduce usando la regla 53 (blob_elmt)]
+    ':'       reduce usando la regla 53 (blob_elmt)
+    OPENKEY   reduce usando la regla 53 (blob_elmt)
     '$'       reduce usando la regla 6 (item)
-    '$'       [reduce usando la regla 54 (blob_elmt)]
+    '$'       [reduce usando la regla 53 (blob_elmt)]
     '-'       reduce usando la regla 6 (item)
-    '-'       [reduce usando la regla 54 (blob_elmt)]
+    '-'       [reduce usando la regla 53 (blob_elmt)]
     '*'       reduce usando la regla 6 (item)
-    '*'       [reduce usando la regla 54 (blob_elmt)]
+    '*'       [reduce usando la regla 53 (blob_elmt)]
     $default  reduce usando la regla 6 (item)
 
 
 Estado 3
 
-   49 blob_elmt: NUMBER .
+   48 blob_elmt: NUMBER .
 
-    $default  reduce usando la regla 49 (blob_elmt)
+    $default  reduce usando la regla 48 (blob_elmt)
 
 
 Estado 4
@@ -260,37 +259,37 @@ Estado 5
 
 Estado 6
 
-   48 blob_elmt: TEXT .
+   47 blob_elmt: TEXT .
 
-    $default  reduce usando la regla 48 (blob_elmt)
+    $default  reduce usando la regla 47 (blob_elmt)
 
 
 Estado 7
 
-   50 blob_elmt: ',' .
+   49 blob_elmt: ',' .
 
-    $default  reduce usando la regla 50 (blob_elmt)
+    $default  reduce usando la regla 49 (blob_elmt)
 
 
 Estado 8
 
-   53 blob_elmt: '$' .
-
-    $default  reduce usando la regla 53 (blob_elmt)
-
-
-Estado 9
-
-   52 blob_elmt: '-' .
+   52 blob_elmt: '$' .
 
     $default  reduce usando la regla 52 (blob_elmt)
 
 
-Estado 10
+Estado 9
 
-   51 blob_elmt: '*' .
+   51 blob_elmt: '-' .
 
     $default  reduce usando la regla 51 (blob_elmt)
+
+
+Estado 10
+
+   50 blob_elmt: '*' .
+
+    $default  reduce usando la regla 50 (blob_elmt)
 
 
 Estado 11
@@ -350,7 +349,7 @@ Estado 16
 
     9 keyval: blob . ':' blob
    11 keygroup: blob . OPENKEY $@1 keylist CLOSEKEY
-   45 blob: blob . blob_elmt
+   44 blob: blob . blob_elmt
 
     SPACE    desplazar e ir al estado 22
     NUMBER   desplazar e ir al estado 3
@@ -367,9 +366,9 @@ Estado 16
 
 Estado 17
 
-   46 blob: blob_elmt .
+   45 blob: blob_elmt .
 
-    $default  reduce usando la regla 46 (blob)
+    $default  reduce usando la regla 45 (blob)
 
 
 Estado 18
@@ -410,9 +409,9 @@ Estado 21
 
 Estado 22
 
-   54 blob_elmt: SPACE .
+   53 blob_elmt: SPACE .
 
-    $default  reduce usando la regla 54 (blob_elmt)
+    $default  reduce usando la regla 53 (blob_elmt)
 
 
 Estado 23
@@ -443,9 +442,9 @@ Estado 24
 
 Estado 25
 
-   45 blob: blob blob_elmt .
+   44 blob: blob blob_elmt .
 
-    $default  reduce usando la regla 45 (blob)
+    $default  reduce usando la regla 44 (blob)
 
 
 Estado 26
@@ -477,15 +476,15 @@ Estado 28
 
 Estado 29
 
-   47 blob: error .
+   46 blob: error .
 
-    $default  reduce usando la regla 47 (blob)
+    $default  reduce usando la regla 46 (blob)
 
 
 Estado 30
 
     9 keyval: blob ':' blob .
-   45 blob: blob . blob_elmt
+   44 blob: blob . blob_elmt
 
     SPACE   desplazar e ir al estado 22
     NUMBER  desplazar e ir al estado 3
@@ -549,41 +548,40 @@ Estado 33
     error   desplazar e ir al estado 44
     NUMBER  desplazar e ir al estado 45
     DTEXT   desplazar e ir al estado 46
-    '$'     desplazar e ir al estado 47
-    '*'     desplazar e ir al estado 48
+    '*'     desplazar e ir al estado 47
 
-    numlist   ir al estado 49
-    num_item  ir al estado 50
+    numlist   ir al estado 48
+    num_item  ir al estado 49
 
 
 Estado 34
 
    18 keylist_item: error .
-   47 blob: error .
+   46 blob: error .
 
     error     reduce usando la regla 18 (keylist_item)
-    error     [reduce usando la regla 47 (blob)]
+    error     [reduce usando la regla 46 (blob)]
     SPACE     reduce usando la regla 18 (keylist_item)
-    SPACE     [reduce usando la regla 47 (blob)]
+    SPACE     [reduce usando la regla 46 (blob)]
     NUMBER    reduce usando la regla 18 (keylist_item)
-    NUMBER    [reduce usando la regla 47 (blob)]
-    THEN      reduce usando la regla 47 (blob)
+    NUMBER    [reduce usando la regla 46 (blob)]
+    THEN      reduce usando la regla 46 (blob)
     EOL       reduce usando la regla 18 (keylist_item)
-    EOL       [reduce usando la regla 47 (blob)]
+    EOL       [reduce usando la regla 46 (blob)]
     TEXT      reduce usando la regla 18 (keylist_item)
-    TEXT      [reduce usando la regla 47 (blob)]
+    TEXT      [reduce usando la regla 46 (blob)]
     ','       reduce usando la regla 18 (keylist_item)
-    ','       [reduce usando la regla 47 (blob)]
-    ':'       reduce usando la regla 47 (blob)
-    OPENKEY   reduce usando la regla 47 (blob)
+    ','       [reduce usando la regla 46 (blob)]
+    ':'       reduce usando la regla 46 (blob)
+    OPENKEY   reduce usando la regla 46 (blob)
     CLOSEKEY  reduce usando la regla 18 (keylist_item)
-    CLOSEKEY  [reduce usando la regla 47 (blob)]
+    CLOSEKEY  [reduce usando la regla 46 (blob)]
     '$'       reduce usando la regla 18 (keylist_item)
-    '$'       [reduce usando la regla 47 (blob)]
+    '$'       [reduce usando la regla 46 (blob)]
     '-'       reduce usando la regla 18 (keylist_item)
-    '-'       [reduce usando la regla 47 (blob)]
+    '-'       [reduce usando la regla 46 (blob)]
     '*'       reduce usando la regla 18 (keylist_item)
-    '*'       [reduce usando la regla 47 (blob)]
+    '*'       [reduce usando la regla 46 (blob)]
     $default  reduce usando la regla 18 (keylist_item)
 
 
@@ -619,14 +617,14 @@ Estado 38
     EOL       desplazar e ir al estado 35
     TEXT      desplazar e ir al estado 6
     ','       desplazar e ir al estado 7
-    CLOSEKEY  desplazar e ir al estado 51
+    CLOSEKEY  desplazar e ir al estado 50
     '$'       desplazar e ir al estado 8
     '-'       desplazar e ir al estado 9
     '*'       desplazar e ir al estado 10
 
     keyval        ir al estado 36
     keygroup      ir al estado 37
-    keylist_item  ir al estado 52
+    keylist_item  ir al estado 51
     preedit       ir al estado 40
     blob          ir al estado 41
     blob_elmt     ir al estado 17
@@ -652,7 +650,7 @@ Estado 41
    11 keygroup: blob . OPENKEY $@1 keylist CLOSEKEY
    19 keylist_item: blob .
    22 preedit: blob . $@2 THEN blob $@3 EOL
-   45 blob: blob . blob_elmt
+   44 blob: blob . blob_elmt
 
     SPACE    desplazar e ir al estado 22
     NUMBER   desplazar e ir al estado 3
@@ -674,7 +672,7 @@ Estado 41
     '*'       [reduce usando la regla 19 (keylist_item)]
     $default  reduce usando la regla 19 (keylist_item)
 
-    $@2        ir al estado 53
+    $@2        ir al estado 52
     blob_elmt  ir al estado 25
 
 
@@ -685,25 +683,24 @@ Estado 42
     error   desplazar e ir al estado 44
     NUMBER  desplazar e ir al estado 45
     DTEXT   desplazar e ir al estado 46
-    '$'     desplazar e ir al estado 47
-    '*'     desplazar e ir al estado 48
+    '*'     desplazar e ir al estado 47
 
-    numlist   ir al estado 54
-    num_item  ir al estado 50
+    numlist   ir al estado 53
+    num_item  ir al estado 49
 
 
 Estado 43
 
    27 declaration: DTEXT optionalcolon optionalweight TYPE $@6 . EOL
 
-    EOL  desplazar e ir al estado 55
+    EOL  desplazar e ir al estado 54
 
 
 Estado 44
 
-   44 num_item: error .
+   43 num_item: error .
 
-    $default  reduce usando la regla 44 (num_item)
+    $default  reduce usando la regla 43 (num_item)
 
 
 Estado 45
@@ -711,7 +708,7 @@ Estado 45
    39 num_item: NUMBER . '-' NUMBER
    40         | NUMBER .
 
-    '-'  desplazar e ir al estado 56
+    '-'  desplazar e ir al estado 55
 
     $default  reduce usando la regla 40 (num_item)
 
@@ -725,123 +722,108 @@ Estado 46
 
 Estado 47
 
-   43 num_item: '$' . NUMBER
-
-    NUMBER  desplazar e ir al estado 57
-
-
-Estado 48
-
    42 num_item: '*' .
 
     $default  reduce usando la regla 42 (num_item)
 
 
-Estado 49
+Estado 48
 
    30 declaration: DTEXT optionalcolon optionalweight $@7 numlist . $@8 EOL
    37 numlist: numlist . ',' num_item
    38        | numlist . SPACE
 
-    SPACE  desplazar e ir al estado 58
-    ','    desplazar e ir al estado 59
+    SPACE  desplazar e ir al estado 56
+    ','    desplazar e ir al estado 57
 
     $default  reduce usando la regla 29 ($@8)
 
-    $@8  ir al estado 60
+    $@8  ir al estado 58
 
 
-Estado 50
+Estado 49
 
    36 numlist: num_item .
 
     $default  reduce usando la regla 36 (numlist)
 
 
-Estado 51
+Estado 50
 
    11 keygroup: blob OPENKEY $@1 keylist CLOSEKEY .
 
     $default  reduce usando la regla 11 (keygroup)
 
 
-Estado 52
+Estado 51
 
    12 keylist: keylist keylist_item .
 
     $default  reduce usando la regla 12 (keylist)
 
 
-Estado 53
+Estado 52
 
    22 preedit: blob $@2 . THEN blob $@3 EOL
 
-    THEN  desplazar e ir al estado 61
+    THEN  desplazar e ir al estado 59
 
 
-Estado 54
+Estado 53
 
    25 declaration: DTEXT optionalcolon optionalweight TYPE $@4 numlist . $@5 EOL
    37 numlist: numlist . ',' num_item
    38        | numlist . SPACE
 
-    SPACE  desplazar e ir al estado 58
-    ','    desplazar e ir al estado 59
+    SPACE  desplazar e ir al estado 56
+    ','    desplazar e ir al estado 57
 
     $default  reduce usando la regla 24 ($@5)
 
-    $@5  ir al estado 62
+    $@5  ir al estado 60
 
 
-Estado 55
+Estado 54
 
    27 declaration: DTEXT optionalcolon optionalweight TYPE $@6 EOL .
 
     $default  reduce usando la regla 27 (declaration)
 
 
-Estado 56
+Estado 55
 
    39 num_item: NUMBER '-' . NUMBER
 
-    NUMBER  desplazar e ir al estado 63
+    NUMBER  desplazar e ir al estado 61
 
 
-Estado 57
-
-   43 num_item: '$' NUMBER .
-
-    $default  reduce usando la regla 43 (num_item)
-
-
-Estado 58
+Estado 56
 
    38 numlist: numlist SPACE .
 
     $default  reduce usando la regla 38 (numlist)
 
 
-Estado 59
+Estado 57
 
    37 numlist: numlist ',' . num_item
 
     error   desplazar e ir al estado 44
     NUMBER  desplazar e ir al estado 45
     DTEXT   desplazar e ir al estado 46
-    '$'     desplazar e ir al estado 47
-    '*'     desplazar e ir al estado 48
+    '*'     desplazar e ir al estado 47
 
-    num_item  ir al estado 64
+    num_item  ir al estado 62
 
 
-Estado 60
+Estado 58
 
    30 declaration: DTEXT optionalcolon optionalweight $@7 numlist $@8 . EOL
 
-    EOL  desplazar e ir al estado 65
+    EOL  desplazar e ir al estado 63
 
 
-Estado 61
+Estado 59
 
    22 preedit: blob $@2 THEN . blob $@3 EOL
 
@@ -854,42 +836,42 @@ Estado 61
     '-'     desplazar e ir al estado 9
     '*'     desplazar e ir al estado 10
 
-    blob       ir al estado 66
+    blob       ir al estado 64
     blob_elmt  ir al estado 17
 
 
-Estado 62
+Estado 60
 
    25 declaration: DTEXT optionalcolon optionalweight TYPE $@4 numlist $@5 . EOL
 
-    EOL  desplazar e ir al estado 67
+    EOL  desplazar e ir al estado 65
 
 
-Estado 63
+Estado 61
 
    39 num_item: NUMBER '-' NUMBER .
 
     $default  reduce usando la regla 39 (num_item)
 
 
-Estado 64
+Estado 62
 
    37 numlist: numlist ',' num_item .
 
     $default  reduce usando la regla 37 (numlist)
 
 
-Estado 65
+Estado 63
 
    30 declaration: DTEXT optionalcolon optionalweight $@7 numlist $@8 EOL .
 
     $default  reduce usando la regla 30 (declaration)
 
 
-Estado 66
+Estado 64
 
    22 preedit: blob $@2 THEN blob . $@3 EOL
-   45 blob: blob . blob_elmt
+   44 blob: blob . blob_elmt
 
     SPACE   desplazar e ir al estado 22
     NUMBER  desplazar e ir al estado 3
@@ -901,25 +883,25 @@ Estado 66
 
     $default  reduce usando la regla 21 ($@3)
 
-    $@3        ir al estado 68
+    $@3        ir al estado 66
     blob_elmt  ir al estado 25
 
 
-Estado 67
+Estado 65
 
    25 declaration: DTEXT optionalcolon optionalweight TYPE $@4 numlist $@5 EOL .
 
     $default  reduce usando la regla 25 (declaration)
 
 
-Estado 68
+Estado 66
 
    22 preedit: blob $@2 THEN blob $@3 . EOL
 
-    EOL  desplazar e ir al estado 69
+    EOL  desplazar e ir al estado 67
 
 
-Estado 69
+Estado 67
 
    22 preedit: blob $@2 THEN blob $@3 EOL .
 

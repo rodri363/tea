@@ -87,17 +87,23 @@ apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *o
     bool done = false;
     apop_map(raked, .fn_rp=cull, .param=fin, .inplace='v');
     done = apop_sum(raked->weights);
-    Tea_stopif(!done, return NULL, 0, "Still couldn't find something to draw.");
+    Tea_stopif(!done, apop_data_show(fin); return NULL, 0, "Still couldn't find something to draw for this record:");
     return apop_estimate(raked, apop_pmf);
 }
 
-apop_data *get_data_for_em(const char *datatab, char *catlist, const char *id_col, 
-                           char const *weight_col, char *previous_filltab, impustruct is){
+apop_data *get_data_for_em(const char *datatab, char **dt, char *catlist, const char *id_col, 
+                           char const *weight_col, char *previous_filltab, impustruct is, tabinfo_s ti){
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
+    *dt = check_out((char*)datatab, previous_filltab, /*outerdraw*/0, is, ti);
     char *varlist = apop_text_paste(&as_data, .between=", ");
-    apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s", id_col, varlist, 
+    
+    apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s %s %s", id_col, varlist, 
                     weight_col ? ',' : ' ',
-                    XN(weight_col), /*previous_filltab ? dt :*/datatab, catlist ? "where": " ", XN(catlist));
+                    XN(weight_col), *dt,
+                    (catlist||is.subset) ? "where": " ",
+                    XN(catlist),
+                    (catlist&&is.subset) ? " and " : " ",
+                    XN(is.subset));
     free(varlist);
     Tea_stopif(!d || d->error, return d, 0, "Query trouble.");
     if (!d->weights) {
@@ -122,8 +128,8 @@ void get_types(apop_data *raked){
         apop_text_add(names, i, 0, "%c", get_coltype(raked->names->col[i]));
 }
 
-void make_rake_draws(apop_data *d, apop_data *raked, impustruct is,/* int count_of_nans,*/ gsl_rng *r, int draw_count, int *ctr,
-                                char const *out_tab, char const *id_col, char const *datatab){
+void make_rake_draws(apop_data *d, apop_data *raked, impustruct is,/* int count_of_nans,*/ gsl_rng *r,
+                                  int draw_count, tabinfo_s tabinfo, char const *datatab){
     gsl_vector *original_weights = apop_vector_copy(raked->weights);
     gsl_vector *cp_to_fill = gsl_vector_alloc(d->matrix->size2);
     Apop_row(raked, 0, firstrow);
@@ -149,10 +155,10 @@ void make_rake_draws(apop_data *d, apop_data *raked, impustruct is,/* int count_
         is.isnan = focus;
         is.depvar = NULL; //effectively a semaphore to use EM.
         is.var_posns = oext_posns;
-        for (int drawno=0; drawno< draw_count; drawno++)
-            make_a_draw(&is, r, id_col, datatab, drawno, focus, out_tab, /*.last_chance=*/false);
-            //use d, or cp_to_fill? 
-
+        for (int drawno=0; drawno< draw_count; drawno++){
+            tabinfo.draw_number=drawno;
+            make_a_draw(&is, r, datatab, tabinfo, focus, /*.last_chance=*/false);
+        }
         end:
         apop_model_free(is.fitted_model);
         gsl_vector_memcpy(raked->weights, original_weights);
@@ -180,11 +186,11 @@ void diagnostic_print(apop_data *d, apop_data *raked){
 void em_to_completion(char const *datatab,
         impustruct is, int min_group_size, gsl_rng *r,
         int draw_count, char *catlist,
-        apop_data const *fingerprint_vars, char const *id_col,
-        char const *weight_col, char const *out_tab, char const *margintab,
+        apop_data const *fingerprint_vars, tabinfo_s tabinfo,
+        char const *weight_col, char const *margintab,
         char *previous_filltab){
-
-    apop_data *d = get_data_for_em(datatab, catlist, id_col, weight_col, previous_filltab, is);
+    char *dt;
+    apop_data *d = get_data_for_em(datatab, &dt, catlist, tabinfo.id_col, weight_col, previous_filltab, is, tabinfo);
     Tea_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
     Tea_stopif(d->error, return, 0, "query error.");
     int count_of_nans = apop_map_sum(d, .fn_d=nnn);
@@ -197,8 +203,7 @@ void em_to_completion(char const *datatab,
 
     //diagnostic_print(d, raked);
 
-    int ctr = 0;
-    make_rake_draws(d, raked, is, /*count_of_nans,*/ r, draw_count, &ctr, out_tab, id_col, datatab);
+    make_rake_draws(d, raked, is, /*count_of_nans,*/ r, draw_count, tabinfo, dt);
     //apop_data_print(raked, .output_name="ooo", .output_append='a');
     apop_data_free(raked); //Thrown away.
     apop_data_free(d);

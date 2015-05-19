@@ -19,8 +19,11 @@ void R_init_tea(DllInfo *info){
 
 // There used to be an RCheckConsistency function here; it last appeared in commit c11ad596
 
-SEXP RCheckData(SEXP df){
-//	apop_data *data = rapop_ad_from_df(df);
-	apop_data *ret = checkData(rapop_ad_from_df(df));
-	return(rapop_df_from_ad(ret));
+SEXP RCheckData(SEXP df, SEXP do_preedits){
+    apop_data *d  =rapop_ad_from_df(df);
+    apop_data *outd = checkData(d, *INTEGER(do_preedits), 0, (tabinfo_s){});
+    SEXP out = rapop_df_from_ad(outd);
+    apop_data_free(d);
+    apop_data_free(outd);
+    return out;
 }

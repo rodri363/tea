@@ -168,8 +168,6 @@ optionalcolon: ':'
              |
              ;
 
-//// optionalweight: WEIGHT {extend_key($1);used_vars[total_var_ct-1].weight = atof($1);}
-////              | {used_vars[total_var_ct-1].weight = 1.0;}
 optionalweight: WEIGHT {nextweight = atof($1);}
               | {nextweight = 1.0;}
               ;
@@ -183,7 +181,6 @@ num_item : NUMBER '-' NUMBER  {add_to_num_list_seq($1, $3);}
          | NUMBER             {add_to_num_list($1);}
          | DTEXT               {add_to_num_list($1);}
          | '*'               {add_to_num_list("*");}
-         |'$' NUMBER           {used_vars[total_var_ct-1].weight = atof($2);}
          | error   			{Rf_error("Error in list around [%s] line [%d].", $1,lineno);}
          ;
 
@@ -298,7 +295,8 @@ char add_var_no_edit(char const *var, int is_recode, char type){
     //we used to have costs, but I removed them after revison b8a03fe3740eb6c07c .
 	total_var_ct++;
 	used_vars = realloc(used_vars, sizeof(used_var_t)*(total_var_ct+1));
-	used_vars[total_var_ct-1] = (used_var_t) {.name=strdup(var), .weight=1, .last_query=-1, .type=type};
+	used_vars[total_var_ct-1] = (used_var_t) {.name=strdup(var), .index=total_var_ct-1,
+                                             .weight=nextweight, .last_query=-1, .type=type};
 	used_vars[total_var_ct] = (used_var_t) {};//null sentinel.
     return 'c';
 }
@@ -314,13 +312,11 @@ void add_var(char const *var, int is_recode, char type){
     optionct[total_var_ct-1] = 0;
     if (type!='r'){
         apop_table_exists(current_var, 'd');
-		/*ahh here it is, table was always text*/
-		if(type=='i')
-	        apop_query("create table %s (%s integer); create index indx%svar on %s(%s)",
-                                    var, var,var,var,var);
-		else
-	        apop_query("create table %s (%s text); create index indx%svar on %s(%s)",
-                                    var, var,var,var,var);
+		char *typestr =   type == 'i' ? "integer"
+                        : type == 'r' ? "real"
+                                      : "text";
+        apop_query("create table %s (%s %s); create index indx%svar on %s(%s)",
+                                var, var, typestr, var,var,var);
         apop_query("insert into variables values ('%s')", var);
     }
 }
@@ -473,6 +469,7 @@ void moreblob(char **out, char* so_far, char *more){
                 if (!already_used){
                     el->vars_used = realloc(el->vars_used, sizeof(used_var_t)*++el->var_ct);
                     el->vars_used[el->var_ct-1] = used_vars[i];
+                    used_vars[i].use_count++;
                 }
             }
 

@@ -1,7 +1,7 @@
 #include "internal.h" 
 extern char *datatab;
 
-/* Our imputation system gave us a fill tab, and there's the original tab with its NaN or
+/** Our imputation system gave us a fill tab, and there's the original tab with its NaN or
    otherwise bad values still in place. This here will generate a new table that uses the
    right values.
 
@@ -34,15 +34,19 @@ void check_out_impute(char **origin, char **destin, int *imputation_number, char
     } else dest = *origin;
     create_index(dest, use_rowids ? "id_col" : id_column);
     Tea_stopif(!apop_table_exists(filltab), return , 0, "No table named '%s'; did you already doMImpute()?", filltab);
-    apop_data *fills = apop_query_to_text("select %s, field, value from %s where draw+0.0=%i"
+    apop_data *fills = apop_query_to_text("select %s, field, value from %s where (draw=%i or draw = -1)"
                                               , id_column, filltab, *imputation_number);
     Tea_stopif(!fills || fills->error, return, 0, "Expected fill-in table "
                 "%s, but couldn't query it.", filltab);
-    for(int i=0; i< *fills->textsize; i++)
-        apop_query("update %s set %s = '%s' "
-                   "where %s = %s", 
-                      dest, fills->text[i][0], fills->text[i][1], 
+    for(int i=0; i< *fills->textsize; i++){
+        _Bool is_null = !strcmp(fills->text[i][1], apop_opts.nan_string);
+        char tick = is_null ? ' ' : '\'';
+        apop_query("update %s set %s = %c%s%c "
+                   "where cast(%s as numeric) = %s", 
+                      dest, fills->text[i][0], 
+                      tick, is_null ? "NULL" : fills->text[i][1], tick,
                       id_column, fills->names->row[i]);
+    }
     commit_transaction();
     apop_data_free(fills);
     free(id_column);

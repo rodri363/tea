@@ -57,7 +57,7 @@ static void recodes(char **key, char** tag, char **outstring, char **intab){
             "and key not like 'group recodes/group id' "
             "and key not like '%s/input table' "
             "and key not like '%s/output table' "
-            "and key not like '%s/overwrite' " ,*key,*key, *key, *key, *key, *key);
+            "and key not like '%s/overwrite' " ,*key,*key, *key, *key, *key);
 
     all_recodes = apop_query_to_text("select distinct key from keys where %s %s order by tag", like, XN(tagstr));
     if (!all_recodes || !*all_recodes->textsize) return;
