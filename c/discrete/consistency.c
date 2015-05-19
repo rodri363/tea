@@ -432,7 +432,6 @@ apop_data *checkData(apop_data *data, bool do_preedits, bool clear_failures, tab
     memcpy(&fields[data->names->colct], data->names->text, sizeof(char*)*data->names->textct);
 
 	//now that we have the variables, we can call consistency_check for each row
-	long int id=1;
 	int nrow = data->matrix ? data->matrix->size1: *data->textsize;
 	int failed_fields[nvars];
 	char *vals[nvars];
@@ -487,6 +486,7 @@ bool an_edit(char const *in_tab, char const *tag){
     begin_transaction();
     apop_data *still_fails = checkData(d, !(do_preedits && do_preedits[0]=='n'),
                                           !(clear_failures && clear_failures[0]=='n'), ti);
+    apop_data_free(still_fails);
     commit_transaction();
     apop_data_free(d);
 

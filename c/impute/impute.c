@@ -475,7 +475,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
             continue;
         int tryctr=0;
         char *id = is->isnan->names->row[rowindex];
-        bool has_edits;
+        bool has_edits = false;
 
         char *pre_preedit[total_var_ct];
 
@@ -494,7 +494,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
                 if (!isnan(val))
                     Asprintf(oext_values[is->var_posns[j]], "%g", val)
                 else 
-                    Asprintf(oext_values[is->var_posns[j]], "")
+                    Asprintf(oext_values[is->var_posns[j]], "%s", "")
             }
 
         for (int i=0; i< total_var_ct; i++)
@@ -564,7 +564,6 @@ static void impute_a_variable(const char *datatab, impustruct *is,
         const apop_data *fingerprint_vars, tabinfo_s tabinfo, char *previous_filltab){
     static int model_id=-1;
     char *dt;
-    char *dataxxx = (char*)datatab; //can't constify checkout, because of R
 
     //if there is a previous fill tab, then we need to do a re-estimation
     //of the model every time. If not, then we do one est & many draws.
