@@ -1,4 +1,4 @@
-database: db
+database: em.db
 id: id
 
 input {

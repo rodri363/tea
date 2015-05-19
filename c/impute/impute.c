@@ -415,10 +415,12 @@ static int onedraw(gsl_rng *r, impustruct *is,
             if (!has_edits) return 0;
             
         }
-    } else  //the EM model
+    } else { //the EM model
         for (int i=0; i<is->fitted_model->dsize; i++)
             if (is->var_posns[i]>=0)  //-1=not in used_vars list.
                 Asprintf(oext_values[is->var_posns[i]], "%g", x[i]);
+        if (!has_edits) return 0;
+    }
 
     //just get a success/failure, but a smarter system would request the list of failed fields.
     return consistency_check(oext_values, "passfail", NULL, /*do_preedits=*/true, /*clear_failures=*/false, ti);
@@ -475,7 +477,7 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
         char *id = is->isnan->names->row[rowindex];
         bool has_edits;
 
-         char *pre_preedit[total_var_ct];
+        char *pre_preedit[total_var_ct];
 
         if (is->depvar){
             apop_data *drecord = NULL;
@@ -532,6 +534,16 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
 
 double still_is_nan(apop_data *in){return in->names->row[0][strlen(*in->names->row)-1]!= '.';}
 
+char * check_out(char *datatab, char *previous_filltab, int drawct, impustruct is, tabinfo_s tabinfo){
+    char *dt;
+    if (previous_filltab[0]){
+        Asprintf(&dt, "%s_copy", datatab);
+        check_out_impute(&datatab, &dt, &drawct, NULL, &previous_filltab);
+        create_index(dt, is.depvar);
+        create_index(dt, tabinfo.id_col);
+    } else dt=strdup(datatab);
+    return dt;
+}
 
 /* As named, impute a single variable.
    We check bounds, because those can be done on a single-variable basis.
@@ -563,12 +575,7 @@ static void impute_a_variable(const char *datatab, impustruct *is,
     create_index(datatab, tabinfo.id_col);
 
     for (int outerdraw=0; outerdraw < outermax; outerdraw++){
-        if (previous_filltab[0]){
-            Asprintf(&dt, "%s_copy", datatab);
-            check_out_impute(&dataxxx, &dt, &outerdraw, NULL, &previous_filltab);
-            create_index(dt, is->depvar);
-            create_index(dt, tabinfo.id_col);
-        } else dt=strdup(datatab);
+        dt = check_out((char*)datatab, (char*)previous_filltab, outerdraw, *is, tabinfo);
         begin_transaction();
 
         //Get the list of all missing values, possibly after the fill-ins change subsets.

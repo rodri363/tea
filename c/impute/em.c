@@ -87,17 +87,23 @@ apop_model *prep_the_draws(apop_data *raked, apop_data *fin, gsl_vector const *o
     bool done = false;
     apop_map(raked, .fn_rp=cull, .param=fin, .inplace='v');
     done = apop_sum(raked->weights);
-    Tea_stopif(!done, return NULL, 0, "Still couldn't find something to draw.");
+    Tea_stopif(!done, apop_data_show(fin); return NULL, 0, "Still couldn't find something to draw for this record:");
     return apop_estimate(raked, apop_pmf);
 }
 
-apop_data *get_data_for_em(const char *datatab, char *catlist, const char *id_col, 
-                           char const *weight_col, char *previous_filltab, impustruct is){
+apop_data *get_data_for_em(const char *datatab, char **dt, char *catlist, const char *id_col, 
+                           char const *weight_col, char *previous_filltab, impustruct is, tabinfo_s ti){
     apop_data as_data = (apop_data){.textsize={1,is.allvars_ct}, .text=&is.allvars};
+    *dt = check_out((char*)datatab, previous_filltab, /*outerdraw*/0, is, ti);
     char *varlist = apop_text_paste(&as_data, .between=", ");
-    apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s", id_col, varlist, 
+    
+    apop_data *d = apop_query_to_data("select %s, %s %c %s from %s %s %s %s %s", id_col, varlist, 
                     weight_col ? ',' : ' ',
-                    XN(weight_col), /*previous_filltab ? dt :*/datatab, catlist ? "where": " ", XN(catlist));
+                    XN(weight_col), *dt,
+                    (catlist||is.subset) ? "where": " ",
+                    XN(catlist),
+                    (catlist&&is.subset) ? " and " : " ",
+                    XN(is.subset));
     free(varlist);
     Tea_stopif(!d || d->error, return d, 0, "Query trouble.");
     if (!d->weights) {
@@ -183,8 +189,8 @@ void em_to_completion(char const *datatab,
         apop_data const *fingerprint_vars, tabinfo_s tabinfo,
         char const *weight_col, char const *margintab,
         char *previous_filltab){
-
-    apop_data *d = get_data_for_em(datatab, catlist, tabinfo.id_col, weight_col, previous_filltab, is);
+    char *dt;
+    apop_data *d = get_data_for_em(datatab, &dt, catlist, tabinfo.id_col, weight_col, previous_filltab, is, tabinfo);
     Tea_stopif(!d, return, 0, "Query for appropriate data returned no elements. Nothing to do.");
     Tea_stopif(d->error, return, 0, "query error.");
     int count_of_nans = apop_map_sum(d, .fn_d=nnn);
@@ -197,7 +203,7 @@ void em_to_completion(char const *datatab,
 
     //diagnostic_print(d, raked);
 
-    make_rake_draws(d, raked, is, /*count_of_nans,*/ r, draw_count, tabinfo, datatab);
+    make_rake_draws(d, raked, is, /*count_of_nans,*/ r, draw_count, tabinfo, dt);
     //apop_data_print(raked, .output_name="ooo", .output_append='a');
     apop_data_free(raked); //Thrown away.
     apop_data_free(d);

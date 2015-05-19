@@ -58,6 +58,7 @@ typedef struct {
 } impustruct;
 
 void make_a_draw(impustruct *is, gsl_rng *r, char const *dt, tabinfo_s ti, apop_data *nanvals, bool last_chance);
+char * check_out(char *datatab, char *previous_filltab, int drawct, impustruct is, tabinfo_s tabinfo);
 
 //impute/em.c
 void em_to_completion(char const *datatab,
