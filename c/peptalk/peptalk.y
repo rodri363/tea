@@ -168,8 +168,6 @@ optionalcolon: ':'
              |
              ;
 
-//// optionalweight: WEIGHT {extend_key($1);used_vars[total_var_ct-1].weight = atof($1);}
-////              | {used_vars[total_var_ct-1].weight = 1.0;}
 optionalweight: WEIGHT {nextweight = atof($1);}
               | {nextweight = 1.0;}
               ;
@@ -183,7 +181,6 @@ num_item : NUMBER '-' NUMBER  {add_to_num_list_seq($1, $3);}
          | NUMBER             {add_to_num_list($1);}
          | DTEXT               {add_to_num_list($1);}
          | '*'               {add_to_num_list("*");}
-         |'$' NUMBER           {used_vars[total_var_ct-1].weight = atof($2);}
          | error   			{Rf_error("Error in list around [%s] line [%d].", $1,lineno);}
          ;
 
@@ -299,7 +296,7 @@ char add_var_no_edit(char const *var, int is_recode, char type){
 	total_var_ct++;
 	used_vars = realloc(used_vars, sizeof(used_var_t)*(total_var_ct+1));
 	used_vars[total_var_ct-1] = (used_var_t) {.name=strdup(var), .index=total_var_ct-1,
-                                             .weight=1, .last_query=-1, .type=type};
+                                             .weight=nextweight, .last_query=-1, .type=type};
 	used_vars[total_var_ct] = (used_var_t) {};//null sentinel.
     return 'c';
 }

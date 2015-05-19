@@ -58,7 +58,7 @@ int include_stack_ptr = 0;
 <declarations>[ \t]*int/(\n|{space}) { parsed_type = 'i'; return TYPE; }
 <declarations>[ \t]*real/(\n|{space}) { parsed_type = 'r'; return TYPE; }
 <declarations>[ \t]*cat/(\n|{space}) { parsed_type = 'c'; return TYPE; }
-<declarations>\[{digit}+\.?|{digit}*\.{digit}+\] {return WEIGHT;}
+<declarations>\[{space}*({digit}+\.?{digit}*|{digit}*\.{digit}+){space}*\] {yylval = strdup(yytext+1); return WEIGHT;}
 <declarations>({text}|{sqlpunct})      { yylval = strdup(yytext); return DTEXT;}
 <declarations>({space}|{notnewline})+    { ; }
 				
