@@ -428,10 +428,11 @@ static int onedraw(gsl_rng *r, impustruct *is,
 
 void setit(tabinfo_s ti, char const *final_value, char const *field_name){
         char tick = final_value ? '\'': ' ';
-        if (!ti.autofill)
+        if (!ti.autofill){
+             Apop_stopif(!ti.id, return, 0, "No ID; can't write to fill table %s", ti.tabname);
              apop_query("insert into %s values(%i, %c%s%c, %s, '%s');",
                        ti.tabname, ti.draw_number, tick, final_value?final_value:"NULL", tick, ti.id, field_name);
-        else apop_query("update %s set %s = %c%s%c where  %s+0.0=%s;",
+        } else apop_query("update %s set %s = %c%s%c where  %s+0.0=%s;",
                        ti.tabname, field_name, tick, final_value?final_value:"NULL", tick, ti.id_col, ti.id);
 }
 
@@ -510,8 +511,8 @@ void make_a_draw(impustruct *is, gsl_rng *r, char const *dt,
             "value that passes checks, and couldn't. Something's wrong that a "
             "computer can't fix.", id);
 
+        ti.id = is->isnan->names->row[rowindex];
         if (!fail_count){
-            ti.id = is->isnan->names->row[rowindex];
             if (!has_edits && is->depvar){ //is->depvar is a semaphore for not the EM model.
                 char * final_value = *oext_values[col_of_interest];
                 Tea_stopif(!final_value || isnan(atof(final_value)), goto cutout, 0,
