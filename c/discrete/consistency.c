@@ -384,7 +384,7 @@ int consistency_check(char ***oext_values, char const *what_you_want,
     int record[width];
     bool gotta_start_over = true;
     int last_run_preed = do_preedits ? -1 : INT_MAX;
-    int fail_count;
+    int fail_count=0;
     bool pf = !strcmp(what_you_want, "passfail");
     bool has_sql_edits = false;
     bool promised_nans[total_var_ct]; memset(promised_nans, 0, sizeof(bool)*total_var_ct);  //TO DO
@@ -460,7 +460,8 @@ apop_data *checkData(apop_data *data, bool do_preedits, bool clear_failures, tab
         memset(failed_fields, 0, nvars*sizeof(int));
         order_things(vals, fields, nvars, oext_values); //has to be here for NaN-handling.
 
-        tabinfo.id=(data->names && data->names->rowct) ? data->names->row[idx]: 0;
+        Apop_stopif(!data->names || !data->names->rowct, , 0, "No IDs; can't annotate a fill table");
+        tabinfo.id=(data->names && data->names->rowct) ? data->names->row[idx]: NULL;
         consistency_check(oext_values, "failed fields", ofailed_fields, do_preedits, clear_failures, tabinfo);
 
 		//insert failure counts

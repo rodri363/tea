@@ -46,6 +46,7 @@ pkg: talk
 	cp `find c -type f` $(Pkg_dir)/src #flattens to a one-level directory
 	cp -r pkging/* $(Pkg_dir)
 	make keys
+	@if [ "$(Tea_tutorial_dir)" != "" ] ; then cp $(Tea_tutorial_dir)/*.{R,spec,csv} $(Pkg_dir)/tests/ ; else echo -e "\nNot copying tests from tea tutorial. If so desired, export Tea_tutorial_dir=/path/to/tutorial.\n"; fi
 	cd $(Pkg_dir); autoconf; rm configure.ac; rm -r autom4te.cache
 
 keys:
